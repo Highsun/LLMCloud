@@ -1,0 +1,52 @@
+# Python / local environments
+__pycache__/
+*.py[cod]
+.venv*/
+venv/
+.pytest_cache/
+.ruff_cache/
+*.egg-info/
+build/
+dist/
+.coverage
+htmlcov/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+!frontend/.env.example
+.aws/
+.codex/
+.agents/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Frontend
+node_modules/
+*.tsbuildinfo
+*.local
+npm-debug.log*
+
+# Datasets, weights, training artifacts and logs stay out of Git
+data/**
+!data/datasets/
+!data/models/
+!data/outputs/
+!data/datasets/.gitkeep
+!data/models/.gitkeep
+!data/outputs/.gitkeep
+logs/**
+!logs/.gitkeep
+*.db
+*.db-*
+*.sqlite*
+*.log
+*.safetensors
+*.bin
+*.pt
+*.pth
+*.ckpt
+celerybeat-schedule*

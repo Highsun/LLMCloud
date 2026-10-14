@@ -1,0 +1,14 @@
+{
+  "name": "llmcloud-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "^22.18.0 || >=24.12.0" },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": { "vue": "^3.5.0" },
+  "devDependencies": { "@vitejs/plugin-vue": "^6.0.0", "vite": "^7.0.0" }
+}

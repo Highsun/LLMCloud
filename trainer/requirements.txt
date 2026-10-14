@@ -1,0 +1,9 @@
+# Install a CUDA PyTorch wheel FIRST, following README.md.
+# Candidate training dependency ranges; real GPU training is not validated yet.
+torch>=2.9,<2.10
+transformers>=4.56,<5.0
+datasets>=4.0,<5.0
+peft>=0.17,<0.19
+trl>=0.24,<0.26
+accelerate>=1.10,<2.0
+pydantic>=2.8,<3.0
