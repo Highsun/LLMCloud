@@ -125,6 +125,15 @@ npm run dev
 
 ### 3. Redis 与 Worker
 
+本机已安装用户级 Redis，使用项目目录保存数据和日志，可通过以下命令管理：
+
+```bash
+systemctl --user start llmcloud-redis.service
+redis-cli ping
+```
+
+在其他已安装 Redis 的机器上，也可运行 `bash scripts/start_redis.sh` 在前台启动本地开发实例。用户服务与 Docker Redis 共用 6379 端口，二者选一种运行。
+
 若已安装 Docker Engine/Compose 或启用 Docker Desktop 的 WSL 集成：
 
 ```bash
@@ -147,6 +156,8 @@ uv run --locked python -c 'from worker.tasks import ping; print(ping.delay().get
 ```
 
 预期结果：`{'status': 'ok', 'service': 'llmcloud-worker'}`。此检查不执行训练。停止开发用 Redis：`docker compose stop redis`。
+
+环境检查：`uv run --locked python scripts/check_environment.py --gpu`。本机安装位置、版本、Redis 管理和 Docker 安装步骤见 [docs/environment.md](docs/environment.md)。
 
 ## 五、准备 GPU 训练环境（后续 M2）
 

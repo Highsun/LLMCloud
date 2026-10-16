@@ -20,7 +20,10 @@ htmlcov/
 .codex/
 .agents/
 .idea/
-.vscode/
+!.vscode/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
 .DS_Store
 Thumbs.db
 
