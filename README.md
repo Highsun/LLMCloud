@@ -38,7 +38,9 @@ LLMCloud/
 ├── README.md
 ├── .gitignore
 ├── .python-version
-├── requirements.txt
+├── pyproject.toml              # Python 依赖声明与 uv 配置
+├── uv.lock                     # 服务与训练依赖的统一锁文件
+├── requirements.txt            # 从 uv.lock 导出的兼容文件
 ├── .env.example
 ├── compose.yaml                # 开发用 Redis
 ├── backend/
@@ -52,7 +54,7 @@ LLMCloud/
 │   ├── train.py                # 训练接口，后续实现
 │   ├── dataset.py              # JSONL 格式校验
 │   ├── lora_config.py          # 训练参数契约
-│   └── requirements.txt        # GPU 训练依赖单独安装
+│   └── requirements.txt        # 含训练依赖的兼容导出
 ├── worker/
 │   ├── celery_app.py
 │   └── tasks.py
@@ -77,22 +79,26 @@ LLMCloud/
 
 ## 四、启动基础服务
 
-以下命令均在 WSL2 中执行。使用 **Python 3.12**（或 3.11）、**Node.js 22.18+ 的 22.x 或 24.12+**。先启动基础服务，无需安装 PyTorch，也无需下载模型。
+以下命令均在 WSL2 中执行。Python 环境统一由 **uv** 管理，`.python-version` 指定 **Python 3.12**，项目支持 Python 3.11/3.12。前端使用 **Node.js 22.18+ 的 22.x 或 24.12+**。先启动基础服务，无需安装 PyTorch，也无需下载模型。
 
 ### 1. 后端
 
-在仓库根目录执行：
+先安装 [uv](https://docs.astral.sh/uv/getting-started/installation/)；已有 uv 时跳过：
 
 ```bash
-python3.12 -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -r requirements.txt
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+重新打开终端，确认 `uv --version` 可用，然后在仓库根目录执行：
+
+```bash
+uv python install 3.12
+uv sync --locked
 cp .env.example .env
 bash scripts/start_api.sh
 ```
 
-若 Ubuntu 缺少 venv 组件，请先安装与 Python 版本对应的 venv 系统包。也可以使用 `uv venv --python 3.12 .venv` 建立环境。
+`uv sync --locked` 自动创建或同步根目录 `.venv`，按 `uv.lock` 安装服务依赖。运行命令统一使用 `uv run --locked`，无需手动激活环境。已有不同 Python 版本的 `.venv` 会按项目版本重新创建；代码、数据和日志不受影响。
 
 打开：
 
@@ -113,7 +119,7 @@ cp .env.example .env
 npm run dev
 ```
 
-打开 <http://localhost:5173>。开发服务器将 `/api` 请求代理到后端。也可在根目录运行 `python frontend/app.py` 启动相同的 Vue 开发服务器。
+打开 <http://localhost:5173>。开发服务器将 `/api` 请求代理到后端。也可在根目录运行 `uv run --locked python frontend/app.py` 启动相同的 Vue 开发服务器。Node/npm 仍单独管理。
 
 构建检查：`cd frontend && npm run build`。生产部署时需要由反向代理配置 `/api`，Vite 开发代理不会随 `dist/` 一起生效。
 
@@ -134,31 +140,46 @@ bash scripts/start_worker.sh
 
 Worker 使用 `solo` 池、并发 1、预取 1，并消费训练队列和默认诊断队列。不要为同一块 GPU 重复启动 Worker。
 
-另开已激活 `.venv` 的终端验证队列：
+另开终端，在根目录验证队列：
 
 ```bash
-python -c 'from worker.tasks import ping; print(ping.delay().get(timeout=10))'
+uv run --locked python -c 'from worker.tasks import ping; print(ping.delay().get(timeout=10))'
 ```
 
 预期结果：`{'status': 'ok', 'service': 'llmcloud-worker'}`。此检查不执行训练。停止开发用 Redis：`docker compose stop redis`。
 
 ## 五、准备 GPU 训练环境（后续 M2）
 
-Web/API 环境和训练依赖分开管理。当前先使用同一个 `.venv`，未来部署时拆为 CPU API 镜像与 GPU Worker 镜像。
+服务依赖位于 `project.dependencies`，训练依赖位于可选的 `training` extra。默认同步仅安装服务依赖，按需启用训练依赖；两者由同一份 `uv.lock` 锁定。当前先使用同一个 `.venv`，未来部署时拆为 CPU API 镜像与 GPU Worker 镜像。
 
-RTX 5070 使用 Blackwell 架构，不能沿用只支持旧 GPU 的 PyTorch wheel。PyTorch 官方从 2.7 开始提供 Blackwell/CUDA 12.8 支持；本项目选择官方仍提供安装命令的 **2.9.1 + cu128** 作为候选基线，而非自动安装最新大版本。先检查 Windows NVIDIA 驱动与 WSL 透传，再在根目录执行：
+RTX 5070 使用 Blackwell 架构，不能沿用只支持旧 GPU 的 PyTorch wheel。PyTorch 官方从 2.7 开始提供 Blackwell/CUDA 12.8 支持；本项目选择 **2.9.1 + cu128** 作为候选基线。`pyproject.toml` 将 Linux/Windows 的 torch 明确绑定到官方 cu128 索引，其余依赖使用 PyPI。先检查 Windows NVIDIA 驱动与 WSL 透传，再在根目录执行：
 
 ```bash
-source .venv/bin/activate
 nvidia-smi
-python -m pip install torch==2.9.1 --index-url https://download.pytorch.org/whl/cu128
-python -m pip install -r trainer/requirements.txt
-python scripts/check_gpu.py
+uv sync --locked --extra training
+uv run --locked --extra training python scripts/check_gpu.py
 ```
 
-`check_gpu.py` 会执行实际前向和反向 GPU 运算。通过该检查后，再下载基础模型和验证 LoRA 训练。训练依赖范围尚未完成真实训练兼容性验证，M2 成功后应锁定完整版本。初始化不会安装 GPU 依赖或下载模型。
+`check_gpu.py` 会执行实际前向和反向 GPU 运算。通过该检查后，再下载基础模型和验证 LoRA 训练。训练依赖已锁定版本，但尚未完成真实 GPU 训练兼容性验证，M2 成功后再按实测调整。普通 `uv sync --locked` 会回到仅服务依赖的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
 
-相关依据：[PyTorch Blackwell 支持说明](https://pytorch.org/blog/pytorch-2-7/)、[官方历史版本安装矩阵](https://pytorch.org/get-started/previous-versions/)、[Qwen2.5-0.5B 模型卡](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)、[Vue 官方开发环境说明](https://vuejs.org/guide/quick-start)。
+独立 GPU 环境也可使用 `UV_PROJECT_ENVIRONMENT=.venv-training uv sync --locked --extra training`，运行 Worker 和 GPU 检查时同样设置该变量。
+
+相关依据：[PyTorch Blackwell 支持说明](https://pytorch.org/blog/pytorch-2-7/)、[官方历史版本安装矩阵](https://pytorch.org/get-started/previous-versions/)、[Qwen2.5-0.5B 模型卡](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)、[Vue 官方开发环境说明](https://vuejs.org/guide/quick-start)、[uv PyTorch 配置](https://docs.astral.sh/uv/guides/integration/pytorch/)、[uv 锁定与同步规则](https://docs.astral.sh/uv/concepts/projects/sync/)。
+
+### Python 依赖维护
+
+`pyproject.toml` 是依赖声明的唯一来源，`uv.lock` 保存解析后的完整版本。常用命令：
+
+```bash
+uv add <package>                         # 添加服务依赖并更新锁文件
+uv add --optional training <package>     # 添加训练依赖
+uv remove <package>                      # 删除服务依赖
+uv lock                                 # 修改声明后更新锁文件
+uv lock --upgrade-package <package>      # 定向升级
+bash scripts/export_requirements.sh      # 更新两个兼容 requirements 文件
+```
+
+修改依赖后一起提交 `pyproject.toml`、`uv.lock` 和导出的 requirements 文件；不要手工修改导出文件或混用 pip 安装来维护项目环境。训练版导出包含服务依赖与训练依赖，供暂不能使用 uv 的工具使用。
 
 ## 六、初始数据与参数
 

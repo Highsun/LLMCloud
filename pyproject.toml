@@ -1,0 +1,42 @@
+[project]
+name = "llmcloud"
+version = "0.1.0"
+description = "A cloud-based platform for parameter-efficient LLM fine-tuning"
+readme = "README.md"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+    "fastapi>=0.115,<1.0",
+    "uvicorn[standard]>=0.34,<1.0",
+    "pydantic-settings>=2.8,<3.0",
+    "pydantic>=2.8,<3.0",
+    "python-dotenv>=1.0,<2.0",
+    "sqlalchemy>=2.0,<2.1",
+    "python-multipart>=0.0.20,<1.0",
+    "celery[redis]>=5.5,<6.0",
+]
+
+[project.optional-dependencies]
+# Resolve and lock training packages, but install them only when requested.
+training = [
+    "torch==2.9.1",
+    "transformers>=4.56,<5.0",
+    "datasets>=4.0,<5.0",
+    "peft>=0.17,<0.19",
+    "trl>=0.24,<0.26",
+    "accelerate>=1.10,<2.0",
+]
+
+[tool.uv]
+# This repository is an application, not an installable Python distribution.
+package = false
+
+[[tool.uv.index]]
+name = "pytorch-cu128"
+url = "https://download.pytorch.org/whl/cu128"
+explicit = true
+
+[tool.uv.sources]
+# CUDA builds on WSL/Linux and Windows; fall back to PyPI on macOS.
+torch = [
+    { index = "pytorch-cu128", marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
+]

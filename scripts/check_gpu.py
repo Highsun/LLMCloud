@@ -1,4 +1,4 @@
-"""Run in the training venv: python scripts/check_gpu.py."""
+"""Run with training dependencies: uv run --locked --extra training python scripts/check_gpu.py."""
 
 import sys
 

@@ -21,7 +21,7 @@
 | 代码 commit / 模型 revision | 待填写 |
 | 数据集来源、授权、SHA256 | 待填写 |
 
-先执行 `nvidia-smi` 与 `python scripts/check_gpu.py`，保留版本和实际前向/反向运算结果。安装成功或 `cuda.is_available()` 为真均不足以替代 GPU 运算验证。
+先执行 `uv sync --locked --extra training`，再执行 `nvidia-smi` 与 `uv run --locked --extra training python scripts/check_gpu.py`，保留版本和实际前向/反向运算结果。安装成功或 `cuda.is_available()` 为真均不足以替代 GPU 运算验证。记录本次实验使用的 `uv.lock` 与 Git commit，便于复现实验环境。
 
 ## 三、实验步骤
 
