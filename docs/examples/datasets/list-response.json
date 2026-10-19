@@ -1,0 +1,16 @@
+{
+  "items": [
+    {
+      "id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+      "name": "云计算课程样例",
+      "format": "alpaca_jsonl",
+      "size_bytes": 625,
+      "row_count": 3,
+      "created_at": "2026-10-19T08:00:00Z"
+    }
+  ],
+  "total": 1,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}

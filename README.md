@@ -10,6 +10,8 @@
 
 当前完成 **M0：需求理解与项目初始化**。
 
+M1 已进入接口设计阶段：**M1-01 契约已交付**。协作前先阅读 [AGENTS.md](AGENTS.md)，数据集上传、分页、响应与错误约定见 [M1 接口契约](docs/api/datasets.md)。数据集 HTTP 接口和存储逻辑仍待 M1-02/M1-03 实现。
+
 - 已建立：项目结构、环境配置、SQLite 元数据表、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 首页。
 - 已定义：数据集格式、训练参数校验、训练输入/输出及进度回调接口、任务状态、后续 API 契约。
 - 待开发：数据上传接口、任务创建和查询、真实 LoRA 训练、日志与 Loss 展示、Adapter 下载、模型推理。
@@ -36,6 +38,7 @@
 ```text
 LLMCloud/
 ├── README.md
+├── AGENTS.md                   # 成员与 AI 助手协作入口
 ├── .gitignore
 ├── .python-version
 ├── pyproject.toml              # Python 依赖声明与 uv 配置

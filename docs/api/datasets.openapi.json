@@ -1,0 +1,780 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "LLMCloud M1 dataset API design",
+    "version": "1.0.0",
+    "description": "PLANNED M1-01 contract; routes and global error handlers are not implemented yet. Generated from Pydantic schemas; see docs/api/datasets.md."
+  },
+  "servers": [
+    {
+      "url": "/api/v1"
+    }
+  ],
+  "x-implementation-status": "planned",
+  "x-generated-by": "scripts/export_dataset_contract.py",
+  "paths": {
+    "/datasets": {
+      "post": {
+        "operationId": "upload_dataset",
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Upload and synchronously validate one immutable dataset",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/DatasetUpload"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Dataset committed",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Location": {
+                "description": "/api/v1/datasets/{id}",
+                "schema": {
+                  "type": "string"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetDetail"
+                },
+                "example": {
+                  "id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+                  "name": "云计算课程样例",
+                  "format": "alpaca_jsonl",
+                  "size_bytes": 625,
+                  "row_count": 3,
+                  "created_at": "2026-10-19T08:00:00Z",
+                  "original_filename": "train.jsonl",
+                  "sha256": "0ab7de0f8f7adb17d5bd47ff4b1a6a2df4237e5853c9720acf38d468adb1c5ab"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "INVALID_MULTIPART",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "UPLOAD_TOO_LARGE",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "415": {
+            "description": "UNSUPPORTED_MEDIA_TYPE",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR or INVALID_DATASET",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "STORAGE_UNAVAILABLE or DATABASE_UNAVAILABLE",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "operationId": "list_datasets",
+        "tags": [
+          "datasets"
+        ],
+        "summary": "List datasets ordered by created_at DESC, id DESC",
+        "description": "Reject unknown/duplicate query parameters. Empty or beyond-last pages return 200. Offset pagination does not guarantee snapshots across requests.",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "name": "page_size",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Page Size",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset page",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetPage"
+                },
+                "example": {
+                  "items": [
+                    {
+                      "id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+                      "name": "云计算课程样例",
+                      "format": "alpaca_jsonl",
+                      "size_bytes": 625,
+                      "row_count": 3,
+                      "created_at": "2026-10-19T08:00:00Z"
+                    }
+                  ],
+                  "total": 1,
+                  "page": 1,
+                  "page_size": 20,
+                  "total_pages": 1
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "STORAGE_UNAVAILABLE or DATABASE_UNAVAILABLE",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/datasets/{dataset_id}": {
+      "get": {
+        "operationId": "get_dataset",
+        "tags": [
+          "datasets"
+        ],
+        "summary": "Get dataset metadata without reading the raw training file",
+        "parameters": [
+          {
+            "name": "dataset_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Dataset metadata",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatasetDetail"
+                },
+                "example": {
+                  "id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+                  "name": "云计算课程样例",
+                  "format": "alpaca_jsonl",
+                  "size_bytes": 625,
+                  "row_count": 3,
+                  "created_at": "2026-10-19T08:00:00Z",
+                  "original_filename": "train.jsonl",
+                  "sha256": "0ab7de0f8f7adb17d5bd47ff4b1a6a2df4237e5853c9720acf38d468adb1c5ab"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "DATASET_NOT_FOUND",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INTERNAL_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "STORAGE_UNAVAILABLE or DATABASE_UNAVAILABLE",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated request UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "DatasetSummary": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid4",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "format": {
+            "const": "alpaca_jsonl",
+            "title": "Format",
+            "type": "string"
+          },
+          "size_bytes": {
+            "minimum": 1,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "row_count": {
+            "minimum": 1,
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "format",
+          "size_bytes",
+          "row_count",
+          "created_at"
+        ],
+        "title": "DatasetSummary",
+        "type": "object"
+      },
+      "DatasetDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "id": {
+            "format": "uuid4",
+            "title": "Id",
+            "type": "string"
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "format": {
+            "const": "alpaca_jsonl",
+            "title": "Format",
+            "type": "string"
+          },
+          "size_bytes": {
+            "minimum": 1,
+            "title": "Size Bytes",
+            "type": "integer"
+          },
+          "row_count": {
+            "minimum": 1,
+            "title": "Row Count",
+            "type": "integer"
+          },
+          "created_at": {
+            "format": "date-time",
+            "title": "Created At",
+            "type": "string"
+          },
+          "original_filename": {
+            "maxLength": 255,
+            "minLength": 1,
+            "title": "Original Filename",
+            "type": "string"
+          },
+          "sha256": {
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Sha256",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "format",
+          "size_bytes",
+          "row_count",
+          "created_at",
+          "original_filename",
+          "sha256"
+        ],
+        "title": "DatasetDetail",
+        "type": "object"
+      },
+      "DatasetPage": {
+        "additionalProperties": false,
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DatasetSummary"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "minimum": 0,
+            "title": "Total",
+            "type": "integer"
+          },
+          "page": {
+            "minimum": 1,
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "maximum": 100,
+            "minimum": 1,
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "total_pages": {
+            "minimum": 0,
+            "title": "Total Pages",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "page",
+          "page_size",
+          "total_pages"
+        ],
+        "title": "DatasetPage",
+        "type": "object"
+      },
+      "ApiError": {
+        "additionalProperties": false,
+        "properties": {
+          "code": {
+            "$ref": "#/components/schemas/ApiErrorCode"
+          },
+          "message": {
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "details": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorDetail"
+            },
+            "maxItems": 10,
+            "title": "Details",
+            "type": "array"
+          },
+          "details_truncated": {
+            "title": "Details Truncated",
+            "type": "boolean"
+          },
+          "request_id": {
+            "format": "uuid4",
+            "title": "Request Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "code",
+          "message",
+          "details",
+          "details_truncated",
+          "request_id"
+        ],
+        "title": "ApiError",
+        "type": "object"
+      },
+      "ApiErrorCode": {
+        "enum": [
+          "INVALID_MULTIPART",
+          "UNSUPPORTED_MEDIA_TYPE",
+          "UPLOAD_TOO_LARGE",
+          "VALIDATION_ERROR",
+          "INVALID_DATASET",
+          "DATASET_NOT_FOUND",
+          "NOT_FOUND",
+          "METHOD_NOT_ALLOWED",
+          "STORAGE_UNAVAILABLE",
+          "DATABASE_UNAVAILABLE",
+          "INTERNAL_ERROR",
+          "HTTP_ERROR"
+        ],
+        "title": "ApiErrorCode",
+        "type": "string"
+      },
+      "ErrorDetail": {
+        "additionalProperties": false,
+        "properties": {
+          "loc": {
+            "items": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "integer"
+                }
+              ]
+            },
+            "minItems": 1,
+            "title": "Loc",
+            "type": "array"
+          },
+          "code": {
+            "minLength": 1,
+            "title": "Code",
+            "type": "string"
+          },
+          "message": {
+            "minLength": 1,
+            "title": "Message",
+            "type": "string"
+          },
+          "line": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line"
+          },
+          "column": {
+            "anyOf": [
+              {
+                "minimum": 1,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Column"
+          }
+        },
+        "required": [
+          "loc",
+          "code",
+          "message",
+          "line",
+          "column"
+        ],
+        "title": "ErrorDetail",
+        "type": "object"
+      },
+      "ErrorResponse": {
+        "additionalProperties": false,
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ApiError"
+          }
+        },
+        "required": [
+          "error"
+        ],
+        "title": "ErrorResponse",
+        "type": "object"
+      },
+      "InstructionRecord": {
+        "additionalProperties": false,
+        "properties": {
+          "instruction": {
+            "title": "Instruction",
+            "type": "string"
+          },
+          "input": {
+            "default": "",
+            "title": "Input",
+            "type": "string"
+          },
+          "output": {
+            "title": "Output",
+            "type": "string"
+          }
+        },
+        "required": [
+          "instruction",
+          "output"
+        ],
+        "title": "InstructionRecord",
+        "type": "object"
+      },
+      "DatasetUpload": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "file"
+        ],
+        "properties": {
+          "file": {
+            "type": "string",
+            "format": "binary",
+            "description": "UTF-8 instruction/input/output JSONL; .jsonl extension required",
+            "x-max-bytes": 52428800,
+            "x-record-schema": {
+              "$ref": "#/components/schemas/InstructionRecord"
+            }
+          },
+          "name": {
+            "maxLength": 255,
+            "minLength": 1,
+            "type": "string",
+            "description": "Optional display name, trimmed; omission uses sanitized original filename",
+            "x-max-bytes": 1024
+          }
+        },
+        "x-max-body-bytes": 52494336,
+        "x-max-line-bytes": 1048576,
+        "x-parser-max-files": 4,
+        "x-parser-max-fields": 4,
+        "x-parser-max-text-part-bytes": 65536,
+        "x-duplicate-parts": "rejected"
+      }
+    }
+  }
+}

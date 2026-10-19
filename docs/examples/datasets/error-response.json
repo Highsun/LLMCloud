@@ -1,0 +1,21 @@
+{
+  "error": {
+    "code": "INVALID_DATASET",
+    "message": "数据集第 2 行缺少 output 字段。",
+    "details": [
+      {
+        "loc": [
+          "body",
+          "file",
+          "output"
+        ],
+        "code": "missing",
+        "message": "output 为必填字符串。",
+        "line": 2,
+        "column": null
+      }
+    ],
+    "details_truncated": false,
+    "request_id": "f63b14e1-7748-4e24-9db8-6d24810dd6df"
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+  "name": "云计算课程样例",
+  "format": "alpaca_jsonl",
+  "size_bytes": 625,
+  "row_count": 3,
+  "created_at": "2026-10-19T08:00:00Z",
+  "original_filename": "train.jsonl",
+  "sha256": "0ab7de0f8f7adb17d5bd47ff4b1a6a2df4237e5853c9720acf38d468adb1c5ab"
+}

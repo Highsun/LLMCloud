@@ -8,7 +8,7 @@
 
 项目将大语言模型参数高效微调封装为 Web 服务，体现云计算中的服务接口、异步调度、资源管理和可观测性。单个训练脚本是系统内部计算模块，完整交付还包括数据、任务和模型产物管理。
 
-当前任务范围为 **需求理解与项目初始化（M0）**，后续逐步实现 MVP。
+M0 已完成；当前推进 M1。M1-01 的数据集契约已交付，文件服务与真实 HTTP 接口待 M1-02/M1-03 实现。成员与 AI 助手先读 [协作约束](../AGENTS.md)，数据集字段、分页与公共错误以 [M1 接口契约](api/datasets.md) 为准。
 
 ## 二、开发约束
 
@@ -54,9 +54,9 @@ MVP 的训练与推理使用同一 GPU 时需要互斥；训练期间推理返�
 | --- | --- | --- | --- |
 | `GET /health` | 无 | API 进程存活与版本 | M0 |
 | `GET /models` | 无 | 基础模型白名单，不表示缓存就绪 | M0 |
-| `POST /datasets` | multipart `file` | 201；数据集 ID、行数、字节数 | M1 |
-| `GET /datasets` | 分页参数 | 数据集列表 | M1 |
-| `GET /datasets/{id}` | 数据集 ID | 元数据或 404 | M1 |
+| `POST /datasets` | multipart `file`，可选 `name` | 201；DatasetDetail，含哈希与原始文件名 | M1 |
+| `GET /datasets` | `page=1`，`page_size=20`（最大 100） | DatasetPage；固定时间/ID 倒序 | M1 |
+| `GET /datasets/{id}` | 数据集 UUID | DatasetDetail 或 404 | M1 |
 | `POST /tasks` | dataset_id、base_model、config | 202；任务 ID 与状态 | M3 |
 | `GET /tasks` | 状态、分页参数 | 任务列表 | M3 |
 | `GET /tasks/{id}` | 任务 ID | 状态、步数、进度、时间与错误 | M3 |

@@ -17,6 +17,8 @@ flowchart LR
 
 该图描述 MVP 目标架构。M0 已实现健康检查、模型目录、元数据建表、Worker 配置和诊断任务；业务服务与真实训练后续实现。
 
+M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读资源、原始字节 SHA-256 和相对 DATA_DIR 的存储键；M1-02/M1-03 再实现数据库迁移、文件服务、路由和统一异常处理。
+
 | 模块 | 输入 | 输出 | 职责边界 |
 | --- | --- | --- | --- |
 | `backend/app/api` | HTTP 请求 | JSON 或受控文件响应 | 校验、状态码与序列化 |
@@ -43,7 +45,8 @@ API 进程不加载模型和执行 GPU 计算。Celery 消息仅包含任务 ID�
 ```text
 data/
 ├── llmcloud.db
-├── datasets/{dataset_id}/train.jsonl
+├── datasets/.tmp/{upload_id}.part      # 上传阶段私有临时文件
+├── datasets/{dataset_id}/train.jsonl   # 校验成功后保存的原始字节
 ├── models/huggingface/                 # HF 缓存
 └── outputs/{task_id}/
     ├── adapter/                       # adapter_model.safetensors 与 adapter_config.json
@@ -67,6 +70,8 @@ logs/
 - `training_tasks`：ID、数据集 ID、模型、训练参数 JSON、状态、Celery ID、进度与步数、产物路径、错误、创建/开始/结束时间。
 
 SQLite 适合本地单 API/单 Worker。使用短事务、外键约束与 busy timeout，后续数据管理阶段按需启用 WAL。多进程部署和结构变更时引入 PostgreSQL 与 Alembic；M0 的 `create_all` 仅创建缺失表，不迁移已有表。
+
+M1-02 需为 datasets 显式迁移 original_filename 与 sha256 列，保留已有数据；format 暂由服务层返回固定的 alpaca_jsonl。现有实体尚未新增这些列，不能直接把新 DTO 当作已兼容旧 ORM 的响应。
 
 ```mermaid
 stateDiagram-v2
