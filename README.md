@@ -16,7 +16,7 @@
 
 `trainer.train` 和 `worker.train` 是明确报错的接口占位，不会生成虚假训练结果。首页中的训练流程标记为“待开发”。
 
-需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。
+需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
 ## 二、技术方案
 
@@ -205,6 +205,8 @@ bash scripts/export_requirements.sh      # 更新两个兼容 requirements 文�
 保守初始参数：LoRA r=8、alpha=16、dropout=0.05、目标层 q_proj/v_proj、batch size=1、梯度累积=8、序列长度=512、epoch=1、learning rate=2e-4、seed=42。它们是实验起点，显存占用需要实测。
 
 ## 七、开发路线
+
+执行基线：2 人，每人每周 6–8 小时，2026-10-19 至 2026-12-13。第 5 周形成核心功能闭环，第 6–8 周用于稳定性、云部署和课程交付；具体任务与验收标准见 [八周项目规划](docs/project-plan.md)。
 
 | 阶段 | 内容 | 完成标准 |
 | --- | --- | --- |
