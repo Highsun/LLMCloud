@@ -41,6 +41,8 @@ class Dataset(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=new_id)
     user_id: Mapped[str | None] = mapped_column(ForeignKey("users.id"))
     name: Mapped[str] = mapped_column(String(255))
+    original_filename: Mapped[str] = mapped_column(String(255))
+    sha256: Mapped[str] = mapped_column(String(64))
     storage_path: Mapped[str] = mapped_column(Text)
     size_bytes: Mapped[int] = mapped_column(Integer)
     row_count: Mapped[int] = mapped_column(Integer)

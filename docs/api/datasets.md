@@ -2,7 +2,7 @@
 
 契约版本：**1.0.0**；日期：2026-10-19；对应任务：**M1-01**。
 
-状态：接口设计与 Schema 已交付，运行时接口、存储和异常处理由 M1-02/M1-03 实现。当前后端只有健康检查和模型目录，访问下述数据集路径仍会得到旧的路由错误。不要把离线设计稿当作已部署 API。
+状态：接口设计与 Schema、M1-02 共享校验/文件服务/SQLite 迁移已交付；运行时 HTTP 接口、multipart 防护和异常 handlers 仍待 M1-03。当前后端只有健康检查和模型目录，访问下述数据集路径仍会得到旧的路由错误。不要把离线设计稿当作已部署 API。
 
 面向项目成员及 AI 助手的全局约束见 [AGENTS.md](../../AGENTS.md)，阶段安排见 [项目规划](../project-plan.md)。
 
@@ -18,7 +18,7 @@
 | 增加 original_filename 与 sha256 | 显示上传来源，关联 M2/M3 的不可变训练输入与复现实验 |
 | 详情只返回元数据 | 不在普通详情接口读回训练正文；预览、原始文件下载、修改和删除暂不纳入 M1 |
 
-基础路径固定为 `/api/v1`，字段使用 snake_case。以下常量集中定义在 `backend/app/core/dataset_contract.py`：
+基础路径固定为 `/api/v1`，字段使用 snake_case。以下常量由 `backend/app/core/dataset_contract.py` 统一导出；文件/行上限定义在 Trainer 的 CPU 模块，避免 Trainer 依赖后端：
 
 | 约束 | 值 |
 | --- | --- |
@@ -89,7 +89,7 @@ const response = await fetch('/api/v1/datasets', { method: 'POST', body: form })
 
 首个文件内容错误立即终止本次上传并返回 422/INVALID_DATASET。文件或行超过上限返回 413/UPLOAD_TOO_LARGE，而不是继续解析大对象。UTF-8/语法/记录错误在扫描时先遇到者优先；多个独立非法条件不承诺固定跨类别优先级。
 
-合法样例：[train.jsonl](../examples/train.jsonl)。可执行的正反样例位于 [datasets 目录](../examples/datasets/README.md)。当前 `trainer.dataset.iter_records` 仍允许额外键且不支持 BOM/重复键检查；M1-02 需要更新为共享规则，不能直接宣称它已经满足本契约。
+合法样例：[train.jsonl](../examples/train.jsonl)。可执行的正反样例位于 [datasets 目录](../examples/datasets/README.md)。M1-02 已将 `trainer.dataset.iter_records` 与上传服务统一为 DatasetScanner/InstructionRecord，包含 BOM/重复键和逐行限制。解码前拒绝超过 128 层的 JSON 结构，避免递归解码耗尽资源；合法字符串指令记录不受影响。
 
 ## 四、列表与分页
 
@@ -167,7 +167,7 @@ dataset_id 必须是 UUID 字符串；服务端生成 UUIDv4，并以标准小�
 - error.code 是稳定的大写机器码；message 可使用中文，不作为程序分支依据。
 - details 始终是数组；无字段明细时为 []，最多 10 条，发生截断时 details_truncated=true。上例的结构字段均必需，line/column 不适用时显式为 null；响应不使用 exclude_none/exclude_defaults 来省略这些键。
 - loc 是字段路径，使用 body/query/path 作为首项，如 `["query","page_size"]`；文件内容字段接在 body/file 后。line/column 是可空、从 1 开始的位置，column 按字符计数。不能确定位置时用 null。
-- 文件内容只报告第一个错误；请求元数据或查询参数可报告多条。明细 code 使用受控语义，如 missing、invalid_type、out_of_range、extra_field、duplicate_field、invalid_filename、invalid_encoding、invalid_json、duplicate_key、blank、file_too_large、line_too_large、unsupported_extension。避免直接绑定 Pydantic 内部版本的错误名。
+- 文件内容只报告第一个错误；请求元数据或查询参数可报告多条。明细 code 使用受控语义，如 missing、invalid_type、out_of_range、extra_field、duplicate_field、invalid_filename、invalid_encoding、invalid_json、duplicate_key、blank、empty、file_too_large、line_too_large、unsupported_extension。避免直接绑定 Pydantic 内部版本的错误名。
 - 每个请求由服务端生成 UUIDv4 request_id，不能直接信任客户端传入的同名 header。所有应用响应携带 X-Request-ID，错误体与 header 一致。
 - 错误不能回显整条训练数据、原始 input、绝对文件路径、数据库异常文本、凭据或堆栈。详细异常记录在服务端日志，并关联 request_id。
 
@@ -204,24 +204,24 @@ Dataset.storage_path 保存 `datasets/{dataset_id}/train.jsonl`，相对 DATA_DI
 
 普通失败应回滚并清理该次上传拥有的临时/最终文件；清理失败要记录。文件与 SQL 不是同一事务，进程被强杀或提交结果不确定时不能声称原子性，应提供孤立文件/元数据检查和人工修复依据，不能误删正在上传或已经被记录引用的文件。M1 不需要分布式事务或 outbox。
 
-| 契约字段 | 当前实体及 M1-02 工作 |
+| 契约字段 | 当前实体及 M1-02 实现 |
 | --- | --- |
 | id/name/size_bytes/row_count/created_at | 复用现有 Dataset 字段；UTC 存储，SQLite 读出的无时区 datetime 由 DTO 按 UTC 解释 |
 | format | 当前仅支持一种，服务层返回固定值，不必立即增加数据库列 |
-| original_filename | 新增非空字符串列，最大 255；不能用自定义 name 替代 |
-| sha256 | 新增非空 64 字符列；只用于校验与溯源，暂不建立唯一约束 |
+| original_filename | 已新增非空字符串列，最大 255；不能用自定义 name 替代 |
+| sha256 | 已新增非空 64 字符列；只用于校验与溯源，暂不建立唯一约束 |
 | storage_path | 保留实体字段，明确为相对 DATA_DIR 的键，禁止返回给客户端 |
 | user_id | MVP 无认证时仍为 null；不能由客户端提交或伪装已有权限校验 |
 
-已有 `create_all` 不会修改旧表。M1-02 必须提供显式迁移/兼容方案：空表正常升级；已有记录可读取原文件时计算哈希，原始文件名只能从可信历史元数据恢复。无法恢复原始文件名或文件缺失时，迁移应输出待人工补录/修复清单，不用最终路径的 train.jsonl 冒充客户端文件名，不编造哈希。不能静默删除/重建已有数据库；仅确认为可丢弃的本地演示数据时才按明确指令重置。
+已有 `create_all` 不会修改旧表。M1-02 已提供显式迁移脚本：空表正常升级；已有记录需可信文件名映射，并扫描原文件计算哈希。无法恢复文件名、文件缺失、旧统计不符或表结构未知时输出待修复清单，不用 train.jsonl 冒充原始文件名，不编造哈希。应用迁移先自动备份，在 SQLite 写事务中重建已知旧表并校验外键；详见 [迁移操作](../worklogs/2026-10-21-m1-02.md)。不能静默删除/重建整个数据库。
 
 上传后原始文件不修改、不覆盖，不提供 PATCH/DELETE。任务通过 dataset_id 引用数据，M3 记录当时的 sha256 与训练参数；重复上传获得不同 ID，避免后续训练输入被悄悄替换。
 
 ## 八、实现分界与交付检查
 
-| 本次 M1-01 | 后续任务 |
+| 已交付 | 后续任务 |
 | --- | --- |
-| AGENTS.md 协作入口、本文、常量、Pydantic DTO、InstructionRecord、离线 OpenAPI、固定样例与契约检查 | M1-02：存储/扫描、共享记录校验、数据库迁移、清理；M1-03：真实路由、参数绑定与统一错误 handlers；M1-04：Vue 页面 |
+| M1-01：协作入口、本文、常量、DTO、离线 OpenAPI、样例；M1-02：共享扫描、存储/查询服务、迁移、清理/审计及测试 | M1-03：真实路由、参数绑定与统一错误 handlers；M1-04：Vue 页面 |
 
 生成/核验契约：
 
@@ -229,6 +229,7 @@ Dataset.storage_path 保存 `datasets/{dataset_id}/train.jsonl`，相对 DATA_DI
 uv run --locked python scripts/export_dataset_contract.py
 uv run --locked python scripts/export_dataset_contract.py --check
 uv run --locked python -m unittest discover -s tests -p 'test_dataset_contract.py'
+uv run --locked python -m unittest discover -s tests -v
 ```
 
 生成文件：[datasets.openapi.json](datasets.openapi.json)。Schema 由 Pydantic 生成，HTTP 元信息在导出脚本维护；样例是真实文件统计值加固定演示 ID/时间。生成器不导入主应用、不建表、不挂载占位路由。

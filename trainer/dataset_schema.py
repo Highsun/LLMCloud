@@ -1,6 +1,9 @@
-"""CPU-only instruction record contract, shared by future upload/training readers."""
+"""CPU-only record contract and limits shared by upload and training readers."""
 
 from pydantic import BaseModel, ConfigDict, field_validator
+
+MAX_DATASET_BYTES = 50 * 1024 * 1024
+MAX_JSONL_LINE_BYTES = 1024 * 1024
 
 
 class InstructionRecord(BaseModel):

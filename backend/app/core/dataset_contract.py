@@ -1,9 +1,9 @@
-"""M1 dataset contract constants; runtime enforcement follows in M1-02/M1-03."""
+"""Shared M1 constants; multipart enforcement belongs to M1-03."""
+
+from trainer.dataset_schema import MAX_DATASET_BYTES, MAX_JSONL_LINE_BYTES
 
 DATASET_CONTRACT_VERSION = "1.0.0"
-MAX_DATASET_BYTES = 50 * 1024 * 1024
 MAX_MULTIPART_BYTES = MAX_DATASET_BYTES + 64 * 1024
-MAX_JSONL_LINE_BYTES = 1024 * 1024
 MAX_MULTIPART_FILES = 4
 MAX_MULTIPART_FIELDS = 4
 MAX_MULTIPART_TEXT_PART_BYTES = 64 * 1024

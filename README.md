@@ -10,9 +10,9 @@
 
 当前完成 **M0：需求理解与项目初始化**。
 
-M1 已进入接口设计阶段：**M1-01 契约已交付**。协作前先阅读 [AGENTS.md](AGENTS.md)，数据集上传、分页、响应与错误约定见 [M1 接口契约](docs/api/datasets.md)。数据集 HTTP 接口和存储逻辑仍待 M1-02/M1-03 实现。
+M1 已完成 **M1-01 契约**与 **M1-02 数据集服务层**。协作前先阅读 [AGENTS.md](AGENTS.md)，字段与错误见 [M1 接口契约](docs/api/datasets.md)，服务调用、旧库迁移与验证见 [M1-02 工作日志](docs/worklogs/2026-10-21-m1-02.md)。HTTP 路由和统一错误处理仍待 M1-03，当前尚不能从浏览器上传数据集。
 
-- 已建立：项目结构、环境配置、SQLite 元数据表、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 首页。
+- 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 首页。
 - 已定义：数据集格式、训练参数校验、训练输入/输出及进度回调接口、任务状态、后续 API 契约。
 - 待开发：数据上传接口、任务创建和查询、真实 LoRA 训练、日志与 Loss 展示、Adapter 下载、模型推理。
 
@@ -110,6 +110,10 @@ bash scripts/start_api.sh
 - 基础模型目录：<http://localhost:8000/api/v1/models>
 
 首次启动创建 `data/llmcloud.db`。健康检查仅表示 API 进程存活；模型目录仅表示允许选择的模型，不表示模型已下载或 GPU 可用。
+
+从 M0 旧库升级时，启动会提示数据集表迁移。先停止 API/Worker，执行 `uv run --locked python scripts/migrate_datasets.py --check`，报告允许后再执行 `--apply`；应用迁移会自动备份，有历史数据时需按工作日志提供可信文件名映射。本机空旧库已完成升级，无需重复重建。
+
+服务层与契约测试：`uv run --locked python -m unittest discover -s tests -v`。只读存储检查：`uv run --locked python scripts/check_dataset_storage.py --verify-hash`，不会自动删除文件。
 
 ### 2. Vue3 前端
 

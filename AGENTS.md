@@ -20,8 +20,10 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 - M0 环境和骨架已完成。健康检查、模型目录与 Celery ping 已实现。
 - M1-01 交付接口约定、Pydantic Schema、离线 OpenAPI 设计稿和样例。
-- 数据集上传/查询接口、文件服务、数据库新字段和统一异常处理尚待 M1-02/M1-03 实现。
-- 当前 `trainer.dataset.iter_records` 是旧校验器，并未实现 M1 完整规则；M1-02 必须与新 `InstructionRecord` 和文件规则收敛。
+- M1-02 已完成共享 JSONL 扫描器、数据集创建/查询服务、失败清理/只读审计、新字段及 SQLite 显式迁移；详见 [工作日志](docs/worklogs/2026-10-21-m1-02.md)。
+- 数据集 HTTP 路由、multipart/整个请求体限制、request_id 和统一异常 handlers 仍待 M1-03，不能把服务层完成当成已能浏览器上传。
+- `trainer.dataset.iter_records` 与上传服务共用 DatasetScanner/InstructionRecord，不能另写一套宽松的文件校验。
+- 新库启动直接创建新表，旧库先运行 `scripts/migrate_datasets.py --check`，确认报告后显式 `--apply`；禁止用 create_all 或删库替代迁移。
 - `trainer.train` 和 `worker.train` 仍是占位。极小随机模型验证成功，不代表预训练模型微调功能完成。
 - 开始任何工作前读取实际代码和 Git 状态；阶段状态变化时同步更新此处与规划，不把约定或 mock 写成已实现能力。
 

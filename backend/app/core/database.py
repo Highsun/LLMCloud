@@ -28,7 +28,9 @@ if url.startswith("sqlite"):
 def init_db() -> None:
     # Import all mapped tables before create_all. Migrations follow in a later phase.
     from backend.app.models import entities  # noqa: F401
+    from backend.app.core.dataset_migration import require_dataset_schema
 
+    require_dataset_schema(engine)
     Base.metadata.create_all(bind=engine)
 
 

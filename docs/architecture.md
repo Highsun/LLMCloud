@@ -15,9 +15,9 @@ flowchart LR
     Worker --> Files
 ```
 
-该图描述 MVP 目标架构。M0 已实现健康检查、模型目录、元数据建表、Worker 配置和诊断任务；业务服务与真实训练后续实现。
+该图描述 MVP 目标架构。M0 已实现健康检查、模型目录、元数据建表、Worker 配置和诊断任务；M1-02 已实现数据集服务层，HTTP 接入与真实训练后续实现。
 
-M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读资源、原始字节 SHA-256 和相对 DATA_DIR 的存储键；M1-02/M1-03 再实现数据库迁移、文件服务、路由和统一异常处理。
+M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读资源、原始字节 SHA-256 和相对 DATA_DIR 的存储键。M1-02 已落实共享扫描器、数据库迁移、文件服务和只读审计；M1-03 再实现路由和统一异常处理，详见 [工作日志](worklogs/2026-10-21-m1-02.md)。
 
 | 模块 | 输入 | 输出 | 职责边界 |
 | --- | --- | --- | --- |
@@ -66,12 +66,12 @@ logs/
 初始表：
 
 - `users`：ID、用户名、创建时间；MVP 单用户使用，认证尚未实现。
-- `datasets`：ID、可选用户 ID、名称、存储路径、大小、记录数、创建时间。
+- `datasets`：ID、可选用户 ID、名称、原始文件名、SHA-256、存储路径、大小、记录数、创建时间。
 - `training_tasks`：ID、数据集 ID、模型、训练参数 JSON、状态、Celery ID、进度与步数、产物路径、错误、创建/开始/结束时间。
 
 SQLite 适合本地单 API/单 Worker。使用短事务、外键约束与 busy timeout，后续数据管理阶段按需启用 WAL。多进程部署和结构变更时引入 PostgreSQL 与 Alembic；M0 的 `create_all` 仅创建缺失表，不迁移已有表。
 
-M1-02 需为 datasets 显式迁移 original_filename 与 sha256 列，保留已有数据；format 暂由服务层返回固定的 alpaca_jsonl。现有实体尚未新增这些列，不能直接把新 DTO 当作已兼容旧 ORM 的响应。
+M1-02 已为 datasets 增加非空 original_filename 与 sha256，format 由服务层返回固定的 alpaca_jsonl。旧库由专用脚本显式备份/迁移；启动检测到旧结构会提示，不静默删库。服务按字段构建 DTO，SQLite 无时区时间按约定的 UTC 输出。
 
 ```mermaid
 stateDiagram-v2
