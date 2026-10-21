@@ -1,4 +1,4 @@
-"""Contract checks only; HTTP, storage and migration tests follow in M1-02/M1-03."""
+"""Dataset contract and example checks; HTTP behavior is covered separately."""
 
 import copy
 from datetime import datetime
@@ -116,7 +116,7 @@ class DatasetContractTests(unittest.TestCase):
         for path, expected in generate_outputs().items():
             self.assertEqual(path.read_text(encoding="utf-8"), expected, str(path))
         contract = json.loads((ROOT / "docs/api/datasets.openapi.json").read_text())
-        self.assertEqual(contract["x-implementation-status"], "planned")
+        self.assertEqual(contract["x-implementation-status"], "implemented")
         self.assertEqual(set(contract["paths"]), {"/datasets", "/datasets/{dataset_id}"})
         def walk(value):
             if isinstance(value, dict):

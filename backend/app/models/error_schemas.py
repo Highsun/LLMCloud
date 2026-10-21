@@ -1,4 +1,4 @@
-"""Planned global API error shape; exception handlers follow in M1-03."""
+"""Public error shape shared by the HTTP exception handlers and clients."""
 
 from enum import StrEnum
 

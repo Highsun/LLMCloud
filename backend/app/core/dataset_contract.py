@@ -1,4 +1,4 @@
-"""Shared M1 constants; multipart enforcement belongs to M1-03."""
+"""Shared M1 constants for the multipart parser, routes, schemas, and export."""
 
 from trainer.dataset_schema import MAX_DATASET_BYTES, MAX_JSONL_LINE_BYTES
 

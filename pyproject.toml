@@ -26,6 +26,9 @@ training = [
     "accelerate>=1.10,<2.0",
 ]
 
+[dependency-groups]
+dev = ["httpx>=0.28,<1.0"]
+
 [tool.uv]
 # This repository is an application, not an installable Python distribution.
 package = false

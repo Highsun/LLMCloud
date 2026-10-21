@@ -21,11 +21,11 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - M0 环境和骨架已完成。健康检查、模型目录与 Celery ping 已实现。
 - M1-01 交付接口约定、Pydantic Schema、离线 OpenAPI 设计稿和样例。
 - M1-02 已完成共享 JSONL 扫描器、数据集创建/查询服务、失败清理/只读审计、新字段及 SQLite 显式迁移；详见 [工作日志](docs/worklogs/2026-10-21-m1-02.md)。
-- 数据集 HTTP 路由、multipart/整个请求体限制、request_id 和统一异常 handlers 仍待 M1-03，不能把服务层完成当成已能浏览器上传。
+- M1-03 已完成数据集上传/列表/详情 HTTP 路由、multipart/请求体限制、request_id、统一错误与运行时 OpenAPI；详见 [工作日志](docs/worklogs/2026-10-21-m1-03.md)。M1-04 页面、M1-05 浏览器联调和 M1-06 数据准备仍需验收，M1 完成后再进入 M2。
 - `trainer.dataset.iter_records` 与上传服务共用 DatasetScanner/InstructionRecord，不能另写一套宽松的文件校验。
 - 新库启动直接创建新表，旧库先运行 `scripts/migrate_datasets.py --check`，确认报告后显式 `--apply`；禁止用 create_all 或删库替代迁移。
 - `trainer.train` 和 `worker.train` 仍是占位。极小随机模型验证成功，不代表预训练模型微调功能完成。
-- 开始任何工作前读取实际代码和 Git 状态；阶段状态变化时同步更新此处与规划，不把约定或 mock 写成已实现能力。
+- 每次开始任务及提交/推送前检查实际代码、Git 状态与 [工作日志目录](docs/worklogs/README.md)，读取组员新增日志及相关改动；有远端更新先核对再同步，不能用覆盖文件或强推消除差异。阶段状态变化时同步更新此处与规划，不把约定或 mock 写成已实现能力。
 
 ## 技术与资源边界
 
@@ -48,10 +48,10 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 ## 合作与契约修改
 
-- 成员 A 主负责后端/存储/调度，成员 B 主负责前端/训练；可按实际任务调整，不代表文件访问限制。
+- 成员 A 主负责后端/存储/调度，成员 B 当前主负责 frontend，之后负责训练；可按实际任务调整，不代表文件访问限制。交付任务时新增工作日志，写清接口影响、验证和待交接项。
 - 修改共享字段、默认值、上限或错误语义时，在同一变更中更新 Schema、接口文档、OpenAPI 和样例，说明兼容性影响；常规实现不必反复请求确认。
 - 标准查阅以本次用户要求为先；M1 字段与行为以 datasets.md 为准，类型约束以对应 Pydantic Schema 为准。两者冲突应在实现前修正，不能静默选择一份忽略另一份。
-- 离线 OpenAPI 由 `uv run --locked python scripts/export_dataset_contract.py` 生成，不手改生成文件。它是设计稿，当前服务 `/openapi.json` 不包含未实现的数据集接口。
+- 数据集 OpenAPI 由 `uv run --locked python scripts/export_dataset_contract.py` 从真实应用 `.openapi()` 导出，不手改生成文件；`--check` 检查漂移。导出文件使用 `/api/v1` server 与相对 paths，运行时 `/openapi.json` 使用完整 paths，操作与 Schema 必须一致。
 - 新增不兼容字段/行为先更新契约版本并写明迁移方式；在已有已发布客户端依赖时，不兼容改动另开 API 主版本。
 - 进入实施阶段以 OpenAPI 与真实后端响应一致作为验收条件，不能长期维护两套不同契约。
 - 每个任务交付包含改动、验证、未完成项。验证聚焦行为、失败处理和接口一致性；文档或契约任务不要求执行完整 GPU 训练。

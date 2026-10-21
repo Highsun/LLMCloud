@@ -1,15 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 
-from backend.app.core.config import get_settings
 from backend.app.models.schemas import HealthResponse, ModelInfo, SUPPORTED_MODELS
 
 router = APIRouter()
 
 
 @router.get("/health", response_model=HealthResponse, tags=["system"])
-def health() -> HealthResponse:
+def health(request: Request) -> HealthResponse:
     """Liveness only; this endpoint does not probe Redis, GPU or model weights."""
-    return HealthResponse(service=get_settings().app_name, version="0.1.0")
+    return HealthResponse(service=request.app.state.settings.app_name, version="0.1.0")
 
 
 @router.get("/models", response_model=list[ModelInfo], tags=["models"])

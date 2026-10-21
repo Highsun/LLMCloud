@@ -1,4 +1,4 @@
-"""Transport-neutral service failures; M1-03 translates these into ErrorResponse."""
+"""Transport-neutral service failures translated into ErrorResponse by the API."""
 
 from backend.app.models.error_schemas import ApiErrorCode, ErrorDetail
 from trainer.dataset import DatasetValidationError
