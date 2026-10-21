@@ -1,4 +1,4 @@
-"""M1-01 DTOs. Defining these models does not expose dataset HTTP routes."""
+"""Shared dataset DTOs for service results and the public HTTP contract."""
 
 from datetime import datetime, timezone
 from typing import Literal

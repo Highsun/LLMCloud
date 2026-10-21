@@ -1,8 +1,8 @@
 # M1 数据集与公共错误契约
 
-契约版本：**1.0.0**；日期：2026-10-19；对应任务：**M1-01**。
+契约版本：**1.0.0**；日期：2026-10-19；对应任务：**M1-01 至 M1-03**；实现更新：2026-10-21。
 
-状态：接口设计与 Schema、M1-02 共享校验/文件服务/SQLite 迁移已交付；运行时 HTTP 接口、multipart 防护和异常 handlers 仍待 M1-03。当前后端只有健康检查和模型目录，访问下述数据集路径仍会得到旧的路由错误。不要把离线设计稿当作已部署 API。
+状态：M1-03 已实现本文三个数据集端点、multipart/请求体防护和公共异常处理。服务启动后可使用 `/docs` 或客户端上传。导出 OpenAPI 来自真实应用，标记 implemented；前端页面和浏览器联调仍需 M1-04/M1-05 验收。
 
 面向项目成员及 AI 助手的全局约束见 [AGENTS.md](../../AGENTS.md)，阶段安排见 [项目规划](../project-plan.md)。
 
@@ -141,7 +141,7 @@ dataset_id 必须是 UUID 字符串；服务端生成 UUIDv4，并以标准小�
 
 ## 六、统一错误结构
 
-此结构在 M1-03 作为应用公共异常处理落地，覆盖请求字段校验、业务异常、路由/方法错误及未捕获服务器异常；后续任务、推理接口复用。当前 FastAPI 默认错误尚未替换。
+此结构已在 M1-03 作为应用公共异常处理落地，覆盖请求字段校验、业务异常、路由/方法错误及响应开始前的未捕获服务器异常；后续任务、推理接口复用。
 
 ```json
 {
@@ -186,7 +186,7 @@ dataset_id 必须是 UUID 字符串；服务端生成 UUIDv4，并以标准小�
 | 500 | INTERNAL_ERROR | 程序错误、未知异常，使用通用提示 |
 | 原状态 | HTTP_ERROR | 其他尚未有专用机器码的 HTTP 异常，保留原状态和必要 headers |
 
-前端优先显示 message 与字段/行号，未知 code 使用通用错误展示。浏览器断网、超时或上游代理 HTML 错误不一定包含此 JSON，需要单独兜底。CORS 在 M1-03 暴露 X-Request-ID 与 Location，前端不必发送自定义请求头。
+前端优先显示 message 与字段/行号，未知 code 使用通用错误展示。浏览器断网、超时或上游代理 HTML 错误不一定包含此 JSON，需要单独兜底。CORS 已暴露 X-Request-ID 与 Location，前端不必发送自定义请求头。
 
 ## 七、路径、不可变性与数据库映射
 
@@ -221,7 +221,7 @@ Dataset.storage_path 保存 `datasets/{dataset_id}/train.jsonl`，相对 DATA_DI
 
 | 已交付 | 后续任务 |
 | --- | --- |
-| M1-01：协作入口、本文、常量、DTO、离线 OpenAPI、样例；M1-02：共享扫描、存储/查询服务、迁移、清理/审计及测试 | M1-03：真实路由、参数绑定与统一错误 handlers；M1-04：Vue 页面 |
+| M1-01：协作入口、契约/DTO/样例；M1-02：共享扫描、服务与迁移；M1-03：真实路由、受限解析、统一错误与运行时 OpenAPI 导出 | M1-04：Vue 页面；M1-05：浏览器联调；M1-06：正式数据准备 |
 
 生成/核验契约：
 
@@ -230,10 +230,11 @@ uv run --locked python scripts/export_dataset_contract.py
 uv run --locked python scripts/export_dataset_contract.py --check
 uv run --locked python -m unittest discover -s tests -p 'test_dataset_contract.py'
 uv run --locked python -m unittest discover -s tests -v
+uv run --locked python scripts/check_dataset_http.py
 ```
 
-生成文件：[datasets.openapi.json](datasets.openapi.json)。Schema 由 Pydantic 生成，HTTP 元信息在导出脚本维护；样例是真实文件统计值加固定演示 ID/时间。生成器不导入主应用、不建表、不挂载占位路由。
+生成文件：[datasets.openapi.json](datasets.openapi.json)。响应 Schema 来自 Pydantic，HTTP 元信息在真实路由与 `api/dataset_openapi.py` 维护。导出器调用应用工厂的 `.openapi()`，抽取数据集操作及引用 Schema，使用 `/api/v1` server 与相对 paths；运行时 `/openapi.json` 使用完整 paths，两者操作与 Schema 相同。导出不执行 lifespan、不连接数据库、不写数据。样例仍由真实文件统计值加固定演示 ID/时间生成。
 
-M1-01 检查：字段、默认值与错误结构没有未决项；样例可通过对应 Schema；上传样例哈希/字节数/行数与文件一致；离线 OpenAPI 不含断裂引用；已有 health/models 行为不变。M1-03 还需用真实应用 OpenAPI 与 HTTP 响应验证，替换设计稿的 planned 状态。
+M1-03 验收：61 项测试通过，含真实 50 MiB 文件边界、无/伪造 Content-Length 的逐块限制、缓存关闭和故障映射；运行时与导出 OpenAPI 一致，引用有效，health/models 成功结构保持一致；TCP 冒烟验证分块上传和提前拒绝超限请求。详见 [工作日志](../worklogs/2026-10-21-m1-03.md)。契约业务字段、默认值及上限沿用 1.0.0，无新增数据库迁移。
 
 技术依据：[FastAPI 表单与文件](https://fastapi.tiangolo.com/tutorial/request-forms-and-files/)、[FastAPI 异常处理](https://fastapi.tiangolo.com/tutorial/handling-errors/)、[Pydantic JSON Schema](https://docs.pydantic.dev/latest/concepts/json_schema/)、[OpenAPI 3.1](https://spec.openapis.org/oas/v3.1.0.html)。

@@ -10,11 +10,11 @@
 
 当前完成 **M0：需求理解与项目初始化**。
 
-M1 已完成 **M1-01 契约**与 **M1-02 数据集服务层**。协作前先阅读 [AGENTS.md](AGENTS.md)，字段与错误见 [M1 接口契约](docs/api/datasets.md)，服务调用、旧库迁移与验证见 [M1-02 工作日志](docs/worklogs/2026-10-21-m1-02.md)。HTTP 路由和统一错误处理仍待 M1-03，当前尚不能从浏览器上传数据集。
+M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口**。后端支持真实上传、列表与详情，前端页面和浏览器联调由组员继续完成。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，本次实现与交接见 [M1-03 工作日志](docs/worklogs/2026-10-21-m1-03.md)。
 
-- 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 首页。
+- 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、上传/列表/详情 API 和统一错误、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 首页。
 - 已定义：数据集格式、训练参数校验、训练输入/输出及进度回调接口、任务状态、后续 API 契约。
-- 待开发：数据上传接口、任务创建和查询、真实 LoRA 训练、日志与 Loss 展示、Adapter 下载、模型推理。
+- 待开发：数据管理页面与浏览器联调、任务创建和查询、真实 LoRA 训练、日志与 Loss 展示、Adapter 下载、模型推理。
 
 `trainer.train` 和 `worker.train` 是明确报错的接口占位，不会生成虚假训练结果。首页中的训练流程标记为“待开发”。
 
@@ -52,7 +52,7 @@ LLMCloud/
 │       ├── api/                # HTTP 路由
 │       ├── core/               # 配置、数据库
 │       ├── models/             # SQL 实体与 API Schema
-│       └── services/           # 业务服务，后续实现
+│       └── services/           # 数据集存储、查询与失败清理
 ├── trainer/
 │   ├── train.py                # 训练接口，后续实现
 │   ├── dataset.py              # JSONL 格式校验
@@ -101,7 +101,7 @@ cp .env.example .env
 bash scripts/start_api.sh
 ```
 
-`uv sync --locked` 自动创建或同步根目录 `.venv`，按 `uv.lock` 安装服务依赖。运行命令统一使用 `uv run --locked`，无需手动激活环境。已有不同 Python 版本的 `.venv` 会按项目版本重新创建；代码、数据和日志不受影响。
+`uv sync --locked` 自动创建或同步根目录 `.venv`，按 `uv.lock` 安装服务依赖及 dev 测试组。运行命令统一使用 `uv run --locked`，无需手动激活环境。已有不同 Python 版本的 `.venv` 会按项目版本重新创建；代码、数据和日志不受影响。
 
 打开：
 
@@ -113,7 +113,17 @@ bash scripts/start_api.sh
 
 从 M0 旧库升级时，启动会提示数据集表迁移。先停止 API/Worker，执行 `uv run --locked python scripts/migrate_datasets.py --check`，报告允许后再执行 `--apply`；应用迁移会自动备份，有历史数据时需按工作日志提供可信文件名映射。本机空旧库已完成升级，无需重复重建。
 
-服务层与契约测试：`uv run --locked python -m unittest discover -s tests -v`。只读存储检查：`uv run --locked python scripts/check_dataset_storage.py --verify-hash`，不会自动删除文件。
+后端测试：`uv run --locked python -m unittest discover -s tests -v`；测试依赖 httpx 在默认同步的 dev 组中，CPU 环境即可执行。真实 HTTP 冒烟：`uv run --locked python scripts/check_dataset_http.py`，会启动临时 API 并使用临时存储。只读存储检查：`uv run --locked python scripts/check_dataset_storage.py --verify-hash`。
+
+上传并查询真实数据（API 启动后执行；上传会创建资源）：
+
+```bash
+curl -i http://127.0.0.1:8000/api/v1/datasets -F 'file=@docs/examples/train.jsonl' -F 'name=云计算课程样例'
+curl 'http://127.0.0.1:8000/api/v1/datasets?page=1&page_size=20'
+curl 'http://127.0.0.1:8000/api/v1/datasets/<实际返回的UUID>'
+```
+
+成功上传返回 201、资源元数据与 Location；失败按真实状态码返回统一 error 对象。每次响应包含服务端生成的 X-Request-ID。详情与列表字段、大小限制和样例见接口契约。
 
 ### 2. Vue3 前端
 
@@ -168,7 +178,7 @@ uv run --locked python -c 'from worker.tasks import ping; print(ping.delay().get
 
 ## 五、准备 GPU 训练环境（后续 M2）
 
-服务依赖位于 `project.dependencies`，训练依赖位于可选的 `training` extra。默认同步仅安装服务依赖，按需启用训练依赖；两者由同一份 `uv.lock` 锁定。当前先使用同一个 `.venv`，未来部署时拆为 CPU API 镜像与 GPU Worker 镜像。
+服务依赖位于 `project.dependencies`，训练依赖位于可选的 `training` extra。默认同步安装服务依赖及 dev 测试组，按需启用训练依赖；两者由同一份 `uv.lock` 锁定。当前先使用同一个 `.venv`，未来部署时拆为 CPU API 镜像与 GPU Worker 镜像。
 
 RTX 5070 使用 Blackwell 架构，不能沿用只支持旧 GPU 的 PyTorch wheel。PyTorch 官方从 2.7 开始提供 Blackwell/CUDA 12.8 支持；本项目选择 **2.9.1 + cu128** 作为候选基线。`pyproject.toml` 将 Linux/Windows 的 torch 明确绑定到官方 cu128 索引，其余依赖使用 PyPI。先检查 Windows NVIDIA 驱动与 WSL 透传，再在根目录执行：
 
@@ -178,7 +188,7 @@ uv sync --locked --extra training
 uv run --locked --extra training python scripts/check_gpu.py
 ```
 
-`check_gpu.py` 会执行实际前向和反向 GPU 运算。通过该检查后，再下载基础模型和验证 LoRA 训练。训练依赖已锁定版本，但尚未完成真实 GPU 训练兼容性验证，M2 成功后再按实测调整。普通 `uv sync --locked` 会回到仅服务依赖的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
+`check_gpu.py` 会执行实际前向和反向 GPU 运算。通过该检查后，再下载基础模型和验证 LoRA 训练。训练依赖已锁定版本，但尚未完成真实 GPU 训练兼容性验证，M2 成功后再按实测调整。普通 `uv sync --locked` 会回到服务依赖及 dev 测试组的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
 
 独立 GPU 环境也可使用 `UV_PROJECT_ENVIRONMENT=.venv-training uv sync --locked --extra training`，运行 Worker 和 GPU 检查时同样设置该变量。
 

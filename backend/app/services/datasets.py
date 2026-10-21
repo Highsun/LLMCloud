@@ -2,7 +2,7 @@
 
 Each operation owns a fresh session. Call create with a binary stream positioned
 at its beginning; the caller owns that stream. The synchronous API can be called
-from a threadpool by future async HTTP handlers.
+from a threadpool by async HTTP handlers.
 """
 
 import logging
@@ -20,6 +20,7 @@ from sqlalchemy.orm import Session
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.database import SessionLocal
 from backend.app.core.dataset_contract import MAX_UPLOAD_NAME_BYTES
+from backend.app.core.request_context import RequestLogger
 from backend.app.models.dataset_schemas import DatasetDetail, DatasetListQuery, DatasetPage, DatasetSummary, DatasetUploadMetadata
 from backend.app.models.entities import Dataset
 from backend.app.models.error_schemas import ApiErrorCode, ErrorDetail
@@ -27,7 +28,7 @@ from backend.app.services.dataset_paths import dataset_key, resolve_dataset_path
 from backend.app.services.errors import DatasetServiceError, validation_failure
 from trainer.dataset import DatasetScanner, DatasetValidationError, READ_CHUNK_BYTES, scan_dataset
 
-logger = logging.getLogger(__name__)
+logger = RequestLogger(logging.getLogger(__name__), {})
 
 
 def _field_failure(code, message, field="name", *, dataset=False):

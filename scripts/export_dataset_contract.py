@@ -1,4 +1,4 @@
-"""Generate the offline M1 design contract and examples without mounting routes."""
+"""Export the implemented dataset API from the real app, plus response examples."""
 
 import argparse
 import hashlib
@@ -9,35 +9,12 @@ import sys
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from backend.app.core.dataset_contract import (  # noqa: E402
-    DATASET_CONTRACT_VERSION, MAX_DATASET_BYTES, MAX_JSONL_LINE_BYTES,
-    MAX_MULTIPART_BYTES, MAX_MULTIPART_FIELDS, MAX_MULTIPART_FILES,
-    MAX_MULTIPART_TEXT_PART_BYTES, MAX_UPLOAD_NAME_BYTES,
-)
-from backend.app.models.dataset_schemas import (  # noqa: E402
-    DatasetDetail, DatasetListQuery, DatasetPage, DatasetSummary, DatasetUploadMetadata,
-)
+from backend.app.core.config import Settings  # noqa: E402
+from backend.app.core.dataset_contract import DATASET_CONTRACT_VERSION  # noqa: E402
+from backend.app.main import create_app  # noqa: E402
+from backend.app.models.dataset_schemas import DatasetDetail, DatasetPage, DatasetSummary  # noqa: E402
 from backend.app.models.error_schemas import ErrorResponse  # noqa: E402
 from trainer.dataset_schema import InstructionRecord  # noqa: E402
-
-REF_PREFIX = "#/components/schemas/"
-
-
-def ref(name: str) -> dict:
-    return {"$ref": REF_PREFIX + name}
-
-
-def collect_schema(model, components: dict, *, mode: str = "serialization") -> dict:
-    schema = model.model_json_schema(ref_template=REF_PREFIX + "{model}", mode=mode)
-    for name, definition in schema.pop("$defs", {}).items():
-        if name in components and components[name] != definition:
-            raise ValueError(f"Conflicting schema: {name}")
-        components[name] = definition
-    name = model.__name__
-    if name in components and components[name] != schema:
-        raise ValueError(f"Conflicting schema: {name}")
-    components[name] = schema
-    return ref(name)
 
 
 def build_examples() -> dict[str, dict]:
@@ -68,84 +45,46 @@ def build_examples() -> dict[str, dict]:
     }
 
 
-def build_contract(examples: dict[str, dict]) -> dict:
-    components = {}
-    for model in (DatasetSummary, DatasetDetail, DatasetPage, ErrorResponse):
-        collect_schema(model, components)
-    collect_schema(InstructionRecord, components, mode="validation")
-    query = DatasetListQuery.model_json_schema()
-    name_schema = DatasetUploadMetadata.model_json_schema()["properties"]["name"]
-    name_schema = next(option for option in name_schema["anyOf"] if option.get("type") != "null")
-    components["DatasetUpload"] = {
-        "type": "object", "additionalProperties": False, "required": ["file"],
-        "properties": {
-            "file": {"type": "string", "format": "binary", "description": "UTF-8 instruction/input/output JSONL; .jsonl extension required", "x-max-bytes": MAX_DATASET_BYTES, "x-record-schema": ref("InstructionRecord")},
-            "name": {**name_schema, "description": "Optional display name, trimmed; omission uses sanitized original filename", "x-max-bytes": MAX_UPLOAD_NAME_BYTES},
-        },
-        "x-max-body-bytes": MAX_MULTIPART_BYTES,
-        "x-max-line-bytes": MAX_JSONL_LINE_BYTES,
-        "x-parser-max-files": MAX_MULTIPART_FILES,
-        "x-parser-max-fields": MAX_MULTIPART_FIELDS,
-        "x-parser-max-text-part-bytes": MAX_MULTIPART_TEXT_PART_BYTES,
-        "x-duplicate-parts": "rejected",
-    }
-    request_id_header = {"description": "Server-generated request UUID; matches error.request_id", "schema": {"type": "string", "format": "uuid"}}
+def build_contract() -> dict:
+    # OpenAPI generation never starts lifespan, opens SQL connections, or writes data.
+    settings = Settings(_env_file=None, api_prefix="/api/v1")
+    runtime = create_app(settings).openapi()
+    paths = {path.removeprefix(settings.api_prefix): value
+             for path, value in runtime["paths"].items()
+             if path == "/api/v1/datasets" or path.startswith("/api/v1/datasets/")}
+    schemas = runtime["components"]["schemas"]
+    selected = {}
 
-    def response(schema: str, description: str, example: dict | None = None, *, location: bool = False) -> dict:
-        media = {"schema": ref(schema)}
-        if example is not None:
-            media["example"] = example
-        headers = {"X-Request-ID": request_id_header}
-        if location:
-            headers["Location"] = {"description": "/api/v1/datasets/{id}", "schema": {"type": "string"}}
-        return {"description": description, "headers": headers, "content": {"application/json": media}}
+    def collect(value):
+        if isinstance(value, dict):
+            reference = value.get("$ref", "")
+            if reference.startswith("#/components/schemas/"):
+                name = reference.rsplit("/", 1)[1]
+                if name not in selected:
+                    selected[name] = schemas[name]
+                    collect(schemas[name])
+            for item in value.values():
+                collect(item)
+        elif isinstance(value, list):
+            for item in value:
+                collect(item)
 
-    def errors(statuses: dict[int, str]) -> dict:
-        return {str(status): response("ErrorResponse", description) for status, description in statuses.items()}
-
-    common_errors = {500: "INTERNAL_ERROR", 503: "STORAGE_UNAVAILABLE or DATABASE_UNAVAILABLE"}
+    collect(paths)
     return {
-        "openapi": "3.1.0",
-        "info": {"title": "LLMCloud M1 dataset API design", "version": DATASET_CONTRACT_VERSION,
-                 "description": "PLANNED M1-01 contract; routes and global error handlers are not implemented yet. Generated from Pydantic schemas; see docs/api/datasets.md."},
-        "servers": [{"url": "/api/v1"}],
-        "x-implementation-status": "planned",
+        "openapi": runtime["openapi"],
+        "info": {"title": "LLMCloud dataset API", "version": DATASET_CONTRACT_VERSION,
+                 "description": "Implemented API exported from backend.app.main.create_app().openapi()."},
+        "servers": [{"url": settings.api_prefix}],
+        "x-implementation-status": "implemented",
         "x-generated-by": "scripts/export_dataset_contract.py",
-        "paths": {
-            "/datasets": {
-                "post": {
-                    "operationId": "upload_dataset", "tags": ["datasets"],
-                    "summary": "Upload and synchronously validate one immutable dataset",
-                    "requestBody": {"required": True, "content": {"multipart/form-data": {"schema": ref("DatasetUpload")}}},
-                    "responses": {
-                        "201": response("DatasetDetail", "Dataset committed", examples["upload-response.json"], location=True),
-                        **errors({400: "INVALID_MULTIPART", 413: "UPLOAD_TOO_LARGE", 415: "UNSUPPORTED_MEDIA_TYPE", 422: "VALIDATION_ERROR or INVALID_DATASET", **common_errors}),
-                    },
-                },
-                "get": {
-                    "operationId": "list_datasets", "tags": ["datasets"],
-                    "summary": "List datasets ordered by created_at DESC, id DESC",
-                    "description": "Reject unknown/duplicate query parameters. Empty or beyond-last pages return 200. Offset pagination does not guarantee snapshots across requests.",
-                    "parameters": [{"name": name, "in": "query", "required": False, "schema": schema} for name, schema in query["properties"].items()],
-                    "responses": {"200": response("DatasetPage", "Dataset page", examples["list-response.json"]), **errors({422: "VALIDATION_ERROR", **common_errors})},
-                },
-            },
-            "/datasets/{dataset_id}": {
-                "get": {
-                    "operationId": "get_dataset", "tags": ["datasets"],
-                    "summary": "Get dataset metadata without reading the raw training file",
-                    "parameters": [{"name": "dataset_id", "in": "path", "required": True, "schema": {"type": "string", "format": "uuid"}}],
-                    "responses": {"200": response("DatasetDetail", "Dataset metadata", examples["upload-response.json"]), **errors({404: "DATASET_NOT_FOUND", 422: "VALIDATION_ERROR", **common_errors})},
-                },
-            },
-        },
-        "components": {"schemas": components},
+        "paths": paths,
+        "components": {"schemas": {name: selected[name] for name in sorted(selected)}},
     }
 
 
 def generate_outputs() -> dict[Path, str]:
     examples = build_examples()
-    values = {PROJECT_ROOT / "docs/api/datasets.openapi.json": build_contract(examples)}
+    values = {PROJECT_ROOT / "docs/api/datasets.openapi.json": build_contract()}
     values.update({PROJECT_ROOT / "docs/examples/datasets" / name: data for name, data in examples.items()})
     return {path: json.dumps(value, ensure_ascii=False, indent=2) + "\n" for path, value in values.items()}
 
@@ -165,7 +104,7 @@ def main() -> int:
     if stale:
         print("Stale contract files: " + ", ".join(stale), file=sys.stderr)
         return 1
-    print("PASS: generated dataset contract is current" if args.check else "Generated dataset OpenAPI design and five response examples")
+    print("PASS: generated dataset contract is current" if args.check else "Generated runtime dataset OpenAPI and five response examples")
     return 0
 
 
