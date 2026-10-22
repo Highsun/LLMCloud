@@ -37,12 +37,16 @@ API 进程不加载模型和执行 GPU 计算。Celery 消息仅包含任务 ID�
 
 ## 二、训练调用与文件契约
 
+本节描述目标边界；当前仅有基础类型，train 仍是占位。实现按 [M2 开发计划](m2-development-plan.md) 推进，必要字段及版本化内部契约在 M2-01 定稿。
+
 `train(request, on_progress) -> TrainResult`：
 
 - `TrainRequest`：task_id、dataset_path、output_dir、base_model、TrainingConfig。
 - `TrainingProgress`：step、total_steps、loss；后续扩展 learning_rate、epoch 与时间戳。
 - `TrainResult`：adapter_dir、metrics_path；返回前必须校验产物可用。
-- Trainer 在回调中提供真实指标，Worker 写入文件并更新数据库进度。回调不依赖 HTTP 请求生命周期。
+- M2 计划由 Trainer 唯一写入 metrics.jsonl，并在回调中提供同源真实指标；M3 Worker 消费回调更新数据库进度，不重复追加指标。回调不依赖 HTTP 请求生命周期。
+- step 表示优化器更新步数，区别于微批次；加载阶段只输出阶段日志，无 Loss 时不生成数据点。训练与验证指标区分，未执行验证时不填充 eval_loss。
+- Trainer 的配置类型保持 CPU 可导入，执行入口才加载训练库；路径/缓存参数由独立入口解析，不反向依赖后端 Settings。模型与 tokenizer 固定 revision，训练与重载使用一致模板。
 
 文件规划：
 
@@ -63,7 +67,9 @@ logs/
 └── tasks/{task_id}.log
 ```
 
-每个任务独立目录，禁止覆盖其他任务。完成时先写入并校验产物，再更新 COMPLETED。Adapter 下载打包必要配置、tokenizer 和清单，不包含基础模型或原始训练数据。
+每个任务独立目录，禁止覆盖其他任务。M2 中先写入并校验产物，再原子写出成功 manifest 并返回 TrainResult；失败保留诊断但不能留下有效成功标记。manifest 记录版本、模型 revision、数据哈希/审核状态、配置、环境、统计与相对产物引用，不包含训练正文或本机绝对路径。新进程重载结果单独验收，不能在保存时提前记为重载成功。
+
+M3 再将训练成功结果映射为数据库 COMPLETED。M4 Adapter 下载打包必要配置、tokenizer 和清单，不包含基础模型或原始训练数据。M2 的 CLI 重载验收不表示 M5 在线推理服务完成。
 
 ## 三、数据库与任务状态
 

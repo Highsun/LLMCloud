@@ -8,7 +8,7 @@
 
 ## 一、当前进度
 
-当前完成 **M0：需求理解与项目初始化**。
+当前完成 **M0：需求理解与项目初始化** 和 **M1：数据管理的计划交付**。
 
 M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-04 数据管理页面**。成员 B 交付的工作台已接通真实上传、列表与详情，本次补齐局部修复和浏览器验收；M1-05 故障验收与 CPU CI、M1-06 数据方案/划分工具/冻结题也已完成。M1 计划范围已验收，下一阶段为 M2 真实 LoRA；正式实验语料仍需人工编写和审核。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，项目梳理见 [项目记忆](docs/project-memory.md)，页面接续见 [M1-04 日志](docs/worklogs/2026-10-22-m1-04-integration.md)，故障与 CI 见 [M1-05 日志](docs/worklogs/2026-10-22-m1-05.md)，数据来源/划分/冻结题见 [数据方案](docs/data/README.md) 与 [M1-06 日志](docs/worklogs/2026-10-22-m1-06.md)。
 
@@ -17,6 +17,8 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 - 待开发：正式语料编写/审核、任务创建和查询、真实 LoRA 训练、日志与 Loss 展示、Adapter 下载、模型推理。
 
 `trainer.train` 和 `worker.train` 是明确报错的接口占位，不会生成虚假训练结果。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
+
+**下一步执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 已确认，拆为 M2-01 训练契约、M2-02 模型准备、M2-03 数据处理、M2-04 真实训练、M2-05 产物交付、M2-06 新进程重载验收。六项实现均待开始，先完成训练契约，再并行准备模型与数据；任务 HTTP/Celery 接入属于 M3。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
@@ -74,6 +76,8 @@ LLMCloud/
 └── docs/
     ├── requirements.md
     ├── architecture.md
+    ├── project-plan.md
+    ├── m2-development-plan.md  # M2 任务、分工、依赖与验收
     ├── experiment.md
     └── examples/train.jsonl
 ```
@@ -176,7 +180,7 @@ uv run --locked python -c 'from worker.tasks import ping; print(ping.delay().get
 
 环境检查：`uv run --locked python scripts/check_environment.py --gpu`。本机安装位置、版本、Redis 管理和 Docker 安装步骤见 [docs/environment.md](docs/environment.md)。
 
-## 五、准备 GPU 训练环境（后续 M2）
+## 五、准备 GPU 训练环境（M2 前置）
 
 服务依赖位于 `project.dependencies`，训练依赖位于可选的 `training` extra。默认同步安装服务依赖及 dev 测试组，按需启用训练依赖；两者由同一份 `uv.lock` 锁定。当前先使用同一个 `.venv`，未来部署时拆为 CPU API 镜像与 GPU Worker 镜像。
 
@@ -233,5 +237,7 @@ bash scripts/export_requirements.sh      # 更新两个兼容 requirements 文�
 | M3 异步调度 | 创建任务、状态流转、失败处理 | 请求立即返回，GPU Worker 串行执行任务 |
 | M4 可观测与交付 | 进度、Loss、日志、Adapter 下载 | 浏览器完整观察任务并下载可用产物 |
 | M5 测试与部署 | 微调模型推理、Docker、云端适配 | 完成端到端演示及实验报告 |
+
+M2 的工程验收是“真实模型更新 → 保存 Adapter → 退出训练进程 → 新进程重载生成”。正式领域数据编写与审核并行推进，格式草稿只用于工程冒烟。成员 A 主负责训练契约、模型缓存和产物规范，成员 B 主负责数据转换、训练主体和重载；具体文件归属、约 14 人时排期和验收清单见 [M2 开发计划](docs/m2-development-plan.md)。本阶段不要求改动现有前端业务代码。
 
 MVP 采用单用户课程演示模式，用户表仅预留扩展。云端公开服务前需要实现认证、数据权限和资源配额。混合部署需要共享文件访问方案，不能仅把本地路径传给远端 Worker，详见架构文档。
