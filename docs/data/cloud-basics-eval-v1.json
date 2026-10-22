@@ -1,0 +1,207 @@
+{
+  "version": "1.0.0",
+  "domain": "cloud-basics-zh",
+  "purpose": "Public frozen evaluation specification; not training records or model outputs",
+  "generation": {
+    "do_sample": false,
+    "max_new_tokens": 192,
+    "prompt_policy": "Use the same base-model chat template and prompt for base and adapter; record exact revision and decoding configuration."
+  },
+  "scoring": {
+    "accuracy": {
+      "max": 2,
+      "rule": "0=错误或关键结论矛盾；1=部分准确；2=覆盖 expected_points 且无 critical_errors"
+    },
+    "clarity": {
+      "max": 1,
+      "rule": "0=含混或未回答；1=直接、可理解"
+    },
+    "boundary": {
+      "max": 1,
+      "rule": "0=无依据承诺或混淆已实现/计划；1=条件与能力边界恰当"
+    },
+    "comparison": "Blind paired review by both members; retain unchanged and worse cases; do not tune on this protocol."
+  },
+  "cases": [
+    {
+      "id": "C01",
+      "group_id": "elasticity-scenario",
+      "prompt": "课程网站在选课日流量激增。弹性伸缩和预先购买固定峰值资源有什么区别？",
+      "expected_points": [
+        "按需调整资源",
+        "扩容缩容应结合实际负载"
+      ],
+      "critical_errors": [
+        "将弹性等同于无限资源或零成本"
+      ],
+      "source_ids": [
+        "nist-cloud"
+      ]
+    },
+    {
+      "id": "C02",
+      "group_id": "service-model-scenario",
+      "prompt": "团队想部署自己的 Web 应用但不想维护操作系统，该如何区分选择 PaaS 和 IaaS？",
+      "expected_points": [
+        "比较双方运维责任",
+        "说明适合的服务层级"
+      ],
+      "critical_errors": [
+        "声称 PaaS 用户无需维护应用代码"
+      ],
+      "source_ids": [
+        "nist-cloud"
+      ]
+    },
+    {
+      "id": "C03",
+      "group_id": "deployment-scenario",
+      "prompt": "混合云和公有云有什么区别？请用一个数据留在私有环境、部分服务在公有环境的例子说明。",
+      "expected_points": [
+        "区分部署模型",
+        "说明不同环境之间的协同"
+      ],
+      "critical_errors": [
+        "把混合云等同于任意多台服务器"
+      ],
+      "source_ids": [
+        "nist-cloud"
+      ]
+    },
+    {
+      "id": "C04",
+      "group_id": "cloud-judgement",
+      "prompt": "仅把服务器装上虚拟化软件，就能认定它提供了完整云服务吗？",
+      "expected_points": [
+        "虚拟化与云服务不同",
+        "需依据云的服务特征判断"
+      ],
+      "critical_errors": [
+        "声称安装虚拟机即完成所有云能力"
+      ],
+      "source_ids": [
+        "nist-cloud"
+      ]
+    },
+    {
+      "id": "C05",
+      "group_id": "container-vm-scenario",
+      "prompt": "同一 Linux 主机上的两个容器是否各自带有独立内核？容器和虚拟机的隔离方式有什么不同？",
+      "expected_points": [
+        "通常共享宿主内核",
+        "虚拟机拥有各自客体内核"
+      ],
+      "critical_errors": [
+        "认为容器与虚拟机的内核隔离完全相同"
+      ],
+      "source_ids": [
+        "docker-container"
+      ]
+    },
+    {
+      "id": "C06",
+      "group_id": "container-portability",
+      "prompt": "应用在开发机的容器中可运行，换到云主机时还要检查哪些条件？",
+      "expected_points": [
+        "检查架构和运行时兼容",
+        "检查配置、网络与持久化"
+      ],
+      "critical_errors": [
+        "保证容器在任何主机上无需条件就能运行"
+      ],
+      "source_ids": [
+        "docker-container"
+      ]
+    },
+    {
+      "id": "C07",
+      "group_id": "persistence-scenario",
+      "prompt": "Redis 开启了持久化，是否就能保证任何时刻断电都不丢数据？",
+      "expected_points": [
+        "结合持久化与同步策略判断",
+        "指出仍需考虑恢复与丢失窗口"
+      ],
+      "critical_errors": [
+        "无条件保证零数据丢失"
+      ],
+      "source_ids": [
+        "redis-persistence"
+      ]
+    },
+    {
+      "id": "C08",
+      "group_id": "persistence-choice",
+      "prompt": "RDB 快照和 AOF 记录写操作分别适合怎样的恢复需求？",
+      "expected_points": [
+        "比较恢复粒度与开销",
+        "选择依赖业务容忍度"
+      ],
+      "critical_errors": [
+        "把 RDB 描述成每条命令追加日志"
+      ],
+      "source_ids": [
+        "redis-persistence"
+      ]
+    },
+    {
+      "id": "C09",
+      "group_id": "queue-acceptance",
+      "prompt": "HTTP 已收到训练提交请求，是否意味着后台训练已经结束？",
+      "expected_points": [
+        "区分提交与执行完成",
+        "通过业务任务状态查询结果"
+      ],
+      "critical_errors": [
+        "把收到请求当作训练完成"
+      ],
+      "source_ids": [
+        "celery-queue"
+      ]
+    },
+    {
+      "id": "C10",
+      "group_id": "queue-components",
+      "prompt": "在异步任务流程中，客户端、消息 Broker 和 Worker 分别负责什么？",
+      "expected_points": [
+        "说明提交、转发与执行职责",
+        "任务通过消息传递"
+      ],
+      "critical_errors": [
+        "声称 Broker 就是 GPU 训练器"
+      ],
+      "source_ids": [
+        "celery-queue"
+      ]
+    },
+    {
+      "id": "C11",
+      "group_id": "dataset-retry",
+      "prompt": "上传连接中断后，为什么不应该立刻自动重传同一个文件？",
+      "expected_points": [
+        "可能已经提交保存",
+        "先刷新列表核对避免新建重复资源"
+      ],
+      "critical_errors": [
+        "声称断网必然回滚服务端事务"
+      ],
+      "source_ids": [
+        "llmcloud-contract"
+      ]
+    },
+    {
+      "id": "C12",
+      "group_id": "gpu-service-boundary",
+      "prompt": "为什么微调平台的 API 不应直接在上传请求里加载模型并训练？",
+      "expected_points": [
+        "请求与长时计算解耦",
+        "将 GPU 工作交给独立执行模块"
+      ],
+      "critical_errors": [
+        "声称本项目当前已完成真实异步训练"
+      ],
+      "source_ids": [
+        "llmcloud-contract"
+      ]
+    }
+  ]
+}

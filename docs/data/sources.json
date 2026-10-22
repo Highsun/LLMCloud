@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "checked_on": "2026-10-22",
+  "reuse_policy": "Reference facts only. Write original answers; do not scrape or copy full documentation. Review accuracy and reuse permissions before marking a record reviewed.",
+  "sources": [
+    {
+      "id": "nist-cloud",
+      "title": "NIST SP 800-145: The NIST Definition of Cloud Computing",
+      "url": "https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-145.pdf",
+      "scope": "Cloud characteristics, service and deployment models",
+      "version": "September 2011; errata 2012"
+    },
+    {
+      "id": "docker-container",
+      "title": "Docker: What is a container?",
+      "url": "https://docs.docker.com/get-started/docker-concepts/the-basics/what-is-a-container/",
+      "scope": "Process isolation and containers versus virtual machines",
+      "version": "Web reference checked 2026-10-22"
+    },
+    {
+      "id": "redis-persistence",
+      "title": "Redis persistence",
+      "url": "https://redis.io/docs/latest/operate/oss_and_stack/management/persistence/",
+      "scope": "RDB/AOF and persistence tradeoffs",
+      "version": "Web reference checked 2026-10-22"
+    },
+    {
+      "id": "celery-queue",
+      "title": "Celery: Introduction",
+      "url": "https://docs.celeryq.dev/en/stable/getting-started/introduction.html",
+      "scope": "Client, broker, worker and asynchronous queues",
+      "version": "Celery 5.6 documentation"
+    },
+    {
+      "id": "llmcloud-contract",
+      "title": "LLMCloud project architecture and dataset contract",
+      "url": "https://github.com/Highsun/LLMCloud",
+      "scope": "Only committed project facts; distinguish implemented and planned behavior",
+      "version": "Record actual project commit in experiment metadata"
+    }
+  ]
+}

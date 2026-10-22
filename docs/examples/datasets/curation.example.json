@@ -1,0 +1,26 @@
+{
+  "version": "1.0.0",
+  "rows": [
+    {
+      "row": 1,
+      "record_id": "format-01",
+      "group_id": "format-cloud",
+      "source_ids": ["llmcloud-contract"],
+      "reviewed": false
+    },
+    {
+      "row": 2,
+      "record_id": "format-02",
+      "group_id": "format-queue",
+      "source_ids": ["llmcloud-contract"],
+      "reviewed": false
+    },
+    {
+      "row": 3,
+      "record_id": "format-03",
+      "group_id": "format-lora",
+      "source_ids": ["llmcloud-contract"],
+      "reviewed": false
+    }
+  ]
+}

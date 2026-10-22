@@ -15,3 +15,6 @@
 | error-response.json | 文件记录缺字段的公共错误结构 |
 
 响应 JSON 由 `scripts/export_dataset_contract.py` 生成，不手改；原始正反 JSONL 可人工维护。无效文件只作为测试输入，不是可上传成功的演示数据。
+
+
+M1-06 补充 curation.example.json，映射 ../train.jsonl 的三条有效记录，reviewed 均为 false。仅用于数据准备工具的格式冒烟，不是正式语料审核记录，运行方式见 docs/data/README.md。

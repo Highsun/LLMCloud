@@ -53,3 +53,14 @@
 - 两个任务的排队时间线、GPU 显存与耗时记录。
 - 一项失败任务的错误原因及处理方式。
 - 完整环境版本、Git commit、模型 revision、数据摘要和实验参数。
+
+
+## 六、M1-06 数据与评测准备
+
+数据来源、编写/审核与划分规则见 [数据方案](data/README.md)，首批 [12 道固定题](data/cloud-basics-eval-v1.json) 已冻结为 1.0.0。当前仅完成数据工程准备，正式语料仍需人工编写并交叉复核，没有训练结果。
+
+`prepare_dataset.py` 生成 train/validation/test、provenance 和 manifest，记录原始数据、侧车、来源清单、评测协议的 SHA-256 与 seed。格式冒烟包位于忽略的 data/prepared/format-smoke-v1，build_id 为 5b01fc10b508722a，各集 1 条，状态 draft_unreviewed；不能用于声称效果提升。
+
+正式实验上传 train 文件，验证集和测试集由 Trainer 后续独立接入，不能把三个文件合并上传后继续声称留出评测。固定 12 题不属于上述三个子集，禁止训练或调参使用。模型对照默认 do_sample=false、max_new_tokens=192；记录实际 chat template、模型 revision 与解码配置，基础模型/Adapter 保持一致。
+
+每题准确性 0–2、清晰度 0–1、边界意识 0–1；两人盲评，保留分歧、无变化与退化案例。原始答案、双人评分与环境/参数保存到忽略的 data/experiments/<experiment_id>/，课程文档只整理真实汇总。本表当前仍待执行，不填写虚构 Loss 或评分。
