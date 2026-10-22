@@ -1,0 +1,8 @@
+{
+  "contract_version": "1.0.0",
+  "adapter_dir": "/srv/llmcloud/data/outputs/4b51f20c-32aa-4d57-b3e2-b21a24542e46/adapter",
+  "metrics_path": "/srv/llmcloud/data/outputs/4b51f20c-32aa-4d57-b3e2-b21a24542e46/metrics.jsonl",
+  "tokenizer_dir": "/srv/llmcloud/data/outputs/4b51f20c-32aa-4d57-b3e2-b21a24542e46/tokenizer",
+  "config_path": "/srv/llmcloud/data/outputs/4b51f20c-32aa-4d57-b3e2-b21a24542e46/training_config.json",
+  "manifest_path": "/srv/llmcloud/data/outputs/4b51f20c-32aa-4d57-b3e2-b21a24542e46/manifest.json"
+}

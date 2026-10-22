@@ -2,32 +2,9 @@
 
 import argparse
 from collections.abc import Callable
-from dataclasses import dataclass
-from pathlib import Path
 
-from trainer.lora_config import TrainingConfig
-
-
-@dataclass(frozen=True)
-class TrainRequest:
-    task_id: str
-    dataset_path: Path
-    output_dir: Path
-    base_model: str
-    config: TrainingConfig
-
-
-@dataclass(frozen=True)
-class TrainingProgress:
-    step: int
-    total_steps: int
-    loss: float
-
-
-@dataclass(frozen=True)
-class TrainResult:
-    adapter_dir: Path
-    metrics_path: Path
+# Retain the original import locations; execution remains owned by M2-04.
+from trainer.contracts import TrainRequest, TrainResult, TrainingProgress
 
 
 def train(

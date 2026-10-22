@@ -16,7 +16,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 4. [docs/api/datasets.md](docs/api/datasets.md)：M1 数据集接口和文件契约。
 5. [docs/environment.md](docs/environment.md)：本机环境；其中绝对路径与代理地址不能作为跨机器固定配置。
 
-执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：已确认的六项任务、依赖、主改文件与验收。M2-01 将交付内部训练契约；其文档和类型尚未完成前，不能把计划扩展字段当作可用接口。
+执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)。M2-01 已交付类型与格式，执行功能仍待后续任务，不能把通过类型验证当成训练完成。
 
 ## 当前事实与任务边界
 
@@ -27,7 +27,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - `trainer.dataset.iter_records` 与上传服务共用 DatasetScanner/InstructionRecord，不能另写一套宽松的文件校验。
 - 新库启动直接创建新表，旧库先运行 `scripts/migrate_datasets.py --check`，确认报告后显式 `--apply`；禁止用 create_all 或删库替代迁移。
 - `trainer.train` 和 `worker.train` 仍是占位。极小随机模型验证成功，不代表预训练模型微调功能完成。
-- M2 开发计划已确认，M2-01 至 M2-06 均待开始；顺序为训练契约、模型准备/数据处理、真实训练、产物交付、新进程重载。M2 仅交付独立 Trainer，任务 HTTP/Celery 业务调度属 M3，在线推理属 M5。
+- M2-01 已完成 CPU-only 契约类型、Schema、示例、错误结构和验证；M2-02 至 M2-06 待开始。顺序为模型准备/数据处理、真实训练、产物交付、新进程重载；任务 HTTP/Celery 业务调度属 M3，在线推理属 M5。
 - 每次开始任务及提交/推送前检查实际代码、Git 状态与 [工作日志目录](docs/worklogs/README.md)，读取组员新增日志及相关改动；有远端更新先核对再同步，不能用覆盖文件或强推消除差异。阶段状态变化时同步更新此处与规划，不把约定或 mock 写成已实现能力。
 
 ## 技术与资源边界
@@ -43,7 +43,10 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 - 沿用 `TrainRequest → train(request, on_progress) → TrainResult`；Schema 保持 CPU 可导入，Trainer 不依赖后端 Settings、HTTP、Celery 或 SQL。训练库在执行入口加载，不因实现 Trainer 破坏 CPU API。
 - 模型和 tokenizer 固定相同可追溯 revision，使用模型 chat template；数据转换检查助手回答监督、padding 与截断后的有效目标。上传格式校验继续复用现有扫描器。
-- M2-01 定稿进度事件与指标格式；step 表示优化器更新步数。计划由 Trainer 唯一写入 metrics.jsonl，回调提供同源事件，M3 Worker 消费事件并更新数据库，不能重复写指标。加载阶段不伪造 Loss。
+- M2-01 已定稿进度事件与指标格式，代码为 trainer/contracts.py，旧 trainer.train 导入位置保留；Pydantic 使用关键字构造，新增必填字段按契约迁移。公开 TrainingConfig 未改，max_steps/precision/local_files_only 属于内部 RuntimeOptions。
+- step 表示优化器更新步数，kind 区分 train/eval，时间归一 UTC。后续 Trainer 唯一写入并 flush metrics.jsonl，再回调同源事件；M3 Worker 消费事件并更新数据库，不能重复写指标。加载阶段不伪造 Loss。
+- 内部路径类型只验证布局，不验证文件、符号链接或授权；后续执行层负责真实路径、受控根目录与哈希校验。模型/tokenizer 固定同一 40 位 revision，缓存目录是实际 Hub 缓存目录。
+- 训练 Schema/样例从类型经 scripts/export_training_contract.py 生成，--check 检查漂移；docs/examples/training 中数值均为格式占位，不是训练证据。结构合法的 manifest 也不能代替真实产物和 GPU 验证。
 - 每次运行独立目录，保存 Adapter、tokenizer、参数和版本化清单，校验成功后才返回结果；失败保留诊断、不留下有效成功标记。训练后必须结束进程，再在新进程重载验收。
 - M2 工程闭环允许使用显式标记的格式草稿；正式效果实验必须使用人工审核数据，冻结题不参与调参。不要求输出必须改变或效果必须提升，不把阶段计划写成实际结果。
 - 默认 B 主改 trainer/train.py、数据转换和重载入口，A 主改内部契约、缓存工具和产物校验辅助模块；共享配置/类型先核对再修改，避免同时编辑同一入口。M2 不安排前端业务改动，用户调整分工时以本次要求为准。

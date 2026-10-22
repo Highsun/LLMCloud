@@ -1,6 +1,6 @@
 # M2 单机真实 LoRA 开发计划
 
-版本：1.0.0。确认日期：2026-10-22。状态：用户已确认开发提纲，本文件完成任务拆分；M2-01 至 M2-06 均待开始，尚未交付真实训练能力。
+版本：1.0.0。确认/更新日期：2026-10-22。状态：M2-01 内部契约与类型已完成；M2-02 至 M2-06 待开始，尚未交付真实训练能力。
 
 适用成员：A 主负责后端、存储与调度，B 主负责训练与前端。本文是 M2 执行入口；全局时间线见 [八周规划](project-plan.md)，协作规则见 [AGENTS.md](../AGENTS.md)，当前事实见 [项目记忆](project-memory.md)。
 
@@ -16,7 +16,7 @@ M2 演示流程：准备模型缓存 → 检查训练样本 → 命令行训练 
 | --- | --- | --- |
 | M1 数据管理 | 上传、列表、详情、严格 JSONL 校验、故障验收与 CPU CI 已完成 | 保持已有接口和行为 |
 | 训练输入 | `trainer.dataset.iter_records` 已复用 DatasetScanner | 继续复用，不另写宽松解析器 |
-| 训练边界 | 已有 TrainRequest、TrainingProgress、TrainResult 和 TrainingConfig | M2-01 定稿必要扩展，再实现 |
+| 训练边界 | M2-01 已有版本化 Request/Progress/Result/Snapshot/Manifest/Failure；公共 TrainingConfig 未改 | 后续实现按 [内部契约](contracts/training.md) 消费 |
 | 训练与调度 | `trainer.train`、`worker.train` 仍明确报错 | M2 实现 Trainer；业务 Worker 留给 M3 |
 | GPU 环境 | 极小随机模型完成过 GPU/BF16/LoRA 检查 | 仍需验证真实预训练模型，记录本次环境 |
 | 数据准备 | 已有来源说明、按族划分工具和 12 道冻结题 | 正式语料尚待人工编写、交叉审核 |
@@ -41,7 +41,7 @@ M3 负责任务 HTTP API、Celery 业务调度、数据库状态与重复投递�
 
 | 编号 | 主负责人／复核 | 依赖 | 主要交付 | 预估团队人时 | 当前状态 |
 | --- | --- | --- | --- | --- | --- |
-| M2-01 训练契约 | A／B | 阅读当前代码与本计划 | 内部训练契约、配置/事件/产物样例、兼容性说明 | 1.5 | 待办 |
+| M2-01 训练契约 | A／B | 阅读当前代码与本计划 | 内部训练契约、配置/事件/产物样例、兼容性说明 | 1.5 | 完成；[日志](worklogs/2026-10-22-m2-01.md) |
 | M2-02 模型准备 | A／B | M2-01 模型与路径约定 | 模型缓存与检查入口、revision 记录、真实模型加载证据 | 1.5 | 待办 |
 | M2-03 数据处理 | B／A | M2-01；真实模板检查依赖 M2-02 | 对话转换、标签与截断检查、CPU 行为检查 | 2 | 待办 |
 | M2-04 真实训练 | B／A | M2-01、02、03 | train 实现、CLI、进度回调、指标与异常处理 | 3.5 | 待办 |
@@ -56,18 +56,18 @@ M3 负责任务 HTTP API、Celery 业务调度、数据库状态与重复投递�
 
 ### M2-01：先确定训练契约
 
-以当前 `trainer/train.py` 和 `trainer/lora_config.py` 为起点，不假定规划字段已经存在：
+本项已交付 [内部训练契约 1.0.0](contracts/training.md)。代码在 trainer/contracts.py，旧 trainer.train 导入位置保留；真实训练入口仍未实现。
 
-| 类型 | 当前字段 | 本任务需要定稿的内容 |
+| 类型 | 原占位字段 | 已定稿的 v1 扩展 |
 | --- | --- | --- |
-| TrainRequest | task_id、dataset_path、output_dir、base_model、config | 固定模型 revision、可选验证集、缓存/日志位置和冒烟步数控制如何传入 |
-| TrainingConfig | LoRA、学习率、epoch、batch、梯度累积、长度、日志频率、seed | 保留当前默认值与范围；精度策略和最少必要扩展，区分训练参数与内部运行选项 |
-| TrainingProgress | step、total_steps、loss | 学习率、epoch、UTC 时间戳，以及训练/验证指标的区分 |
-| TrainResult | adapter_dir、metrics_path | 是否增加 tokenizer、配置与 manifest 的定位信息；成功校验责任 |
+| TrainRequest | task_id、dataset_path、output_dir、base_model、config | 必填 model_revision/cache_dir/log_path，可选验证集/数据清单、RuntimeOptions |
+| TrainingConfig | LoRA、学习率、epoch、batch、梯度累积、长度、日志频率、seed | 保持不变；precision/max_steps/local_files_only 属于独立内部 RuntimeOptions |
+| TrainingProgress | step、total_steps、loss | 必填 learning_rate/epoch/recorded_at，kind 区分 train/eval |
+| TrainResult | adapter_dir、metrics_path | 必填 tokenizer_dir/config_path/manifest_path；文件校验仍由 M2-05 实现 |
 
-交付内部契约到 `docs/contracts/training.md`，必要的公开格式样例放 `docs/examples/training/`；这些文件是 M2-01 待创建产物。应标注版本、默认值、单位、必填/可选、失败语义及当前实现状态。Schema 保持 CPU 可导入，模型依赖在执行训练时加载。
+契约文档、生成的 JSON Schema 和格式样例已交付，写明版本、默认值、单位、必填/可选、失败语义及当前实现状态。使用 scripts/export_training_contract.py 导出，--check 检查漂移；Schema 保持 CPU 可导入，模型依赖在后续执行训练时加载。示例数值全部为格式占位，不是实验结果。
 
-原则上保留已有字段含义并采用可选扩展。`max_steps` 等冒烟选项只供内部运行，不自动扩大前端表单或任务 API；公开配置如有必要变化，同步 Schema、相关契约与样例。当前数据集 HTTP 契约不变，不为内部训练字段手改 OpenAPI；后续公开 HTTP 字段时从真实应用重新导出并检查。
+保留已有字段含义；鉴于旧接口仅为未发布占位，v1 显式要求固定 revision 和完整定位信息，迁移至 Pydantic 关键字构造，具体必填变化见契约。后续兼容扩展优先采用可选字段。`max_steps` 等冒烟选项只供内部运行，不扩大前端表单或任务 API；公共参数与数据集 HTTP 契约不变，不为内部训练字段手改 OpenAPI；后续公开 HTTP 字段时从真实应用重新导出并检查。
 
 **验收**：A、B 使用同一份输入、事件和产物样例即可说明调用流程；字段与现有类型无未解释冲突；说明哪些类型修改已落地、哪些功能仍待实现。
 
@@ -109,7 +109,7 @@ CLI 成功返回 0，配置、模型、数据、OOM、指标/产物写入或核�
 
 ### M2-05：输出可追溯、可校验的产物
 
-计划目录如下；具体字段与相对路径语义在 M2-01 定稿：
+目录与相对路径语义已由 [M2-01 契约](contracts/training.md) 定稿；本任务实现真实保存与校验：
 
 ```text
 DATA_DIR/

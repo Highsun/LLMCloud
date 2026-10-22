@@ -1,0 +1,731 @@
+{
+  "$defs": {
+    "ArtifactFile": {
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "title": "Path",
+          "type": "string"
+        },
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "path",
+        "sha256",
+        "size_bytes"
+      ],
+      "title": "ArtifactFile",
+      "type": "object"
+    },
+    "DatasetSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Sha256",
+          "type": "string"
+        },
+        "size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Size Bytes",
+          "type": "integer"
+        },
+        "row_count": {
+          "exclusiveMinimum": 0,
+          "title": "Row Count",
+          "type": "integer"
+        },
+        "review_status": {
+          "default": "unknown",
+          "enum": [
+            "reviewed",
+            "draft_unreviewed",
+            "unknown"
+          ],
+          "title": "Review Status",
+          "type": "string"
+        },
+        "build_id": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{16}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Build Id"
+        }
+      },
+      "required": [
+        "sha256",
+        "size_bytes",
+        "row_count"
+      ],
+      "title": "DatasetSummary",
+      "type": "object"
+    },
+    "RunEnvironment": {
+      "additionalProperties": false,
+      "properties": {
+        "code_commit": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Code Commit",
+          "type": "string"
+        },
+        "working_tree_dirty": {
+          "title": "Working Tree Dirty",
+          "type": "boolean"
+        },
+        "uv_lock_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Uv Lock Sha256",
+          "type": "string"
+        },
+        "python_version": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Python Version",
+          "type": "string"
+        },
+        "cuda_runtime": {
+          "maxLength": 64,
+          "minLength": 1,
+          "title": "Cuda Runtime",
+          "type": "string"
+        },
+        "gpu_name": {
+          "maxLength": 128,
+          "minLength": 1,
+          "title": "Gpu Name",
+          "type": "string"
+        },
+        "packages": {
+          "additionalProperties": {
+            "maxLength": 64,
+            "minLength": 1,
+            "type": "string"
+          },
+          "title": "Packages",
+          "type": "object"
+        }
+      },
+      "required": [
+        "code_commit",
+        "working_tree_dirty",
+        "uv_lock_sha256",
+        "python_version",
+        "cuda_runtime",
+        "gpu_name",
+        "packages"
+      ],
+      "title": "RunEnvironment",
+      "type": "object"
+    },
+    "RuntimeOptions": {
+      "additionalProperties": false,
+      "description": "Internal execution choices; these are not public LoRA form fields.",
+      "properties": {
+        "precision": {
+          "default": "bf16",
+          "enum": [
+            "bf16",
+            "fp32"
+          ],
+          "title": "Precision",
+          "type": "string"
+        },
+        "max_steps": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Steps"
+        },
+        "local_files_only": {
+          "default": true,
+          "title": "Local Files Only",
+          "type": "boolean"
+        }
+      },
+      "title": "RuntimeOptions",
+      "type": "object"
+    },
+    "TrainRequest": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "dataset_path": {
+          "format": "path",
+          "title": "Dataset Path",
+          "type": "string"
+        },
+        "output_dir": {
+          "format": "path",
+          "title": "Output Dir",
+          "type": "string"
+        },
+        "base_model": {
+          "const": "Qwen/Qwen2.5-0.5B-Instruct",
+          "title": "Base Model",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/TrainingConfig"
+        },
+        "model_revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "cache_dir": {
+          "format": "path",
+          "title": "Cache Dir",
+          "type": "string"
+        },
+        "log_path": {
+          "format": "path",
+          "title": "Log Path",
+          "type": "string"
+        },
+        "validation_dataset_path": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Validation Dataset Path"
+        },
+        "dataset_manifest_path": {
+          "anyOf": [
+            {
+              "format": "path",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Dataset Manifest Path"
+        },
+        "runtime": {
+          "$ref": "#/$defs/RuntimeOptions"
+        }
+      },
+      "required": [
+        "task_id",
+        "dataset_path",
+        "output_dir",
+        "base_model",
+        "config",
+        "model_revision",
+        "cache_dir",
+        "log_path"
+      ],
+      "title": "TrainRequest",
+      "type": "object"
+    },
+    "TrainResult": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "adapter_dir": {
+          "format": "path",
+          "title": "Adapter Dir",
+          "type": "string"
+        },
+        "metrics_path": {
+          "format": "path",
+          "title": "Metrics Path",
+          "type": "string"
+        },
+        "tokenizer_dir": {
+          "format": "path",
+          "title": "Tokenizer Dir",
+          "type": "string"
+        },
+        "config_path": {
+          "format": "path",
+          "title": "Config Path",
+          "type": "string"
+        },
+        "manifest_path": {
+          "format": "path",
+          "title": "Manifest Path",
+          "type": "string"
+        }
+      },
+      "required": [
+        "adapter_dir",
+        "metrics_path",
+        "tokenizer_dir",
+        "config_path",
+        "manifest_path"
+      ],
+      "title": "TrainResult",
+      "type": "object"
+    },
+    "TrainingConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "lora_r": {
+          "default": 8,
+          "maximum": 64,
+          "minimum": 1,
+          "title": "Lora R",
+          "type": "integer"
+        },
+        "lora_alpha": {
+          "default": 16,
+          "maximum": 128,
+          "minimum": 1,
+          "title": "Lora Alpha",
+          "type": "integer"
+        },
+        "lora_dropout": {
+          "default": 0.05,
+          "exclusiveMaximum": 1,
+          "minimum": 0,
+          "title": "Lora Dropout",
+          "type": "number"
+        },
+        "target_modules": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Target Modules",
+          "type": "array"
+        },
+        "learning_rate": {
+          "default": 0.0002,
+          "exclusiveMinimum": 0,
+          "maximum": 0.01,
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "num_train_epochs": {
+          "default": 1,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Num Train Epochs",
+          "type": "integer"
+        },
+        "per_device_train_batch_size": {
+          "default": 1,
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Per Device Train Batch Size",
+          "type": "integer"
+        },
+        "gradient_accumulation_steps": {
+          "default": 8,
+          "maximum": 64,
+          "minimum": 1,
+          "title": "Gradient Accumulation Steps",
+          "type": "integer"
+        },
+        "max_seq_length": {
+          "default": 512,
+          "maximum": 2048,
+          "minimum": 64,
+          "title": "Max Seq Length",
+          "type": "integer"
+        },
+        "logging_steps": {
+          "default": 1,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Logging Steps",
+          "type": "integer"
+        },
+        "seed": {
+          "default": 42,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "title": "TrainingConfig",
+      "type": "object"
+    },
+    "TrainingFailure": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "task_id": {
+          "anyOf": [
+            {
+              "format": "uuid",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Task Id"
+        },
+        "code": {
+          "enum": [
+            "INVALID_REQUEST",
+            "INVALID_DATASET",
+            "MODEL_NOT_CACHED",
+            "MODEL_LOAD_FAILED",
+            "NO_SUPERVISED_TOKENS",
+            "CUDA_OUT_OF_MEMORY",
+            "TRAINING_FAILED",
+            "ARTIFACT_WRITE_FAILED",
+            "INVALID_ARTIFACT",
+            "PROGRESS_CALLBACK_FAILED"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "stage": {
+          "enum": [
+            "preflight",
+            "model_loading",
+            "data_preparation",
+            "training",
+            "saving",
+            "callback",
+            "reloading"
+          ],
+          "title": "Stage",
+          "type": "string"
+        },
+        "message": {
+          "maxLength": 1000,
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "stage",
+        "message"
+      ],
+      "title": "TrainingFailure",
+      "type": "object"
+    },
+    "TrainingManifest": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "base_model": {
+          "const": "Qwen/Qwen2.5-0.5B-Instruct",
+          "title": "Base Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/TrainingConfig"
+        },
+        "runtime": {
+          "$ref": "#/$defs/RuntimeOptions"
+        },
+        "status": {
+          "const": "completed",
+          "default": "completed",
+          "title": "Status",
+          "type": "string"
+        },
+        "tokenizer_revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Tokenizer Revision",
+          "type": "string"
+        },
+        "chat_template_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Chat Template Sha256",
+          "type": "string"
+        },
+        "train_dataset": {
+          "$ref": "#/$defs/DatasetSummary"
+        },
+        "validation_dataset": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/DatasetSummary"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "environment": {
+          "$ref": "#/$defs/RunEnvironment"
+        },
+        "started_at": {
+          "format": "date-time",
+          "title": "Started At",
+          "type": "string"
+        },
+        "finished_at": {
+          "format": "date-time",
+          "title": "Finished At",
+          "type": "string"
+        },
+        "summary": {
+          "$ref": "#/$defs/TrainingSummary"
+        },
+        "artifacts": {
+          "items": {
+            "$ref": "#/$defs/ArtifactFile"
+          },
+          "maxItems": 256,
+          "minItems": 5,
+          "title": "Artifacts",
+          "type": "array"
+        }
+      },
+      "required": [
+        "task_id",
+        "base_model",
+        "model_revision",
+        "config",
+        "runtime",
+        "tokenizer_revision",
+        "chat_template_sha256",
+        "train_dataset",
+        "environment",
+        "started_at",
+        "finished_at",
+        "summary",
+        "artifacts"
+      ],
+      "title": "TrainingManifest",
+      "type": "object"
+    },
+    "TrainingProgress": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "kind": {
+          "default": "train",
+          "enum": [
+            "train",
+            "eval"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "step": {
+          "exclusiveMinimum": 0,
+          "title": "Step",
+          "type": "integer"
+        },
+        "total_steps": {
+          "exclusiveMinimum": 0,
+          "title": "Total Steps",
+          "type": "integer"
+        },
+        "loss": {
+          "minimum": 0,
+          "title": "Loss",
+          "type": "number"
+        },
+        "learning_rate": {
+          "minimum": 0,
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "epoch": {
+          "minimum": 0,
+          "title": "Epoch",
+          "type": "number"
+        },
+        "recorded_at": {
+          "format": "date-time",
+          "title": "Recorded At",
+          "type": "string"
+        }
+      },
+      "required": [
+        "step",
+        "total_steps",
+        "loss",
+        "learning_rate",
+        "epoch",
+        "recorded_at"
+      ],
+      "title": "TrainingProgress",
+      "type": "object"
+    },
+    "TrainingSnapshot": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "base_model": {
+          "const": "Qwen/Qwen2.5-0.5B-Instruct",
+          "title": "Base Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/TrainingConfig"
+        },
+        "runtime": {
+          "$ref": "#/$defs/RuntimeOptions"
+        }
+      },
+      "required": [
+        "task_id",
+        "base_model",
+        "model_revision",
+        "config",
+        "runtime"
+      ],
+      "title": "TrainingSnapshot",
+      "type": "object"
+    },
+    "TrainingSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "completed_steps": {
+          "exclusiveMinimum": 0,
+          "title": "Completed Steps",
+          "type": "integer"
+        },
+        "total_steps": {
+          "exclusiveMinimum": 0,
+          "title": "Total Steps",
+          "type": "integer"
+        },
+        "elapsed_seconds": {
+          "minimum": 0,
+          "title": "Elapsed Seconds",
+          "type": "number"
+        },
+        "peak_memory_allocated_bytes": {
+          "minimum": 0,
+          "title": "Peak Memory Allocated Bytes",
+          "type": "integer"
+        },
+        "trainable_parameters": {
+          "exclusiveMinimum": 0,
+          "title": "Trainable Parameters",
+          "type": "integer"
+        },
+        "total_parameters": {
+          "exclusiveMinimum": 0,
+          "title": "Total Parameters",
+          "type": "integer"
+        },
+        "final_loss": {
+          "minimum": 0,
+          "title": "Final Loss",
+          "type": "number"
+        },
+        "eval_loss": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eval Loss"
+        }
+      },
+      "required": [
+        "completed_steps",
+        "total_steps",
+        "elapsed_seconds",
+        "peak_memory_allocated_bytes",
+        "trainable_parameters",
+        "total_parameters",
+        "final_loss"
+      ],
+      "title": "TrainingSummary",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LLMCloud internal training contract",
+  "x-contract-version": "1.0.0",
+  "x-implementation-status": "types_only",
+  "x-generated-by": "scripts/export_training_contract.py"
+}

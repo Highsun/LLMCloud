@@ -18,7 +18,7 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 `trainer.train` 和 `worker.train` 是明确报错的接口占位，不会生成虚假训练结果。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
 
-**下一步执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 已确认，拆为 M2-01 训练契约、M2-02 模型准备、M2-03 数据处理、M2-04 真实训练、M2-05 产物交付、M2-06 新进程重载验收。六项实现均待开始，先完成训练契约，再并行准备模型与数据；任务 HTTP/Celery 接入属于 M3。
+**当前执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 已完成 [内部训练契约 1.0.0](docs/contracts/training.md)、CPU 类型校验、生成 Schema/样例与漂移检查；M2-02 至 M2-06 待开始，下一步准备模型与数据。任务 HTTP/Celery 接入属于 M3，当前仍不能执行真实训练。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
@@ -57,6 +57,7 @@ LLMCloud/
 │       └── services/           # 数据集存储、查询与失败清理
 ├── trainer/
 │   ├── train.py                # 训练接口，后续实现
+│   ├── contracts.py            # M2-01 CPU-only 内部类型与一致性校验
 │   ├── dataset.py              # JSONL 格式校验
 │   ├── lora_config.py          # 训练参数契约
 │   └── requirements.txt        # 含训练依赖的兼容导出
@@ -78,6 +79,7 @@ LLMCloud/
     ├── architecture.md
     ├── project-plan.md
     ├── m2-development-plan.md  # M2 任务、分工、依赖与验收
+    ├── contracts/training.md  # 内部训练协议，配套生成 JSON Schema
     ├── experiment.md
     └── examples/train.jsonl
 ```
@@ -195,6 +197,8 @@ uv run --locked --extra training python scripts/check_gpu.py
 `check_gpu.py` 会执行实际前向和反向 GPU 运算。通过该检查后，再下载基础模型和验证 LoRA 训练。训练依赖已锁定版本，但尚未完成真实 GPU 训练兼容性验证，M2 成功后再按实测调整。普通 `uv sync --locked` 会回到服务依赖及 dev 测试组的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
 
 独立 GPU 环境也可使用 `UV_PROJECT_ENVIRONMENT=.venv-training uv sync --locked --extra training`，运行 Worker 和 GPU 检查时同样设置该变量。
+
+内部训练类型、Schema 和示例无需 GPU：`uv run --locked python scripts/export_training_contract.py --check`。M2-01 将占位 dataclass 改为 Pydantic 关键字构造，保留原导入位置但新增必填 revision/路径等字段，迁移见 [训练契约](docs/contracts/training.md)。格式样例不是模型、训练日志或可下载产物。
 
 相关依据：[PyTorch Blackwell 支持说明](https://pytorch.org/blog/pytorch-2-7/)、[官方历史版本安装矩阵](https://pytorch.org/get-started/previous-versions/)、[Qwen2.5-0.5B 模型卡](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)、[Vue 官方开发环境说明](https://vuejs.org/guide/quick-start)、[uv PyTorch 配置](https://docs.astral.sh/uv/guides/integration/pytorch/)、[uv 锁定与同步规则](https://docs.astral.sh/uv/concepts/projects/sync/)。
 

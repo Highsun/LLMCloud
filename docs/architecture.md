@@ -25,6 +25,7 @@ M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读
 | `backend/app/services` | 已校验的业务参数 | 实体与调度结果 | 数据管理、状态转换和产物访问 |
 | `backend/app/models` | ORM 数据/Schema | 持久化实体与接口类型 | 元数据结构和参数契约 |
 | `worker/tasks.py` | 数据库任务 ID | 更新状态与产物元数据 | 领取任务、调用训练器、捕获错误 |
+| `trainer/contracts.py` | 内部参数/JSON | 可校验的 Request/Progress/Result/Manifest/Failure | CPU-only 类型；不做文件或 GPU 操作 |
 | `trainer/train.py` | TrainRequest | TrainResult 与进度回调 | 模型训练，独立于 HTTP/Celery |
 | `trainer/dataset.py` | 数据文件路径 | 校验后的训练样本 | 格式读取与验证 |
 | `frontend/src` | API 响应与用户操作 | 页面与图表 | 轮询、上传、任务与结果展示 |
@@ -37,16 +38,18 @@ API 进程不加载模型和执行 GPU 计算。Celery 消息仅包含任务 ID�
 
 ## 二、训练调用与文件契约
 
-本节描述目标边界；当前仅有基础类型，train 仍是占位。实现按 [M2 开发计划](m2-development-plan.md) 推进，必要字段及版本化内部契约在 M2-01 定稿。
+M2-01 已交付 [内部训练契约 1.0.0](contracts/training.md)、Pydantic 校验类型和生成 JSON Schema/样例；train 仍是占位。下述 I/O/GPU 行为按 [M2 开发计划](m2-development-plan.md) 后续任务实现，不因类型验证通过就成立。
 
 `train(request, on_progress) -> TrainResult`：
 
-- `TrainRequest`：task_id、dataset_path、output_dir、base_model、TrainingConfig。
-- `TrainingProgress`：step、total_steps、loss；后续扩展 learning_rate、epoch 与时间戳。
-- `TrainResult`：adapter_dir、metrics_path；返回前必须校验产物可用。
+- `TrainRequest`：保留 task_id、dataset_path、output_dir、base_model、config，新增必填 model_revision/cache_dir/log_path，可选 validation_dataset_path/dataset_manifest_path 与 RuntimeOptions。
+- `TrainingProgress`：step、total_steps、loss、learning_rate、epoch、recorded_at，kind 区分 train/eval。均按契约生成版本字段和 UTC 时间。
+- `TrainResult`：adapter_dir、metrics_path、tokenizer_dir、config_path、manifest_path；类型检查同一目录布局，执行时返回前校验真实产物。
 - M2 计划由 Trainer 唯一写入 metrics.jsonl，并在回调中提供同源真实指标；M3 Worker 消费回调更新数据库进度，不重复追加指标。回调不依赖 HTTP 请求生命周期。
 - step 表示优化器更新步数，区别于微批次；加载阶段只输出阶段日志，无 Loss 时不生成数据点。训练与验证指标区分，未执行验证时不填充 eval_loss。
 - Trainer 的配置类型保持 CPU 可导入，执行入口才加载训练库；路径/缓存参数由独立入口解析，不反向依赖后端 Settings。模型与 tokenizer 固定 revision，训练与重载使用一致模板。
+
+类型位于 trainer/contracts.py，原 trainer.train 导入位置保留；新构造使用关键字，不再使用位置 dataclass。RuntimeOptions 默认 bf16、max_steps=null、local_files_only=true，不改变公共 TrainingConfig。路径校验不访问文件系统，不能替代真实路径/符号链接与配置根目录检查。
 
 文件规划：
 

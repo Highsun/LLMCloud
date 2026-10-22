@@ -1,0 +1,99 @@
+{
+  "contract_version": "1.0.0",
+  "task_id": "4b51f20c-32aa-4d57-b3e2-b21a24542e46",
+  "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "model_revision": "1111111111111111111111111111111111111111",
+  "config": {
+    "lora_r": 8,
+    "lora_alpha": 16,
+    "lora_dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "v_proj"
+    ],
+    "learning_rate": 0.0002,
+    "num_train_epochs": 1,
+    "per_device_train_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "max_seq_length": 512,
+    "logging_steps": 1,
+    "seed": 42
+  },
+  "runtime": {
+    "precision": "bf16",
+    "max_steps": 2,
+    "local_files_only": true
+  },
+  "status": "completed",
+  "tokenizer_revision": "1111111111111111111111111111111111111111",
+  "chat_template_sha256": "2222222222222222222222222222222222222222222222222222222222222222",
+  "train_dataset": {
+    "sha256": "3333333333333333333333333333333333333333333333333333333333333333",
+    "size_bytes": 200,
+    "row_count": 3,
+    "review_status": "draft_unreviewed",
+    "build_id": "4444444444444444"
+  },
+  "validation_dataset": {
+    "sha256": "5555555555555555555555555555555555555555555555555555555555555555",
+    "size_bytes": 100,
+    "row_count": 1,
+    "review_status": "draft_unreviewed",
+    "build_id": "4444444444444444"
+  },
+  "environment": {
+    "code_commit": "6666666666666666666666666666666666666666",
+    "working_tree_dirty": false,
+    "uv_lock_sha256": "7777777777777777777777777777777777777777777777777777777777777777",
+    "python_version": "3.12.0",
+    "cuda_runtime": "12.8",
+    "gpu_name": "ILLUSTRATIVE GPU",
+    "packages": {
+      "torch": "0.0.0",
+      "transformers": "0.0.0",
+      "datasets": "0.0.0",
+      "peft": "0.0.0",
+      "trl": "0.0.0",
+      "accelerate": "0.0.0"
+    }
+  },
+  "started_at": "2026-10-22T08:00:00Z",
+  "finished_at": "2026-10-22T08:00:04Z",
+  "summary": {
+    "completed_steps": 2,
+    "total_steps": 2,
+    "elapsed_seconds": 4.0,
+    "peak_memory_allocated_bytes": 1024,
+    "trainable_parameters": 10,
+    "total_parameters": 1000,
+    "final_loss": 1.9,
+    "eval_loss": 2.1
+  },
+  "artifacts": [
+    {
+      "path": "adapter/adapter_model.safetensors",
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "size_bytes": 1
+    },
+    {
+      "path": "adapter/adapter_config.json",
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "size_bytes": 1
+    },
+    {
+      "path": "tokenizer/tokenizer_config.json",
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "size_bytes": 1
+    },
+    {
+      "path": "metrics.jsonl",
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "size_bytes": 1
+    },
+    {
+      "path": "training_config.json",
+      "sha256": "8888888888888888888888888888888888888888888888888888888888888888",
+      "size_bytes": 1
+    }
+  ]
+}

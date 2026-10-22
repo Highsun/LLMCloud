@@ -1,0 +1,7 @@
+{
+  "contract_version": "1.0.0",
+  "task_id": "4b51f20c-32aa-4d57-b3e2-b21a24542e46",
+  "code": "MODEL_NOT_CACHED",
+  "stage": "model_loading",
+  "message": "指定 revision 的模型缓存不完整，请先准备模型。"
+}
