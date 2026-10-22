@@ -123,4 +123,6 @@ sudo bash scripts/configure_docker_proxy.sh http://172.24.224.1:7897
 
 环境就绪与项目功能实现分开：GPU 运算和队列诊断通过，并不表示真实 LoRA 训练、模型推理或完整服务闭环已经实现。模型权重和用户训练数据不纳入 Git。
 
+2026-10-22 M2-02 补验：已缓存固定 revision 的真实 Qwen2.5-0.5B-Instruct，并在禁止 Python 网络连接的独立进程中完成 BF16 GPU 前向；缓存共 9 文件、999,602,607 字节，模型/tokenizer revision 一致。最小前向和模型加载耗时约 2.073 秒（不含缓存哈希与依赖导入），PyTorch 分配显存峰值 1,042,360,320 字节。使用入口、路径优先级与完整证据见 [模型缓存](model-cache.md) 和 [工作日志](worklogs/2026-10-22-m2-02.md)。本次不验证 LoRA 训练、Adapter 或在线推理。
+
 依据：[uv PyTorch 配置](https://docs.astral.sh/uv/guides/integration/pytorch/)、[NVIDIA WSL 用户指南](https://docs.nvidia.com/cuda/archive/13.0.3/wsl-user-guide/index.html)、[Redis 源码安装](https://redis.io/docs/latest/operate/oss_and_stack/install/install-redis/install-redis-from-source/)、[Docker Ubuntu 安装](https://docs.docker.com/engine/install/ubuntu/)。

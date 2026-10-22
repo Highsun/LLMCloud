@@ -26,6 +26,7 @@ M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读
 | `backend/app/models` | ORM 数据/Schema | 持久化实体与接口类型 | 元数据结构和参数契约 |
 | `worker/tasks.py` | 数据库任务 ID | 更新状态与产物元数据 | 领取任务、调用训练器、捕获错误 |
 | `trainer/contracts.py` | 内部参数/JSON | 可校验的 Request/Progress/Result/Manifest/Failure | CPU-only 类型；不做文件或 GPU 操作 |
+| `trainer/model_cache.py` | 根目录配置、模型 revision | 已校验 CachedModel/本地快照 | 显式下载与纯 CPU 离线校验分离，不依赖后端配置 |
 | `trainer/train.py` | TrainRequest | TrainResult 与进度回调 | 模型训练，独立于 HTTP/Celery |
 | `trainer/dataset.py` | 数据文件路径 | 校验后的训练样本 | 格式读取与验证 |
 | `frontend/src` | API 响应与用户操作 | 页面与图表 | 轮询、上传、任务与结果展示 |
@@ -50,6 +51,8 @@ M2-01 已交付 [内部训练契约 1.0.0](contracts/training.md)、Pydantic 校
 - Trainer 的配置类型保持 CPU 可导入，执行入口才加载训练库；路径/缓存参数由独立入口解析，不反向依赖后端 Settings。模型与 tokenizer 固定 revision，训练与重载使用一致模板。
 
 类型位于 trainer/contracts.py，原 trainer.train 导入位置保留；新构造使用关键字，不再使用位置 dataclass。RuntimeOptions 默认 bf16、max_steps=null、local_files_only=true，不改变公共 TrainingConfig。路径校验不访问文件系统，不能替代真实路径/符号链接与配置根目录检查。
+
+M2-02 已实现 scripts/prepare_model.py：prepare 将官方分支解析为固定 commit 并验证 9 个文件后原子保存缓存清单，check 对指定 commit 只读核对大小/摘要，不联网或加载训练包。HF_HOME 指缓存根，TrainRequest.cache_dir 指实际 Hub 缓存目录，默认 HF_HOME/hub；后续 Trainer 从 verify_model_cache 返回的 snapshot_dir 加载。真实基础模型的 BF16 GPU 前向已验证，见 [模型说明](model-cache.md)，不代表 LoRA 训练或 Adapter 重载已完成。
 
 文件规划：
 

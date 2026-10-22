@@ -1,6 +1,6 @@
 # 内部训练契约
 
-版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型验证与导出已实现；模型准备、tokenize、训练、文件写入与重载仍分别由 M2-02 至 M2-06 实现。
+版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型验证与导出已实现，M2-02 已补齐 [模型缓存/检查入口](../model-cache.md)；tokenize、训练、产物写入与 Adapter 重载仍待 M2-03 至 M2-06 实现。
 
 代码来源为 [trainer/contracts.py](../../trainer/contracts.py)，参数沿用 [TrainingConfig](../../trainer/lora_config.py)。[JSON Schema](training.schema.json) 由真实类型生成，不能手改；[样例说明](../examples/training/README.md) 中所有 Loss、revision、哈希、版本和产物条目均为格式示例，不是实验结果。
 
@@ -51,7 +51,7 @@ Trainer 不依赖 FastAPI、Celery、SQL 或后端 Settings；类型导入不加
 
 这些检查只验证结构，不访问文件系统，不能排除符号链接、硬链接、目录别名或数据内容重复。M2-02/03/05 的可信执行入口还要解析真实路径、检查配置根目录、文件/缓存完整性、数据哈希及输出目录不存在；CLI/Worker 负责路径授权，Schema 不是文件系统沙箱。拒绝覆盖已有任务，不提供 force/恢复入口。
 
-HF_HOME 在环境中通常指缓存根，cache_dir 指实际 Hub 缓存目录；M2-02 统一转换为同一个位置。不能因为 `.env.example` 写了 HF_HOME 就假定 Python 自动加载 `.env` 或所有库自动接受 DATA_DIR。仅为结构演示的 request.json 使用 `/srv/llmcloud`，不能直接当作本机运行配置。
+HF_HOME 在环境中通常指缓存根，cache_dir 指实际 Hub 缓存目录（默认 HF_HOME/hub）；M2-02 已由 resolve_model_paths 和 prepare_model.py 统一配置，见 [使用说明](../model-cache.md)。不能因为 `.env.example` 写了 HF_HOME 就假定任意 Python 入口自动加载 `.env` 或所有库自动接受 DATA_DIR。仅为结构演示的 request.json 使用 `/srv/llmcloud`，不能直接当作本机运行配置。
 
 ### RuntimeOptions
 

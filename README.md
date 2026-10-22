@@ -18,7 +18,7 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 `trainer.train` 和 `worker.train` 是明确报错的接口占位，不会生成虚假训练结果。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
 
-**当前执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 已完成 [内部训练契约 1.0.0](docs/contracts/training.md)、CPU 类型校验、生成 Schema/样例与漂移检查；M2-02 至 M2-06 待开始，下一步准备模型与数据。任务 HTTP/Celery 接入属于 M3，当前仍不能执行真实训练。
+**当前执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 已完成 [内部训练契约 1.0.0](docs/contracts/training.md)，M2-02 已完成 [固定模型缓存、离线检查与真实 BF16 GPU 前向](docs/model-cache.md)。M2-03 至 M2-06 待开始，下一步数据转换与监督目标检查。任务 HTTP/Celery 接入属于 M3，当前仍不能执行真实 LoRA 训练。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
@@ -58,6 +58,8 @@ LLMCloud/
 ├── trainer/
 │   ├── train.py                # 训练接口，后续实现
 │   ├── contracts.py            # M2-01 CPU-only 内部类型与一致性校验
+│   ├── model_cache.py          # 固定 revision 下载、缓存完整性与配置解析
+│   ├── model_probe.py          # 已缓存真实模型的独立 GPU 前向验收
 │   ├── dataset.py              # JSONL 格式校验
 │   ├── lora_config.py          # 训练参数契约
 │   └── requirements.txt        # 含训练依赖的兼容导出
@@ -79,6 +81,7 @@ LLMCloud/
     ├── architecture.md
     ├── project-plan.md
     ├── m2-development-plan.md  # M2 任务、分工、依赖与验收
+    ├── model-cache.md          # 模型缓存命令与后续 Trainer 接入
     ├── contracts/training.md  # 内部训练协议，配套生成 JSON Schema
     ├── experiment.md
     └── examples/train.jsonl
@@ -194,7 +197,17 @@ uv sync --locked --extra training
 uv run --locked --extra training python scripts/check_gpu.py
 ```
 
-`check_gpu.py` 会执行实际前向和反向 GPU 运算。通过该检查后，再下载基础模型和验证 LoRA 训练。训练依赖已锁定版本，但尚未完成真实 GPU 训练兼容性验证，M2 成功后再按实测调整。普通 `uv sync --locked` 会回到服务依赖及 dev 测试组的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
+`check_gpu.py` 会执行实际前向和反向 GPU 运算。M2-02 已验证真实 Qwen 基础模型的 BF16 前向，LoRA 训练兼容性仍待 M2-04 验证。普通 `uv sync --locked` 会回到服务依赖及 dev 测试组的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
+
+模型准备与离线检查（首次 prepare 联网下载约 1 GB；check 不联网）：
+
+```bash
+uv run --locked --extra training python scripts/prepare_model.py prepare --revision 7ae557604adf67be50417f59c2c2f167def9a775
+uv run --locked python scripts/prepare_model.py check --revision 7ae557604adf67be50417f59c2c2f167def9a775
+uv run --locked --extra training python scripts/prepare_model.py check --revision 7ae557604adf67be50417f59c2c2f167def9a775 --gpu
+```
+
+CLI 显式读取仓库 .env，并统一 HF_HOME 与实际 Hub cache_dir；相对路径按仓库根解析。普通 check 无需训练包，GPU check 需要 GPU 和 training extra；模型/文件清单留在忽略目录。路径优先级、故障语义与队友调用方式见 [模型缓存说明](docs/model-cache.md)。
 
 独立 GPU 环境也可使用 `UV_PROJECT_ENVIRONMENT=.venv-training uv sync --locked --extra training`，运行 Worker 和 GPU 检查时同样设置该变量。
 

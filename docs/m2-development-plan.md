@@ -1,6 +1,6 @@
 # M2 单机真实 LoRA 开发计划
 
-版本：1.0.0。确认/更新日期：2026-10-22。状态：M2-01 内部契约与类型已完成；M2-02 至 M2-06 待开始，尚未交付真实训练能力。
+版本：1.0.0。确认/更新日期：2026-10-22。状态：M2-01 内部契约、M2-02 模型缓存与真实 GPU 前向已完成；M2-03 至 M2-06 待开始，尚未交付 LoRA 训练能力。
 
 适用成员：A 主负责后端、存储与调度，B 主负责训练与前端。本文是 M2 执行入口；全局时间线见 [八周规划](project-plan.md)，协作规则见 [AGENTS.md](../AGENTS.md)，当前事实见 [项目记忆](project-memory.md)。
 
@@ -18,7 +18,7 @@ M2 演示流程：准备模型缓存 → 检查训练样本 → 命令行训练 
 | 训练输入 | `trainer.dataset.iter_records` 已复用 DatasetScanner | 继续复用，不另写宽松解析器 |
 | 训练边界 | M2-01 已有版本化 Request/Progress/Result/Snapshot/Manifest/Failure；公共 TrainingConfig 未改 | 后续实现按 [内部契约](contracts/training.md) 消费 |
 | 训练与调度 | `trainer.train`、`worker.train` 仍明确报错 | M2 实现 Trainer；业务 Worker 留给 M3 |
-| GPU 环境 | 极小随机模型完成过 GPU/BF16/LoRA 检查 | 仍需验证真实预训练模型，记录本次环境 |
+| GPU 环境 | 极小随机模型环境验证与真实预训练 Qwen 的 BF16 前向已通过 | LoRA 反向/优化器与产物仍由后续任务验证 |
 | 数据准备 | 已有来源说明、按族划分工具和 12 道冻结题 | 正式语料尚待人工编写、交叉审核 |
 | 前端 | 数据集功能已验收，任务与推理页面等待后端 | M2 通过独立入口验收，不因 Trainer 完成而启用页面 |
 
@@ -42,7 +42,7 @@ M3 负责任务 HTTP API、Celery 业务调度、数据库状态与重复投递�
 | 编号 | 主负责人／复核 | 依赖 | 主要交付 | 预估团队人时 | 当前状态 |
 | --- | --- | --- | --- | --- | --- |
 | M2-01 训练契约 | A／B | 阅读当前代码与本计划 | 内部训练契约、配置/事件/产物样例、兼容性说明 | 1.5 | 完成；[日志](worklogs/2026-10-22-m2-01.md) |
-| M2-02 模型准备 | A／B | M2-01 模型与路径约定 | 模型缓存与检查入口、revision 记录、真实模型加载证据 | 1.5 | 待办 |
+| M2-02 模型准备 | A／B | M2-01 模型与路径约定 | 模型缓存与检查入口、revision 记录、真实模型加载证据 | 1.5 | 完成；[日志](worklogs/2026-10-22-m2-02.md) |
 | M2-03 数据处理 | B／A | M2-01；真实模板检查依赖 M2-02 | 对话转换、标签与截断检查、CPU 行为检查 | 2 | 待办 |
 | M2-04 真实训练 | B／A | M2-01、02、03 | train 实现、CLI、进度回调、指标与异常处理 | 3.5 | 待办 |
 | M2-05 产物交付 | A／B | M2-01；联调依赖 M2-04 | 产物保存/校验、版本化清单、失败隔离 | 2 | 待办 |
@@ -73,6 +73,8 @@ M3 负责任务 HTTP API、Celery 业务调度、数据库状态与重复投递�
 
 ### M2-02：固定模型与可复用缓存
 
+本项已交付 scripts/prepare_model.py、trainer/model_cache.py、独立 GPU probe 与行为检查，使用与配置见 [模型缓存说明](model-cache.md)。固定 revision 的 9 文件缓存和离线 GPU 前向均已实际通过；下面约定继续供后续任务复用，不表示已训练 Adapter。
+
 检查已有缓存，按需下载模型和 tokenizer，记录最终解析到的不可变模型 revision。训练与重载使用相同 revision，不能只记录会变化的分支名。
 
 缓存沿用 `DATA_DIR/models/huggingface/` 规划，处理配置目录和 HF 缓存目录的关系；现有 `.env.example` 中 HF_HOME 仅是环境配置，不代表训练入口已实现路径初始化。不能硬编码成员机器的绝对路径或代理，不能仅假定 Python 自动加载 `.env`。Trainer 的配置解析保持独立于后端 Settings。
@@ -97,7 +99,7 @@ M3 负责任务 HTTP API、Celery 业务调度、数据库状态与重复投递�
 
 实现 `train(request, on_progress) -> TrainResult`，CLI 与后续 Worker 复用该函数。优先复用现有 Hugging Face/PEFT/TRL 能力，具体 API 以 `uv.lock` 对应版本为准，避免为实现训练重写一套训练框架。
 
-初始参数保持当前契约：r=8、alpha=16、dropout=0.05、q_proj/v_proj、batch=1、梯度累积=8、长度=512、epoch=1、learning_rate=2e-4、seed=42。BF16 为已有环境验证支持的候选，真实模型需再次实测；实际精度写入清单，不静默改变参数。打印/记录总参数量、可训练参数量和目标模块，确认基础模型参数冻结。
+初始参数保持当前契约：r=8、alpha=16、dropout=0.05、q_proj/v_proj、batch=1、梯度累积=8、长度=512、epoch=1、learning_rate=2e-4、seed=42。真实基础模型的 BF16 前向已验证，LoRA 反向/优化器仍需实测；实际精度写入清单，不静默改变参数。打印/记录总参数量、可训练参数量和目标模块，确认基础模型参数冻结。
 
 先执行极少量优化器更新，再尝试小规模完整训练。`step` 统一指优化器更新步数，不用微批次计数冒充进度；`total_steps` 与实际数据量、梯度累积和停止条件一致。Loss 按训练框架真实日志语义保存，不声称每个点是单条样本的 Loss。
 
@@ -173,7 +175,7 @@ uv sync --locked --extra training
 uv run --locked --extra training python scripts/check_gpu.py
 ```
 
-训练 CLI、模型缓存检查与重载入口尚待相应任务实现，最终命令和参数由各任务交付，不能将 `python -m trainer.train` 当前占位当作可用训练命令。训练机器后续同步保留 training extra；仅 CPU 回归使用独立环境，避免普通 uv sync 卸载 GPU 依赖。
+模型准备/检查入口已由 M2-02 交付，见 [命令说明](model-cache.md)。训练 CLI 与 Adapter 重载入口仍待对应任务实现，不能将 `python -m trainer.train` 当前占位当作可用训练命令。训练机器后续同步保留 training extra；仅 CPU 回归使用独立环境，避免普通 uv sync 卸载 GPU 依赖。
 
 CPU 回归聚焦共享校验、配置、事件/清单、路径隔离与错误处理；模板检查可使用缓存 tokenizer，本地 GPU 测试加载真实预训练模型。小型随机模型可检查算法，但不能替代本阶段真实模型验收。未改前端无需重复完整浏览器回归；修改共享配置或接口时运行对应检查。
 

@@ -628,6 +628,7 @@ dependencies = [
 training = [
     { name = "accelerate" },
     { name = "datasets" },
+    { name = "huggingface-hub" },
     { name = "peft" },
     { name = "torch", version = "2.9.1", source = { registry = "https://pypi.org/simple" }, marker = "sys_platform != 'linux' and sys_platform != 'win32'" },
     { name = "torch", version = "2.9.1+cu128", source = { registry = "https://download.pytorch.org/whl/cu128" }, marker = "sys_platform == 'linux' or sys_platform == 'win32'" },
@@ -646,6 +647,7 @@ requires-dist = [
     { name = "celery", extras = ["redis"], specifier = ">=5.5,<6.0" },
     { name = "datasets", marker = "extra == 'training'", specifier = ">=4.0,<5.0" },
     { name = "fastapi", specifier = ">=0.115,<1.0" },
+    { name = "huggingface-hub", marker = "extra == 'training'", specifier = ">=0.36,<1.0" },
     { name = "peft", marker = "extra == 'training'", specifier = ">=0.17,<0.19" },
     { name = "pydantic", specifier = ">=2.8,<3.0" },
     { name = "pydantic-settings", specifier = ">=2.8,<3.0" },

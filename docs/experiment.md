@@ -6,21 +6,21 @@
 2. 验证数据上传、异步调度、训练观测、Adapter 下载和测试推理的完整服务链路。
 3. 展示任务串行调度、显存使用与失败反馈，体现云计算服务化能力。
 
-当前尚未执行训练，下列内容为计划和待填写记录，不是实验结果。
+当前尚未执行真实 LoRA 训练，下面 E01 仍待执行。M2-02 基础模型准备与前向验证已有实际记录，单独列于文末，不是微调或效果实验结果。
 
 M2 的任务与验收见 [完整开发计划](m2-development-plan.md)。先完成真实模型上的工程冒烟和新进程重载，再使用审核后的语料进行正式效果实验；以下异步/Web 步骤分别在 M3–M5 验证。
 
-## 二、环境记录
+## 二、环境记录（已核对项来自 M2-02，正式实验需再次记录）
 
 | 项目 | 值 |
 | --- | --- |
 | Windows 版本 | 待填写 |
 | WSL / Ubuntu / 内核版本 | 待填写 |
-| GPU / 显存 | 用户提供：RTX 5070 Desktop / 12GB；待实测确认 |
-| NVIDIA 驱动 | 待填写 |
-| Python / PyTorch / CUDA runtime | 待填写 |
-| Transformers / PEFT / TRL / Accelerate / Datasets | 待填写 |
-| 代码 commit / 模型 revision | 待填写 |
+| GPU / 显存 | NVIDIA GeForce RTX 5070 / 12,227 MiB（NVML） |
+| NVIDIA 驱动 | 617.42 |
+| Python / PyTorch / CUDA runtime | 3.12.15 / 2.9.1+cu128 / 12.8 |
+| Transformers / PEFT / TRL / Accelerate / Datasets | 4.57.6 / 0.18.1 / 0.25.1 / 1.15.0 / 4.8.5 |
+| 代码 commit / 模型 revision | M2-02 起点 8f315c5，工作区含本次实现；模型 7ae557604adf67be50417f59c2c2f167def9a775；正式训练 commit 待记录 |
 | 数据集来源、授权、SHA256 | 待填写 |
 
 先执行 `uv sync --locked --extra training`，再执行 `nvidia-smi` 与 `uv run --locked --extra training python scripts/check_gpu.py`，保留版本和实际前向/反向运算结果。安装成功或 `cuda.is_available()` 为真均不足以替代 GPU 运算验证。记录本次实验使用的 `uv.lock` 与 Git commit，便于复现实验环境。
@@ -68,3 +68,24 @@ M2 工程验收另需记录：训练/重载进程独立、实际优化器更新�
 正式实验上传 train 文件，验证集和测试集由 Trainer 后续独立接入，不能把三个文件合并上传后继续声称留出评测。固定 12 题不属于上述三个子集，禁止训练或调参使用。模型对照默认 do_sample=false、max_new_tokens=192；记录实际 chat template、模型 revision 与解码配置，基础模型/Adapter 保持一致。
 
 每题准确性 0–2、清晰度 0–1、边界意识 0–1；两人盲评，保留分歧、无变化与退化案例。原始答案、双人评分与环境/参数保存到忽略的 data/experiments/<experiment_id>/，课程文档只整理真实汇总。本表当前仍待执行，不填写虚构 Loss 或评分。
+
+## 七、M2-02 基础模型前向实测（非微调）
+
+2026-10-22 使用官方预训练模型，通过 scripts/prepare_model.py 下载校验，再以独立进程禁止 Python IPv4/IPv6 connect/connect_ex，离线加载缓存执行 CUDA 前向。
+
+| 项目 | 实测结果 |
+| --- | --- |
+| 模型/tokenizer revision | 7ae557604adf67be50417f59c2c2f167def9a775 |
+| 必需文件数 / 总原始字节 | 9 / 999,602,607 |
+| chat template SHA-256 | cd8e9439f0570856fd70470bf8889ebd8b5d1107207f67a5efb46e342330527f |
+| 模型参数量 | 494,032,768 |
+| GPU / Windows 驱动 | NVIDIA GeForce RTX 5070 / 617.42；NVML 总显存 12,227 MiB |
+| PyTorch / CUDA runtime | 2.9.1+cu128 / 12.8 |
+| Transformers / HF Hub | 4.57.6 / 0.36.2 |
+| 权重与 logits 精度 | BF16 / torch.bfloat16 |
+| 输入 token 数 / logits 形状 | 34 / [1, 34, 151936] |
+| 数值检查 | logits 位于 CUDA，全部有限 |
+| PyTorch 分配显存峰值 | 1,042,360,320 字节，约 994 MiB；不是整卡或 reserved 占用 |
+| 加载与最小前向耗时 | 2.072735 秒；不含依赖导入/缓存哈希，不是生成延迟 |
+
+模型与缓存清单位于忽略的 data/models/huggingface/，来源与哈希可重新验证。此记录没有 Loss、反向传播、优化器更新、Adapter 或回答评分。后续微调仍按 E01 与冻结题协议记录，不能用本次前向结果代替训练效果。验证起点为 8f315c5，执行时工作区包含本次 M2-02 实现；最终代码以 [工作日志](worklogs/2026-10-22-m2-02.md) 与 Git 提交为准。
