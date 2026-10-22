@@ -1023,6 +1023,9 @@ progress::-webkit-progress-value {
   gap: 24px;
   align-items: start;
 }
+.dataset-layout > .panel {
+  min-width: 0;
+}
 .upload-panel > .muted {
   margin-top: -8px;
   margin-bottom: 20px;
@@ -1134,6 +1137,7 @@ progress::-webkit-progress-value {
   min-height: 343px;
 }
 .table-scroll {
+  position: relative;
   overflow-x: auto;
   max-width: 100%;
 }

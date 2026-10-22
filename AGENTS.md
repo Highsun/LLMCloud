@@ -11,7 +11,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 阅读顺序：
 
 1. [README.md](README.md)：启动入口与已实现范围。
-2. [docs/project-plan.md](docs/project-plan.md)：M0–M5、任务编号和分工。
+2. [docs/project-memory.md](docs/project-memory.md)：当前实现、前端交付和必须延续的决定；[docs/project-plan.md](docs/project-plan.md)：M0–M5、任务编号和分工。
 3. [docs/requirements.md](docs/requirements.md)、[docs/architecture.md](docs/architecture.md)：全局需求与模块边界。
 4. [docs/api/datasets.md](docs/api/datasets.md)：M1 数据集接口和文件契约。
 5. [docs/environment.md](docs/environment.md)：本机环境；其中绝对路径与代理地址不能作为跨机器固定配置。
@@ -21,7 +21,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - M0 环境和骨架已完成。健康检查、模型目录与 Celery ping 已实现。
 - M1-01 交付接口约定、Pydantic Schema、离线 OpenAPI 设计稿和样例。
 - M1-02 已完成共享 JSONL 扫描器、数据集创建/查询服务、失败清理/只读审计、新字段及 SQLite 显式迁移；详见 [工作日志](docs/worklogs/2026-10-21-m1-02.md)。
-- M1-03 已完成数据集上传/列表/详情 HTTP 路由、multipart/请求体限制、request_id、统一错误与运行时 OpenAPI；详见 [工作日志](docs/worklogs/2026-10-21-m1-03.md)。M1-04 页面、M1-05 浏览器联调和 M1-06 数据准备仍需验收，M1 完成后再进入 M2。
+- M1-03 已完成数据集上传/列表/详情 HTTP 路由、multipart/请求体限制、request_id、统一错误与运行时 OpenAPI；详见 [工作日志](docs/worklogs/2026-10-21-m1-03.md)。M1-04 已在成员 B 页面基础上完成数据集浏览器功能验收及局部修复，见 [接续日志](docs/worklogs/2026-10-22-m1-04-integration.md)。M1-05 全量故障联调/CI 与 M1-06 数据准备仍需完成，M1 结束后再进入 M2。
 - `trainer.dataset.iter_records` 与上传服务共用 DatasetScanner/InstructionRecord，不能另写一套宽松的文件校验。
 - 新库启动直接创建新表，旧库先运行 `scripts/migrate_datasets.py --check`，确认报告后显式 `--apply`；禁止用 create_all 或删库替代迁移。
 - `trainer.train` 和 `worker.train` 仍是占位。极小随机模型验证成功，不代表预训练模型微调功能完成。

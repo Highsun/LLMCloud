@@ -10,13 +10,13 @@
 
 当前完成 **M0：需求理解与项目初始化**。
 
-M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口**。后端支持真实上传、列表与详情，前端页面和浏览器联调由组员继续完成。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，本次实现与交接见 [M1-03 工作日志](docs/worklogs/2026-10-21-m1-03.md)。
+M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-04 数据管理页面**。成员 B 交付的工作台已接通真实上传、列表与详情，本次补齐局部修复和浏览器验收；M1-05 全量故障联调/CI 与 M1-06 数据准备继续推进。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，项目梳理见 [项目记忆](docs/project-memory.md)，本次接续与验证见 [M1-04 工作日志](docs/worklogs/2026-10-22-m1-04-integration.md)。
 
-- 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、上传/列表/详情 API 和统一错误、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 首页。
+- 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、上传/列表/详情 API 和统一错误、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 工作台与数据集页面。
 - 已定义：数据集格式、训练参数校验、训练输入/输出及进度回调接口、任务状态、后续 API 契约。
-- 待开发：数据管理页面与浏览器联调、任务创建和查询、真实 LoRA 训练、日志与 Loss 展示、Adapter 下载、模型推理。
+- 待开发：全量故障联调/CI、正式数据准备、任务创建和查询、真实 LoRA 训练、日志与 Loss 展示、Adapter 下载、模型推理。
 
-`trainer.train` 和 `worker.train` 是明确报错的接口占位，不会生成虚假训练结果。首页中的训练流程标记为“待开发”。
+`trainer.train` 和 `worker.train` 是明确报错的接口占位，不会生成虚假训练结果。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
@@ -138,7 +138,7 @@ npm run dev
 
 打开 <http://localhost:5173>。开发服务器将 `/api` 请求代理到后端。也可在根目录运行 `uv run --locked python frontend/app.py` 启动相同的 Vue 开发服务器。Node/npm 仍单独管理。
 
-构建检查：`cd frontend && npm run build`。生产部署时需要由反向代理配置 `/api`，Vite 开发代理不会随 `dist/` 一起生效。
+构建检查：`cd frontend && npm run build`；前端回归：`npm test`；隔离浏览器验收：`npm run test:e2e`（浏览器安装与临时服务说明见 [frontend/README.md](frontend/README.md)）。生产部署时需要由反向代理配置 `/api`，Vite 开发代理不会随 `dist/` 一起生效。
 
 ### 3. Redis 与 Worker
 

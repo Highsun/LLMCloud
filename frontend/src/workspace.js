@@ -31,15 +31,24 @@ export function supports(path, method = "get") {
   );
 }
 
+let datasetRequestSequence = 0;
+let datasetController;
+
 export async function loadDatasets(
   page = workspace.datasetPage,
   pageSize = workspace.pageSize,
 ) {
-  if (workspace.datasetLoading) return;
+  const sequence = ++datasetRequestSequence;
+  datasetController?.abort();
+  const controller = new AbortController();
+  datasetController = controller;
   workspace.datasetLoading = true;
   workspace.datasetError = null;
   try {
-    const data = await request(`/datasets?page=${page}&page_size=${pageSize}`);
+    const data = await request(`/datasets?page=${page}&page_size=${pageSize}`, {
+      signal: controller.signal,
+    });
+    if (sequence !== datasetRequestSequence) return;
     if (
       !Array.isArray(data.items) ||
       !Number.isInteger(data.total) ||
@@ -52,10 +61,14 @@ export async function loadDatasets(
     workspace.datasetPage = data.page;
     workspace.pageSize = data.page_size;
   } catch (error) {
+    if (sequence !== datasetRequestSequence) return;
     workspace.datasetError = error;
     workspace.datasets = null;
   } finally {
-    workspace.datasetLoading = false;
+    if (sequence === datasetRequestSequence) {
+      workspace.datasetLoading = false;
+      datasetController = null;
+    }
   }
 }
 

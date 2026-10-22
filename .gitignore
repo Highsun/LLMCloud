@@ -32,6 +32,8 @@ node_modules/
 *.tsbuildinfo
 *.local
 npm-debug.log*
+frontend/test-results/
+frontend/playwright-report/
 
 # Datasets, weights, training artifacts and logs stay out of Git
 data/**
