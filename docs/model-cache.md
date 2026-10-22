@@ -88,6 +88,8 @@ cached = verify_model_cache(
 
 resolve_model_paths 只读取配置/解析路径；verify_model_cache 不导入训练包或访问网络；prepare_model_cache 是显式联网的独立准备动作。库函数不自动改变进程环境，环境设置由 CLI 在依赖导入前完成。M2-03/04 从已校验快照按 local_files_only=true 加载，模型与 tokenizer 使用同一清单，不在 API 请求中下载模型。
 
+M2-03 已提供 load_training_tokenizer / prepare_training_data / InstructionCollator，见 [数据处理说明](training-data.md)。后续 Trainer 复用这些入口和既有标签，避免重新模板化、重复特殊 token 或覆盖监督掩码。
+
 `trainer.model_probe.probe_model_gpu(cache_dir, revision, precision="bf16")` 是独立验收工具：完整检查缓存，加载真实模型到单个 cuda:0，应用固定模板、执行 inference_mode 前向、检查 CUDA logits 有限性，记录参数量、版本、耗时与显存；finally 清理模型引用与分配缓存。它不训练、不生成回答、不操作任务数据库，也不是 M5 推理服务。
 
 GPU 报告的 elapsed_seconds 从依赖导入/缓存校验之后开始，覆盖模型/tokenizer 加载、搬到 GPU 与前向检查；不是完整命令耗时或生成延迟。peak_memory_allocated_bytes 为该进程 PyTorch 分配峰值，不包括桌面占用或整卡显存。

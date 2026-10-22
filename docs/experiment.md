@@ -89,3 +89,11 @@ M2 工程验收另需记录：训练/重载进程独立、实际优化器更新�
 | 加载与最小前向耗时 | 2.072735 秒；不含依赖导入/缓存哈希，不是生成延迟 |
 
 模型与缓存清单位于忽略的 data/models/huggingface/，来源与哈希可重新验证。此记录没有 Loss、反向传播、优化器更新、Adapter 或回答评分。后续微调仍按 E01 与冻结题协议记录，不能用本次前向结果代替训练效果。验证起点为 8f315c5，执行时工作区包含本次 M2-02 实现；最终代码以 [工作日志](worklogs/2026-10-22-m2-02.md) 与 Git 提交为准。
+
+## 八、M2-03 数据与标签验证（非训练）
+
+2026-10-22 在固定 revision/模板下，离线执行 [数据处理检查](training-data.md)。公开格式样例共 3 条、625 字节，原始 SHA-256 为 0ab7de0f8f7adb17d5bd47ff4b1a6a2df4237e5853c9720acf38d468adb1c5ab。长度 512 时 token 数为 56/73/73，回答内容监督数为 22/29/34，加模板 EOS 后为 23/30/35；首条监督解码恰为原回答 + EOS，系统/用户/角色头和最后换行均为 -100。
+
+长度 64 时后两条被右截断，剩余回答内容为 22/27 个 token，EOS 不再参与监督，没有人为追加。独立进程禁止 Python 网络 connect，参考 apply_chat_template 直接编码与处理结果逐项一致；真实 torch.int64 CPU 批次形状为 [3, 64]，padding 标签全为 -100，原有效 EOS 标签在 pad_id=EOS 的验证中仍保留。长 prompt 和仅特殊 token 的回答均报 NO_SUPERVISED_TOKENS。
+
+已有格式包 build_id=5b01fc10b508722a 的 train/validation 各一条，实际字节哈希/数量与 manifest/provenance 匹配，审核状态保持 draft_unreviewed；不读取 test 正文。无清单的原始样例为 unknown，不据此声称正式语料已审核。本次没有加载模型参数、使用 GPU、Loss、优化器更新或效果评分；E01 仍待执行。详细命令与交接见 [M2-03 日志](worklogs/2026-10-22-m2-03.md)。

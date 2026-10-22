@@ -1,6 +1,6 @@
 # 内部训练契约
 
-版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型验证与导出已实现，M2-02 已补齐 [模型缓存/检查入口](../model-cache.md)；tokenize、训练、产物写入与 Adapter 重载仍待 M2-03 至 M2-06 实现。
+版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型/导出、M2-02 [模型缓存](../model-cache.md)、M2-03 [数据转换/标签/截断/清单核对](../training-data.md) 已实现；训练、产物写入与 Adapter 重载仍待 M2-04 至 M2-06 实现。
 
 代码来源为 [trainer/contracts.py](../../trainer/contracts.py)，参数沿用 [TrainingConfig](../../trainer/lora_config.py)。[JSON Schema](training.schema.json) 由真实类型生成，不能手改；[样例说明](../examples/training/README.md) 中所有 Loss、revision、哈希、版本和产物条目均为格式示例，不是实验结果。
 
@@ -68,6 +68,10 @@ HF_HOME 在环境中通常指缓存根，cache_dir 指实际 Hub 缓存目录（
 保持现有 JSONL：instruction/output 非空，input 可省略。转换为一个 user 消息和一个 assistant 消息：非空 input 时 user 文本为 `instruction + "\n\n" + input`，空 input 时为 instruction；assistant 文本为 output，保留原有字符串，不额外 strip。应用模型 chat template，不额外插入自定义 system，保留模板自身默认行为，特殊 token 只添加一次。
 
 初版不 packing 多条记录；长度限制作用于模板化后的 token 序列，采用右截断。M2-03 检查助手回答标签，用户/系统和 padding 使用忽略标签，有效回答监督 token 必须大于零；截断后无目标时报 NO_SUPERVISED_TOKENS，不静默跳过。不依赖未经检查的模板掩码配置，不另写宽松 JSONL 校验。
+
+M2-03 已按以上约定实现 trainer.preprocessing：真实模板无 generation 区块，完整序列 fast-tokenizer 字符偏移决定监督区域。角色/提示词、内容中的特殊 token、跨边界 token 与 EOS 后换行屏蔽；仅有效回答普通 token 与模板 EOS 参与 loss，右截断不补 EOS，仅 EOS 不算有效回答。InstructionCollator 保留标签、右 padding，后续模型负责因果位移，不手动 shift。
+
+prepare_training_data 返回样本与 DatasetSummary；可选数据清单校验实际 train/validation 和 provenance 的哈希/族/审核一致性，不消费 test 正文。无清单状态 unknown，草稿保持 draft_unreviewed；不声称语义防泄漏或人工审核已经完成。这是 v1 行为落地与说明细化，没有修改公共字段、默认值、上限或 HTTP 语义。
 
 | 参数 | 默认 | 保留的约束 |
 | --- | --- | --- |

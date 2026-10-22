@@ -29,6 +29,8 @@ M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读
 | `trainer/model_cache.py` | 根目录配置、模型 revision | 已校验 CachedModel/本地快照 | 显式下载与纯 CPU 离线校验分离，不依赖后端配置 |
 | `trainer/train.py` | TrainRequest | TrainResult 与进度回调 | 模型训练，独立于 HTTP/Celery |
 | `trainer/dataset.py` | 数据文件路径 | 校验后的训练样本 | 格式读取与验证 |
+| `trainer/preprocessing.py` | 校验记录、固定 tokenizer | 保留标签的模型特征/批次与统计 | 对话转换、监督、右截断/padding；不写数据 |
+| `trainer/dataset_manifest.py` | 准备清单、实际文件统计 | 校验后的审核状态/build_id | 核对 provenance、族和实际 train/validation，不读取 test 正文 |
 | `frontend/src` | API 响应与用户操作 | 页面与图表 | 轮询、上传、任务与结果展示 |
 
 HTTP 中间件顺序为 request_id → CORS → 请求体限制/未知异常处理 → 路由异常 handlers。上传按 ASGI receive 的实际字节限制整个请求体，再用受限 multipart 解析器暂存文件；拒绝重复/未知 part 后，在线程池调用 DatasetService。持久化任务结束后关闭上传流，即使请求在保存期间被取消，也不能先关流打断文件事务。解析失败、断连或取消时释放表单缓存。临时缓存与服务写盘故障均映射为受控 503。
@@ -53,6 +55,8 @@ M2-01 已交付 [内部训练契约 1.0.0](contracts/training.md)、Pydantic 校
 类型位于 trainer/contracts.py，原 trainer.train 导入位置保留；新构造使用关键字，不再使用位置 dataclass。RuntimeOptions 默认 bf16、max_steps=null、local_files_only=true，不改变公共 TrainingConfig。路径校验不访问文件系统，不能替代真实路径/符号链接与配置根目录检查。
 
 M2-02 已实现 scripts/prepare_model.py：prepare 将官方分支解析为固定 commit 并验证 9 个文件后原子保存缓存清单，check 对指定 commit 只读核对大小/摘要，不联网或加载训练包。HF_HOME 指缓存根，TrainRequest.cache_dir 指实际 Hub 缓存目录，默认 HF_HOME/hub；后续 Trainer 从 verify_model_cache 返回的 snapshot_dir 加载。真实基础模型的 BF16 GPU 前向已验证，见 [模型说明](model-cache.md)，不代表 LoRA 训练或 Adapter 重载已完成。
+
+M2-03 已实现 [训练数据准备](training-data.md)，继续共用 DatasetScanner。模板渲染的完整文本经字符偏移定位助手内容，不修改固定模板或重复特殊 token。只监督回答普通 token 与模板 EOS，截断后无有效回答则失败；collator 保留标签、右侧补齐，torch 在张量输出时才导入。后续 Trainer 直接消费 as_feature() 与 InstructionCollator，不再重新生成 labels。独立只读检查脚本不使用 GPU 或加载模型参数。
 
 文件规划：
 

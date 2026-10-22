@@ -18,7 +18,7 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 `trainer.train` 和 `worker.train` 是明确报错的接口占位，不会生成虚假训练结果。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
 
-**当前执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 已完成 [内部训练契约 1.0.0](docs/contracts/training.md)，M2-02 已完成 [固定模型缓存、离线检查与真实 BF16 GPU 前向](docs/model-cache.md)。M2-03 至 M2-06 待开始，下一步数据转换与监督目标检查。任务 HTTP/Celery 接入属于 M3，当前仍不能执行真实 LoRA 训练。
+**当前执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 至 M2-06 待开始。下一步真实 LoRA 训练；任务 HTTP/Celery 接入属于 M3，当前 train 仍是占位。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
@@ -60,6 +60,8 @@ LLMCloud/
 │   ├── contracts.py            # M2-01 CPU-only 内部类型与一致性校验
 │   ├── model_cache.py          # 固定 revision 下载、缓存完整性与配置解析
 │   ├── model_probe.py          # 已缓存真实模型的独立 GPU 前向验收
+│   ├── preprocessing.py        # 回答监督、右截断与保留标签的 padding
+│   ├── dataset_manifest.py     # 准备清单/provenance 与实际输入一致性
 │   ├── dataset.py              # JSONL 格式校验
 │   ├── lora_config.py          # 训练参数契约
 │   └── requirements.txt        # 含训练依赖的兼容导出
@@ -82,6 +84,7 @@ LLMCloud/
     ├── project-plan.md
     ├── m2-development-plan.md  # M2 任务、分工、依赖与验收
     ├── model-cache.md          # 模型缓存命令与后续 Trainer 接入
+    ├── training-data.md        # 数据转换、标签及诊断命令
     ├── contracts/training.md  # 内部训练协议，配套生成 JSON Schema
     ├── experiment.md
     └── examples/train.jsonl
@@ -212,6 +215,8 @@ CLI 显式读取仓库 .env，并统一 HF_HOME 与实际 Hub cache_dir；相对
 独立 GPU 环境也可使用 `UV_PROJECT_ENVIRONMENT=.venv-training uv sync --locked --extra training`，运行 Worker 和 GPU 检查时同样设置该变量。
 
 内部训练类型、Schema 和示例无需 GPU：`uv run --locked python scripts/export_training_contract.py --check`。M2-01 将占位 dataclass 改为 Pydantic 关键字构造，保留原导入位置但新增必填 revision/路径等字段，迁移见 [训练契约](docs/contracts/training.md)。格式样例不是模型、训练日志或可下载产物。
+
+只读检查训练数据与标签：`uv run --locked --extra training python scripts/check_training_data.py --dataset docs/examples/train.jsonl --revision 7ae557604adf67be50417f59c2c2f167def9a775`。使用已缓存 tokenizer，不加载模型或使用 GPU；默认不输出正文，显式 `--show-sample 1` 可检查一条公开样例的 tokens/labels，更多参数与 Trainer 接入见 [数据处理说明](docs/training-data.md)。
 
 相关依据：[PyTorch Blackwell 支持说明](https://pytorch.org/blog/pytorch-2-7/)、[官方历史版本安装矩阵](https://pytorch.org/get-started/previous-versions/)、[Qwen2.5-0.5B 模型卡](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)、[Vue 官方开发环境说明](https://vuejs.org/guide/quick-start)、[uv PyTorch 配置](https://docs.astral.sh/uv/guides/integration/pytorch/)、[uv 锁定与同步规则](https://docs.astral.sh/uv/concepts/projects/sync/)。
 
