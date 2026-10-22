@@ -41,7 +41,8 @@ jobs:
           bash scripts/export_requirements.sh
           git diff --exit-code -- requirements.txt trainer/requirements.txt
       - name: Install frontend
-        run: npm ci
+        timeout-minutes: 3
+        run: npm ci --prefer-offline --no-audit --fund=false --fetch-retries=1 --fetch-timeout=60000
         working-directory: frontend
       - name: Frontend tests and build
         run: |
