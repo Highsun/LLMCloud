@@ -16,7 +16,7 @@ export default defineConfig({
   },
   webServer: [
     {
-      command: "uv run --locked python scripts/serve_test_api.py --port 18000",
+      command: "uv run --locked python scripts/serve_test_api.py --port 18000 --faults",
       cwd: "..",
       url: "http://127.0.0.1:18000/api/v1/health",
       reuseExistingServer: false,

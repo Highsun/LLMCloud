@@ -68,3 +68,10 @@ npm run test:e2e
 已有浏览器依赖时可只运行 `npx playwright install chromium`。中文截图另需系统中文字体。仅使用 npm test/build 不需要浏览器或新增系统依赖。
 
 浏览器测试自动启动独立 API（18000）及 Vite（15173），API 使用临时 SQLite/文件目录，退出清理；端口被占用时直接报错，不复用业务实例。报告、截图和 trace 输出到被 Git 忽略的 test-results。取消与并发测试仅延迟真实 API 的响应，不向产品添加 mock 数据。需要回归特定场景可运行 `npm run test:e2e -- --grep 移动端`。
+
+
+## M1-05 故障回归
+
+2026-10-22 增加隔离的故障注入与边界场景，当前浏览器总计 19 项。测试配置显式使用 `serve_test_api.py --faults`，通过一次性测试控制触发磁盘/数据库/内部异常，核验真实错误与失败清理；这些入口只存在于临时服务，正常后端没有测试路由。产品组件没有新增 mock 或故障开关。验收矩阵见 [M1 检查](../docs/testing/m1-acceptance.md)。
+
+GitHub CI 自动执行后端、前端测试与构建及 Chromium 回归；失败 trace 保留 7 天，查看仓库 Actions。

@@ -16,6 +16,7 @@ from backend.app.main import create_app  # noqa: E402
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--port", type=int, default=18000)
+    parser.add_argument("--faults", action="store_true", help="Enable one-shot controls in this disposable server only")
     args = parser.parse_args()
     with tempfile.TemporaryDirectory(prefix="llmcloud-browser-") as directory:
         root = Path(directory)
@@ -23,7 +24,11 @@ def main() -> None:
             _env_file=None, data_dir=root / "data", log_dir=root / "logs",
             database_url="", api_prefix="/api/v1",
         )
-        uvicorn.run(create_app(settings), host="127.0.0.1", port=args.port, log_level="warning")
+        app = create_app(settings)
+        if args.faults:
+            from scripts.browser_test_support import install_test_controls
+            install_test_controls(app)
+        uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
 
 
 if __name__ == "__main__":

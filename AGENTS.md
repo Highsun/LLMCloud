@@ -21,7 +21,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - M0 环境和骨架已完成。健康检查、模型目录与 Celery ping 已实现。
 - M1-01 交付接口约定、Pydantic Schema、离线 OpenAPI 设计稿和样例。
 - M1-02 已完成共享 JSONL 扫描器、数据集创建/查询服务、失败清理/只读审计、新字段及 SQLite 显式迁移；详见 [工作日志](docs/worklogs/2026-10-21-m1-02.md)。
-- M1-03 已完成数据集上传/列表/详情 HTTP 路由、multipart/请求体限制、request_id、统一错误与运行时 OpenAPI；详见 [工作日志](docs/worklogs/2026-10-21-m1-03.md)。M1-04 已在成员 B 页面基础上完成数据集浏览器功能验收及局部修复，见 [接续日志](docs/worklogs/2026-10-22-m1-04-integration.md)。M1-05 全量故障联调/CI 与 M1-06 数据准备仍需完成，M1 结束后再进入 M2。
+- M1-03 已完成数据集上传/列表/详情 HTTP 路由、multipart/请求体限制、request_id、统一错误与运行时 OpenAPI；详见 [工作日志](docs/worklogs/2026-10-21-m1-03.md)。M1-04 已在成员 B 页面基础上完成数据集浏览器功能验收及局部修复，见 [接续日志](docs/worklogs/2026-10-22-m1-04-integration.md)。M1-05 故障联调、本机 CPU 验证与 CI 配置已交付，见 [日志](docs/worklogs/2026-10-22-m1-05.md)；远端 CI 结果单独核对。M1-06 数据准备仍需完成，M1 结束后再进入 M2。
 - `trainer.dataset.iter_records` 与上传服务共用 DatasetScanner/InstructionRecord，不能另写一套宽松的文件校验。
 - 新库启动直接创建新表，旧库先运行 `scripts/migrate_datasets.py --check`，确认报告后显式 `--apply`；禁止用 create_all 或删库替代迁移。
 - `trainer.train` 和 `worker.train` 仍是占位。极小随机模型验证成功，不代表预训练模型微调功能完成。
@@ -56,3 +56,4 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - 进入实施阶段以 OpenAPI 与真实后端响应一致作为验收条件，不能长期维护两套不同契约。
 - 每个任务交付包含改动、验证、未完成项。验证聚焦行为、失败处理和接口一致性；文档或契约任务不要求执行完整 GPU 训练。
 - 默认保留他人的未提交改动，不擅自覆盖；提交仅包含当前任务相关文件。分支/PR 按团队实际工作方式使用，Git 同步沿用用户授权范围。
+- 每次开发开始前、每个独立部分开发完成后，以及最终提交/推送前，都执行 `git fetch origin` 并比较本地与远端，阅读队友新增提交和工作日志。落后时优先在干净工作区 `merge --ff-only`；双方分叉时在保存本次任务提交后正常 merge，逐项解决冲突并重跑受影响检查。不能覆盖队友改动、丢弃未提交文件、强推或改写共享历史。远端暂不可达时明确记录“尚未确认”，不能写成“没有新提交”。

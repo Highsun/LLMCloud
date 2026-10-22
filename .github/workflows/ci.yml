@@ -1,0 +1,63 @@
+name: M1 CPU checks
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: m1-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@18d369b23da25a81e9458561248e1aafff6a70fa # v10.3.1
+        with:
+          version: "0.13.0"
+          python-version: "3.12"
+          enable-cache: true
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: frontend/.node-version
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install CPU service and test dependencies
+        run: uv sync --locked
+      - name: Backend tests and runtime contract
+        run: |
+          uv run --locked python -m unittest discover -s tests -v
+          uv run --locked python scripts/export_dataset_contract.py --check
+          uv run --locked python scripts/check_dataset_http.py
+          bash scripts/export_requirements.sh
+          git diff --exit-code -- requirements.txt trainer/requirements.txt
+      - name: Install frontend
+        run: npm ci
+        working-directory: frontend
+      - name: Frontend tests and build
+        run: |
+          npm test
+          npm run build
+        working-directory: frontend
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Browser tests with disposable API
+        run: npm run test:e2e
+        working-directory: frontend
+      - name: Preserve failure traces
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: browser-failure-traces
+          path: frontend/test-results/
+          retention-days: 7
+          if-no-files-found: ignore
