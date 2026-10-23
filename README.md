@@ -14,11 +14,11 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 - 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、上传/列表/详情 API 和统一错误、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 工作台与数据集页面。
 - 已定义：数据集格式、训练参数校验、训练输入/输出及进度回调接口、任务状态、后续 API 契约。
-- 待开发：正式语料编写/审核、任务创建和查询、Adapter 新进程重载、日志与 Loss 页面展示、Adapter 下载、模型推理。
+- 待开发：正式语料编写/审核、任务创建和查询、日志与 Loss 页面展示、Adapter 下载、模型推理。
 
 `trainer.train` 已实现真实单 GPU LoRA 与独立 CLI，`worker.train` 仍是明确报错的占位，业务任务调度尚待 M3。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
 
-**当前执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程 Adapter 重载待完成；任务 HTTP/Celery 接入属于 M3。
+**M2 单机真实 LoRA 工程闭环已验收**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成；任务 HTTP/Celery 接入属于 M3。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
@@ -30,7 +30,7 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 | HTTP 服务 | Python + FastAPI | 请求校验、元数据与任务管理 |
 | 异步调度 | Redis + Celery | 队列与 GPU Worker 派发 |
 | 元数据 | SQLite + SQLAlchemy | 用户、数据集与训练任务；后续可迁移 PostgreSQL |
-| 模型训练 | PyTorch + Transformers + Datasets + PEFT + TRL + Accelerate | 本地 LoRA/可校验产物已实现；新进程重载待完成 |
+| 模型训练 | PyTorch + Transformers + Datasets + PEFT + TRL + Accelerate | 本地 LoRA/可校验产物/新进程重载已验收 |
 | 文件存储 | 本地文件系统 | 数据集、模型缓存、训练产物与日志 |
 
 开发目标环境：Windows 11 + WSL2 Ubuntu + RTX 5070 12GB。一个物理 GPU 只运行一个训练 Worker，暂不引入 Kubernetes 或多 GPU 分布式训练。
@@ -57,6 +57,7 @@ LLMCloud/
 │       └── services/           # 数据集存储、查询与失败清理
 ├── trainer/
 │   ├── train.py                # CPU 可导入训练入口，CLI/Worker 复用
+│   ├── reload.py               # 固定 revision/保存 tokenizer/Adapter 实际重载与生成
 │   ├── cli.py                  # python -m trainer.train 的可信本地参数入口
 │   ├── hf_training.py          # 单 GPU Trainer/PEFT 执行与冻结/更新检查
 │   ├── events.py               # 同源指标写入、flush 与回调
@@ -205,7 +206,7 @@ uv sync --locked --extra training
 uv run --locked --extra training python scripts/check_gpu.py
 ```
 
-`check_gpu.py` 会执行实际前向和反向 GPU 运算。M2-02 已验证真实 Qwen 基础模型的 BF16 前向，M2-04 已验证真实 LoRA 更新、基础权重冻结与保存；新进程重载仍待 M2-06。普通 `uv sync --locked` 会回到服务依赖及 dev 测试组的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
+`check_gpu.py` 会执行实际前向和反向 GPU 运算。M2-02 已验证真实 Qwen 基础模型的 BF16 前向，M2-04 已验证真实 LoRA 更新、基础权重冻结与保存；M2-06 新进程重载工程验收已完成。普通 `uv sync --locked` 会回到服务依赖及 dev 测试组的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
 
 模型准备与离线检查（首次 prepare 联网下载约 1 GB；check 不联网）：
 
@@ -223,7 +224,7 @@ CLI 显式读取仓库 .env，并统一 HF_HOME 与实际 Hub cache_dir；相对
 
 只读检查训练数据与标签：`uv run --locked --extra training python scripts/check_training_data.py --dataset docs/examples/train.jsonl --revision 7ae557604adf67be50417f59c2c2f167def9a775`。使用已缓存 tokenizer，不加载模型或使用 GPU；默认不输出正文，显式 `--show-sample 1` 可检查一条公开样例的 tokens/labels，更多参数与 Trainer 接入见 [数据处理说明](docs/training-data.md)。
 
-本地 LoRA 冒烟：`uv run --locked --extra training python -m trainer.train --dataset docs/examples/train.jsonl --revision 7ae557604adf67be50417f59c2c2f167def9a775 --max-steps 2`。每次生成独立 UUID，拒绝覆盖已有任务。参数、日志/指标含义与后续交接见 [训练入口](docs/training.md)；正式语料未审核，新进程 Adapter 重载尚未验收。
+本地 LoRA 冒烟：`uv run --locked --extra training python -m trainer.train --dataset docs/examples/train.jsonl --revision 7ae557604adf67be50417f59c2c2f167def9a775 --max-steps 2`。每次生成独立 UUID，拒绝覆盖已有任务。参数、日志/指标含义与后续交接见 [训练入口](docs/training.md)；正式语料未审核，已有产物的新进程重载已验收；正式效果尚未评测。
 
 产物只读审计：`uv run --locked python scripts/check_training_artifacts.py --task-id <实际任务UUID>`。校验 Adapter、tokenizer、配置、指标与哈希，不加载模型或执行推理；用法与边界见 [产物交付](docs/training-artifacts.md)。
 
@@ -272,3 +273,5 @@ bash scripts/export_requirements.sh      # 更新两个兼容 requirements 文�
 M2 的工程验收是“真实模型更新 → 保存 Adapter → 退出训练进程 → 新进程重载生成”。正式领域数据编写与审核并行推进，格式草稿只用于工程冒烟。成员 A 主负责训练契约、模型缓存和产物规范，成员 B 主负责数据转换、训练主体和重载；具体文件归属、约 14 人时排期和验收清单见 [M2 开发计划](docs/m2-development-plan.md)。本阶段不要求改动现有前端业务代码。
 
 MVP 采用单用户课程演示模式，用户表仅预留扩展。云端公开服务前需要实现认证、数据权限和资源配额。混合部署需要共享文件访问方案，不能仅把本地路径传给远端 Worker，详见架构文档。
+
+新进程重载：`uv run --locked --extra training python scripts/reload_adapter.py --task-id <实际UUID> --prompt "开发提示词"`。命令须在训练退出后运行，详见 [重载验收](docs/adapter-reload.md)。M2 完成工程闭环，下一阶段为 M3 异步调度，正式效果实验继续独立推进。

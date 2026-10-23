@@ -1,6 +1,6 @@
 # M2-04 单 GPU LoRA 训练
 
-日期：2026-10-23。真实 Qwen LoRA、独立 CLI、指标/回调和基础保存已实现；M2-05 [独立产物审计与保存故障验收](training-artifacts.md) 已完成，M2-06 新进程 Adapter 重载待完成。当前没有任务 HTTP/Celery 业务接入，不启用前端训练或推理操作。
+日期：2026-10-23。真实 Qwen LoRA、独立 CLI、指标/回调和基础保存已实现；M2-05 [独立产物审计与保存故障验收](training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成。当前没有任务 HTTP/Celery 业务接入，不启用前端训练或推理操作。
 
 ## 运行
 
@@ -65,4 +65,4 @@ MetricWriter 是 metrics.jsonl 唯一写入方：校验 → write → flush → 
 
 本机已验证默认参数两步更新、格式草稿包完整 epoch、带验证集的稀疏日志/末步，以及同进程连续两次真实回调失败；命令、实际数值及未测项见 [工作日志](worklogs/2026-10-23-m2-04.md)。CPU CI 无需模型/训练依赖，受控 OOM 替身测试不能声称为真实 OOM。
 
-M2-05 已交付 trainer.artifacts.verify_training_artifacts 和 scripts/check_training_artifacts.py，保存与独立审计共用同一检查，覆盖跨文件/指标/配置/哈希及保存失败隔离，见 [产物交付](training-artifacts.md)。M2-06 在训练进程退出后启动新进程重载 Adapter 并生成；本次没有执行 generate，也没有冻结题评分或正式效果提升结论。
+M2-05 已交付 trainer.artifacts.verify_training_artifacts 和 scripts/check_training_artifacts.py，保存与独立审计共用同一检查，覆盖跨文件/指标/配置/哈希及保存失败隔离，见 [产物交付](training-artifacts.md)。M2-06 在训练进程退出后启动新进程重载 Adapter 并生成；现已有独立进程 generate 验收，见 [重载说明](adapter-reload.md)；没有冻结题评分或正式效果提升结论。

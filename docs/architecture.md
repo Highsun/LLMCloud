@@ -28,6 +28,7 @@ M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读
 | `trainer/contracts.py` | 内部参数/JSON | 可校验的 Request/Progress/Result/Manifest/Failure | CPU-only 类型；不做文件或 GPU 操作 |
 | `trainer/model_cache.py` | 根目录配置、模型 revision | 已校验 CachedModel/本地快照 | 显式下载与纯 CPU 离线校验分离，不依赖后端配置 |
 | `trainer/train.py` | TrainRequest | TrainResult 与进度回调 | 模型训练，独立于 HTTP/Celery |
+| `trainer/reload.py` | 已审计任务、固定缓存、开发提示词 | 独立生成结果与加载证据 | 只在执行时加载 GPU 库，本地验收，不是在线推理服务 |
 | `trainer/artifacts.py` | 任务目录、可选预期身份/revision/根目录 | VerifiedArtifacts 与安全摘要 | 保存/审计共用 CPU 文件、张量及跨文件校验，不执行模型推理 |
 | `trainer/run_storage.py` | 请求、数据摘要、执行统计与环境 | 校验后成功清单与 TrainResult | 配置/环境记录、独立目录和排他原子发布 |
 | `trainer/dataset.py` | 数据文件路径 | 校验后的训练样本 | 格式读取与验证 |
@@ -43,7 +44,7 @@ API 进程不加载模型和执行 GPU 计算。Celery 消息仅包含任务 ID�
 
 ## 二、训练调用与文件契约
 
-M2-01 已交付 [内部训练契约 1.0.0](contracts/training.md)、Pydantic 校验类型和生成 JSON Schema/样例；M2-04 已实现 [真实训练/指标/基础保存](training.md)，M2-05 [产物审计与故障验收](training-artifacts.md) 已完成，M2-06 新进程重载待完成。
+M2-01 已交付 [内部训练契约 1.0.0](contracts/training.md)、Pydantic 校验类型和生成 JSON Schema/样例；M2-04 已实现 [真实训练/指标/基础保存](training.md)，M2-05 [产物审计与故障验收](training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成。
 
 `train(request, on_progress) -> TrainResult`：
 

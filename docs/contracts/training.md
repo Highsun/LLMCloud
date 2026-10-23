@@ -1,6 +1,6 @@
 # 内部训练契约
 
-版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型/导出、M2-02 [模型缓存](../model-cache.md)、M2-03 [数据转换/标签/截断/清单核对](../training-data.md) 已实现；M2-04 [真实训练与基础保存](../training.md) 已实现；M2-05 [共享产物审计与保存故障验收](../training-artifacts.md) 已完成，M2-06 Adapter 新进程重载仍待完成。
+版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型/导出、M2-02 [模型缓存](../model-cache.md)、M2-03 [数据转换/标签/截断/清单核对](../training-data.md) 已实现；M2-04 [真实训练与基础保存](../training.md) 已实现；M2-05 [共享产物审计与保存故障验收](../training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成。
 
 代码来源为 [trainer/contracts.py](../../trainer/contracts.py)，参数沿用 [TrainingConfig](../../trainer/lora_config.py)。[JSON Schema](training.schema.json) 由真实类型生成，不能手改；[样例说明](../examples/training/README.md) 中所有 Loss、revision、哈希、版本和产物条目均为格式示例，不是实验结果。
 

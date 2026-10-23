@@ -16,7 +16,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 4. [docs/api/datasets.md](docs/api/datasets.md)：M1 数据集接口和文件契约。
 5. [docs/environment.md](docs/environment.md)：本机环境；其中绝对路径与代理地址不能作为跨机器固定配置。
 
-执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载待完成，不能把训练保存成功当作完整 M2 验收。
+执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成，不能把训练保存成功当作完整 M2 验收。
 
 ## 当前事实与任务边界
 
@@ -27,7 +27,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - `trainer.dataset.iter_records` 与上传服务共用 DatasetScanner/InstructionRecord，不能另写一套宽松的文件校验。
 - 新库启动直接创建新表，旧库先运行 `scripts/migrate_datasets.py --check`，确认报告后显式 `--apply`；禁止用 create_all 或删库替代迁移。
 - `trainer.train` 已实现单 GPU 真实 LoRA 与 CLI，`worker.train` 仍是占位，业务调度属于 M3。真实训练证据见 [M2-04 日志](docs/worklogs/2026-10-23-m2-04.md)，格式草稿不代表效果提升。
-- M2-01 契约、M2-02 模型准备、M2-03 数据转换/监督标签/截断/清单核对已完成，见 [数据处理](docs/training-data.md) 和 [M2-03 日志](docs/worklogs/2026-10-22-m2-03.md)。M2-04 训练/指标/回调及基础保存已完成；M2-05 共享产物校验器/独立 CPU 命令与保存故障验收已完成，见 [日志](docs/worklogs/2026-10-23-m2-05.md)；M2-06 重载待完成。任务 HTTP/Celery 业务调度属 M3，在线推理属 M5。
+- M2-01 契约、M2-02 模型准备、M2-03 数据转换/监督标签/截断/清单核对已完成，见 [数据处理](docs/training-data.md) 和 [M2-03 日志](docs/worklogs/2026-10-22-m2-03.md)。M2-04 训练/指标/回调及基础保存已完成；M2-05 共享产物校验器/独立 CPU 命令与保存故障验收已完成，见 [日志](docs/worklogs/2026-10-23-m2-05.md)；M2-06 新进程重载工程验收已完成。任务 HTTP/Celery 业务调度属 M3，在线推理属 M5。
 - 每次开始任务及提交/推送前检查实际代码、Git 状态与 [工作日志目录](docs/worklogs/README.md)，读取组员新增日志及相关改动；有远端更新先核对再同步，不能用覆盖文件或强推消除差异。阶段状态变化时同步更新此处与规划，不把约定或 mock 写成已实现能力。
 
 ## 技术与资源边界
