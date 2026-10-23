@@ -2,6 +2,8 @@
 
 ## 一、配置范围
 
+2026-10-23：M2-04 已在现有 uv training 环境完成真实 Qwen LoRA 更新与基础保存，无新增依赖；运行见 [训练说明](training.md)，实测见 [工作日志](worklogs/2026-10-23-m2-04.md)。独立产物审计与新进程 Adapter 重载仍待后续任务。
+
 本项目在 WSL2 Ubuntu 中开发。Python 使用 uv，前端使用 Node.js/npm，训练使用本机 GPU，Redis 为 Celery 提供队列与结果后端。SQLite 由 Python 标准库与 SQLAlchemy 使用，不需要单独部署数据库服务器。
 
 当前阶段采用原生 GPU Worker。PyTorch cu128 wheel 自带所需 CUDA 用户态运行库，Windows NVIDIA 驱动提供 WSL GPU 透传。现阶段不需要 nvcc 或完整 CUDA Toolkit；未来编译自定义 CUDA 扩展时再安装 Toolkit。WSL 中不额外安装 Linux NVIDIA 显示驱动。

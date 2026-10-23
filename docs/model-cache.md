@@ -88,7 +88,7 @@ cached = verify_model_cache(
 
 resolve_model_paths 只读取配置/解析路径；verify_model_cache 不导入训练包或访问网络；prepare_model_cache 是显式联网的独立准备动作。库函数不自动改变进程环境，环境设置由 CLI 在依赖导入前完成。M2-03/04 从已校验快照按 local_files_only=true 加载，模型与 tokenizer 使用同一清单，不在 API 请求中下载模型。
 
-M2-03 已提供 load_training_tokenizer / prepare_training_data / InstructionCollator，见 [数据处理说明](training-data.md)。后续 Trainer 复用这些入口和既有标签，避免重新模板化、重复特殊 token 或覆盖监督掩码。
+M2-03 已提供 load_training_tokenizer / prepare_training_data / InstructionCollator，见 [数据处理说明](training-data.md)。M2-04 的 [Trainer](training.md) 已复用这些入口和既有标签，不重新模板化、重复特殊 token 或覆盖监督掩码。
 
 `trainer.model_probe.probe_model_gpu(cache_dir, revision, precision="bf16")` 是独立验收工具：完整检查缓存，加载真实模型到单个 cuda:0，应用固定模板、执行 inference_mode 前向、检查 CUDA logits 有限性，记录参数量、版本、耗时与显存；finally 清理模型引用与分配缓存。它不训练、不生成回答、不操作任务数据库，也不是 M5 推理服务。
 
@@ -96,7 +96,7 @@ GPU 报告的 elapsed_seconds 从依赖导入/缓存校验之后开始，覆盖�
 
 ## 五、本机证据与复现边界
 
-实际缓存与 GPU 结果见 [M2-02 工作日志](worklogs/2026-10-22-m2-02.md) 和 [实验记录](experiment.md)。本轮模型参数为 494,032,768，BF16 logits 为 `[1, 34, 151936]` 且有限；Python 网络连接被明确阻断的独立进程验收通过。尚未验证 LoRA 反向传播、优化器、训练 Loss、Adapter 导出/重载或效果评分，后续任务分别负责。
+实际缓存与 GPU 结果见 [M2-02 工作日志](worklogs/2026-10-22-m2-02.md) 和 [实验记录](experiment.md)。本轮模型参数为 494,032,768，BF16 logits 为 `[1, 34, 151936]` 且有限；Python 网络连接被明确阻断的独立进程验收通过。该任务仅验证前向；后续 M2-04 已验证真实 LoRA/基础保存，见 [训练说明](training.md)，独立产物审计、Adapter 新进程重载及效果评分仍待完成。
 
 CPU 单元测试使用显式合成小文件与 Hub 替身，覆盖缺失、损坏、路径/配置、错误与原子清单，不能作为真实模型/GPU 证据；默认 CI 不下载权重或要求 GPU。真实权重、缓存清单与下载临时文件在忽略的 data/ 下，不进入 Git。
 

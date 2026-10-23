@@ -233,10 +233,12 @@ assert OriginalRequest is TrainRequest
 assert '/api/v1/datasets' in create_app().openapi()['paths']
 try:
     train(None)
-except NotImplementedError:
-    pass
+except Exception as error:
+    from trainer.contracts import TrainingError
+    assert isinstance(error, TrainingError)
+    assert error.failure.code == 'INVALID_REQUEST'
 else:
-    raise AssertionError('Training must remain unimplemented in M2-01')
+    raise AssertionError('Invalid input must fail before loading optional training libraries')
 '''
         result = subprocess.run([sys.executable, "-c", code], cwd=ROOT,
                                 capture_output=True, text=True, timeout=30)

@@ -16,7 +16,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 4. [docs/api/datasets.md](docs/api/datasets.md)：M1 数据集接口和文件契约。
 5. [docs/environment.md](docs/environment.md)：本机环境；其中绝对路径与代理地址不能作为跨机器固定配置。
 
-执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理已交付，LoRA 执行仍待后续任务，不能把通过标签检查或基础前向当成训练完成。
+执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 独立产物审计和 M2-06 新进程重载待完成，不能把训练保存成功当作完整 M2 验收。
 
 ## 当前事实与任务边界
 
@@ -26,8 +26,8 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - M1-03 已完成数据集上传/列表/详情 HTTP 路由、multipart/请求体限制、request_id、统一错误与运行时 OpenAPI；详见 [工作日志](docs/worklogs/2026-10-21-m1-03.md)。M1-04 已在成员 B 页面基础上完成数据集浏览器功能验收及局部修复，见 [接续日志](docs/worklogs/2026-10-22-m1-04-integration.md)。M1-05 故障验收/CPU CI 已完成且 GitHub 首次运行成功，见 [日志](docs/worklogs/2026-10-22-m1-05.md)。M1-06 来源说明、可复现划分工具和 12 道冻结题已交付，见 [数据说明](docs/data/README.md)。M1 计划范围已验收，可进入 M2；正式语料仍需人工编写/审核。
 - `trainer.dataset.iter_records` 与上传服务共用 DatasetScanner/InstructionRecord，不能另写一套宽松的文件校验。
 - 新库启动直接创建新表，旧库先运行 `scripts/migrate_datasets.py --check`，确认报告后显式 `--apply`；禁止用 create_all 或删库替代迁移。
-- `trainer.train` 和 `worker.train` 仍是占位。极小随机模型验证成功，不代表预训练模型微调功能完成。
-- M2-01 契约、M2-02 模型准备、M2-03 数据转换/监督标签/截断/清单核对已完成，见 [数据处理](docs/training-data.md) 和 [M2-03 日志](docs/worklogs/2026-10-22-m2-03.md)。M2-04 至 M2-06 待开始，前向或标签检查成功不等于 LoRA 已实现；任务 HTTP/Celery 业务调度属 M3，在线推理属 M5。
+- `trainer.train` 已实现单 GPU 真实 LoRA 与 CLI，`worker.train` 仍是占位，业务调度属于 M3。真实训练证据见 [M2-04 日志](docs/worklogs/2026-10-23-m2-04.md)，格式草稿不代表效果提升。
+- M2-01 契约、M2-02 模型准备、M2-03 数据转换/监督标签/截断/清单核对已完成，见 [数据处理](docs/training-data.md) 和 [M2-03 日志](docs/worklogs/2026-10-22-m2-03.md)。M2-04 训练/指标/回调及基础保存已完成；M2-05 独立产物校验与系统故障验收、M2-06 重载待完成。任务 HTTP/Celery 业务调度属 M3，在线推理属 M5。
 - 每次开始任务及提交/推送前检查实际代码、Git 状态与 [工作日志目录](docs/worklogs/README.md)，读取组员新增日志及相关改动；有远端更新先核对再同步，不能用覆盖文件或强推消除差异。阶段状态变化时同步更新此处与规划，不把约定或 mock 写成已实现能力。
 
 ## 技术与资源边界
@@ -44,7 +44,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - 沿用 `TrainRequest → train(request, on_progress) → TrainResult`；Schema 保持 CPU 可导入，Trainer 不依赖后端 Settings、HTTP、Celery 或 SQL。训练库在执行入口加载，不因实现 Trainer 破坏 CPU API。
 - 模型和 tokenizer 固定相同可追溯 revision，使用模型 chat template；数据转换检查助手回答监督、padding 与截断后的有效目标。上传格式校验继续复用现有扫描器。
 - M2-01 已定稿进度事件与指标格式，代码为 trainer/contracts.py，旧 trainer.train 导入位置保留；Pydantic 使用关键字构造，新增必填字段按契约迁移。公开 TrainingConfig 未改，max_steps/precision/local_files_only 属于内部 RuntimeOptions。
-- step 表示优化器更新步数，kind 区分 train/eval，时间归一 UTC。后续 Trainer 唯一写入并 flush metrics.jsonl，再回调同源事件；M3 Worker 消费事件并更新数据库，不能重复写指标。加载阶段不伪造 Loss。
+- step 表示优化器更新步数，kind 区分 train/eval，时间归一 UTC。Trainer 通过 MetricWriter 唯一写入并 flush metrics.jsonl，再回调同源事件；M3 Worker 消费事件并更新数据库，不能重复写指标。加载阶段不伪造 Loss。
 - 内部路径类型只验证布局，不验证文件、符号链接或授权；后续执行层负责真实路径、受控根目录与哈希校验。模型/tokenizer 固定同一 40 位 revision，缓存目录是实际 Hub 缓存目录。
 - M2-02 缓存入口为 scripts/prepare_model.py；prepare 显式联网，check 必须使用完整 revision 且不在线回退。trainer.model_cache.resolve_model_paths 按 CLI/环境/.env/默认解析根目录；TrainRequest.cache_dir 是 HF_HUB_CACHE（默认 HF_HOME/hub），不能直接传 HF_HOME。后续从 verify_model_cache 返回的已校验 snapshot_dir 加载，保持 local_files_only=true，不仅凭快照目录存在判断完整。
 - M2-03 入口为 trainer.preprocessing 与 scripts/check_training_data.py。真实 Qwen 模板没有 generation 标记，使用完整序列字符偏移确定回答标签，不修改模板、不盲用 assistant_only_loss。只监督有效回答内容和模板 EOS；右截断后无回答内容即失败，不允许仅 EOS 充数。padding 填 -100 且保留原标签，M2-04 不手动 shift labels、不用默认 LM collator 覆盖标签。

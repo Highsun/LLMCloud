@@ -14,11 +14,11 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 - 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、上传/列表/详情 API 和统一错误、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 工作台与数据集页面。
 - 已定义：数据集格式、训练参数校验、训练输入/输出及进度回调接口、任务状态、后续 API 契约。
-- 待开发：正式语料编写/审核、任务创建和查询、真实 LoRA 训练、日志与 Loss 展示、Adapter 下载、模型推理。
+- 待开发：正式语料编写/审核、任务创建和查询、独立产物审计/Adapter 重载、日志与 Loss 页面展示、Adapter 下载、模型推理。
 
-`trainer.train` 和 `worker.train` 是明确报错的接口占位，不会生成虚假训练结果。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
+`trainer.train` 已实现真实单 GPU LoRA 与独立 CLI，`worker.train` 仍是明确报错的占位，业务任务调度尚待 M3。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
 
-**当前执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 至 M2-06 待开始。下一步真实 LoRA 训练；任务 HTTP/Celery 接入属于 M3，当前 train 仍是占位。
+**当前执行 M2 单机真实 LoRA**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 独立产物审计/故障验收、M2-06 新进程 Adapter 重载待完成；任务 HTTP/Celery 接入属于 M3。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
@@ -30,7 +30,7 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 | HTTP 服务 | Python + FastAPI | 请求校验、元数据与任务管理 |
 | 异步调度 | Redis + Celery | 队列与 GPU Worker 派发 |
 | 元数据 | SQLite + SQLAlchemy | 用户、数据集与训练任务；后续可迁移 PostgreSQL |
-| 模型训练 | PyTorch + Transformers + Datasets + PEFT + TRL + Accelerate | LoRA 训练与 Adapter 保存，待实现 |
+| 模型训练 | PyTorch + Transformers + Datasets + PEFT + TRL + Accelerate | 本地 LoRA/基础保存已实现；独立产物审计和重载待完成 |
 | 文件存储 | 本地文件系统 | 数据集、模型缓存、训练产物与日志 |
 
 开发目标环境：Windows 11 + WSL2 Ubuntu + RTX 5070 12GB。一个物理 GPU 只运行一个训练 Worker，暂不引入 Kubernetes 或多 GPU 分布式训练。
@@ -56,7 +56,11 @@ LLMCloud/
 │       ├── models/             # SQL 实体与 API Schema
 │       └── services/           # 数据集存储、查询与失败清理
 ├── trainer/
-│   ├── train.py                # 训练接口，后续实现
+│   ├── train.py                # CPU 可导入训练入口，CLI/Worker 复用
+│   ├── cli.py                  # python -m trainer.train 的可信本地参数入口
+│   ├── hf_training.py          # 单 GPU Trainer/PEFT 执行与冻结/更新检查
+│   ├── events.py               # 同源指标写入、flush 与回调
+│   ├── run_storage.py          # 配置/环境及基础保存，M2-05 继续审计
 │   ├── contracts.py            # M2-01 CPU-only 内部类型与一致性校验
 │   ├── model_cache.py          # 固定 revision 下载、缓存完整性与配置解析
 │   ├── model_probe.py          # 已缓存真实模型的独立 GPU 前向验收
@@ -200,7 +204,7 @@ uv sync --locked --extra training
 uv run --locked --extra training python scripts/check_gpu.py
 ```
 
-`check_gpu.py` 会执行实际前向和反向 GPU 运算。M2-02 已验证真实 Qwen 基础模型的 BF16 前向，LoRA 训练兼容性仍待 M2-04 验证。普通 `uv sync --locked` 会回到服务依赖及 dev 测试组的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
+`check_gpu.py` 会执行实际前向和反向 GPU 运算。M2-02 已验证真实 Qwen 基础模型的 BF16 前向，M2-04 已验证真实 LoRA 更新、基础权重冻结与保存；新进程重载仍待 M2-06。普通 `uv sync --locked` 会回到服务依赖及 dev 测试组的环境；训练机器同步时应保留 `--extra training`。`uv run` 默认保留环境中的额外包，因此启动 API 或诊断 Worker 不会卸载已安装的训练依赖。
 
 模型准备与离线检查（首次 prepare 联网下载约 1 GB；check 不联网）：
 
@@ -217,6 +221,8 @@ CLI 显式读取仓库 .env，并统一 HF_HOME 与实际 Hub cache_dir；相对
 内部训练类型、Schema 和示例无需 GPU：`uv run --locked python scripts/export_training_contract.py --check`。M2-01 将占位 dataclass 改为 Pydantic 关键字构造，保留原导入位置但新增必填 revision/路径等字段，迁移见 [训练契约](docs/contracts/training.md)。格式样例不是模型、训练日志或可下载产物。
 
 只读检查训练数据与标签：`uv run --locked --extra training python scripts/check_training_data.py --dataset docs/examples/train.jsonl --revision 7ae557604adf67be50417f59c2c2f167def9a775`。使用已缓存 tokenizer，不加载模型或使用 GPU；默认不输出正文，显式 `--show-sample 1` 可检查一条公开样例的 tokens/labels，更多参数与 Trainer 接入见 [数据处理说明](docs/training-data.md)。
+
+本地 LoRA 冒烟：`uv run --locked --extra training python -m trainer.train --dataset docs/examples/train.jsonl --revision 7ae557604adf67be50417f59c2c2f167def9a775 --max-steps 2`。每次生成独立 UUID，拒绝覆盖已有任务。参数、日志/指标含义与后续交接见 [训练入口](docs/training.md)；正式语料未审核，新进程 Adapter 重载尚未验收。
 
 相关依据：[PyTorch Blackwell 支持说明](https://pytorch.org/blog/pytorch-2-7/)、[官方历史版本安装矩阵](https://pytorch.org/get-started/previous-versions/)、[Qwen2.5-0.5B 模型卡](https://huggingface.co/Qwen/Qwen2.5-0.5B-Instruct)、[Vue 官方开发环境说明](https://vuejs.org/guide/quick-start)、[uv PyTorch 配置](https://docs.astral.sh/uv/guides/integration/pytorch/)、[uv 锁定与同步规则](https://docs.astral.sh/uv/concepts/projects/sync/)。
 

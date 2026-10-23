@@ -1,6 +1,6 @@
 # 内部训练契约
 
-版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型/导出、M2-02 [模型缓存](../model-cache.md)、M2-03 [数据转换/标签/截断/清单核对](../training-data.md) 已实现；训练、产物写入与 Adapter 重载仍待 M2-04 至 M2-06 实现。
+版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型/导出、M2-02 [模型缓存](../model-cache.md)、M2-03 [数据转换/标签/截断/清单核对](../training-data.md) 已实现；M2-04 [真实训练与基础保存](../training.md) 已实现；M2-05 独立产物审计/故障验收和 M2-06 Adapter 新进程重载仍待完成。
 
 代码来源为 [trainer/contracts.py](../../trainer/contracts.py)，参数沿用 [TrainingConfig](../../trainer/lora_config.py)。[JSON Schema](training.schema.json) 由真实类型生成，不能手改；[样例说明](../examples/training/README.md) 中所有 Loss、revision、哈希、版本和产物条目均为格式示例，不是实验结果。
 
@@ -28,7 +28,7 @@ Trainer 不依赖 FastAPI、Celery、SQL 或后端 Settings；类型导入不加
 
 契约模型冻结字段赋值，保留原占位对象的值对象用法；这不是深度不可变，嵌套公共 TrainingConfig、列表或字典仍可能被调用方改动，执行时必须先做深拷贝快照。
 
-现有 `TrainingConfig` 的字段、默认值与范围未改；TaskCreate、数据集 Schema、HTTP OpenAPI 均未改，不新增 HTTP API 主版本。当前 `train` 仍抛 NotImplementedError，不能以已构造类型声称完成训练。
+现有 `TrainingConfig` 的字段、默认值与范围未改；TaskCreate、数据集 Schema、HTTP OpenAPI 均未改，不新增 HTTP API 主版本。当前 train 已由 M2-04 实现真实 LoRA、指标与基础保存；不能以类型通过或训练成功声称已通过新进程重载。
 
 ## 二、TrainRequest：可信执行输入
 
@@ -98,7 +98,7 @@ prepare_training_data 返回样本与 DatasetSummary；可选数据清单校验�
 | kind | train（默认）或 eval | 区分训练/验证；loss 的含义由 kind 确定 |
 | step / total_steps | 严格正整数，step ≤ total_steps | 实际优化器更新步数；不把微批次或加载阶段计为步数 |
 | loss | 非负有限数 | train 为训练框架该日志窗口的真实 Loss；eval 为该次验证平均 Loss |
-| learning_rate | 非负有限数 | 事件时优化器学习率，可为 0 |
+| learning_rate | 非负有限数 | 事件时优化器当前学习率（调度更新后），可为 0 |
 | epoch | 非负有限数 | 框架报告的 epoch 进度，可为小数 |
 | recorded_at | 带时区 datetime / RFC 3339 | 序列化归一为 UTC；不接受朴素时间或数字时间戳 |
 

@@ -1,6 +1,6 @@
 # 项目状态与协作记忆
 
-梳理日期：2026-10-22。这是成员及 AI 助手的当前状态摘要；详细契约以 datasets.md 和 Pydantic Schema 为准，历史过程见工作日志。开始任务时仍须核对最新 Git、日志和实际代码。
+梳理日期：2026-10-23。这是成员及 AI 助手的当前状态摘要；详细契约以 datasets.md 和 Pydantic Schema 为准，历史过程见工作日志。开始任务时仍须核对最新 Git、日志和实际代码。
 
 ## 项目目标与边界
 
@@ -19,10 +19,11 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 | M1-05/06 | 故障验收与 GitHub CPU CI 已通过；来源方案、按族划分与审核工具、12 道冻结题、格式草稿包已交付，72 项 CPU 检查通过 |
 | M2-01 | [内部训练契约 1.0.0](contracts/training.md)、CPU 校验类型、Schema/格式样例、导出漂移和错误结构已交付 |
 | M2-02 | [模型缓存与离线检查](model-cache.md) 已交付，真实 Qwen BF16 GPU 前向通过；固定 revision 为 7ae557604adf67be50417f59c2c2f167def9a775，9 文件/999,602,607 字节 |
-| M2-03 | [数据转换、标签、截断、padding 与清单核对](training-data.md) 已交付；真实 tokenizer 和 CPU 张量验证通过，M2-04 至 M2-06 待开始 |
-| M2–M5 | 真实预训练模型微调、业务调度、训练观测/下载和推理尚未实现；页面存在不代表服务已具备这些能力 |
+| M2-03 | [数据转换、标签、截断、padding 与清单核对](training-data.md) 已交付；真实 tokenizer 和 CPU 张量验证通过 |
+| M2-04 | [真实训练](training.md)、CLI、同源指标/回调、基础保存已完成；本机真实 Qwen LoRA 更新及冻结权重哈希验证通过 |
+| M2-05 至 M5 | 独立产物审计、Adapter 新进程重载、业务调度、页面观测/下载和在线推理待完成 |
 
-`trainer.train`、`worker.train` 仍是明确报错的占位。极小随机模型的 GPU/LoRA 检查是环境证据，不能算 Qwen2.5 预训练模型真实微调完成。
+`trainer.train` 已执行真实 Qwen LoRA，`worker.train` 仍是业务占位。训练保存成功不表示新进程重载成功，也不表示正式效果提升。
 
 ## 必须延续的接口与实现决定
 
@@ -34,7 +35,7 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 - 新库启动建表，旧库显式 `--check`/`--apply` 迁移，不删库。OpenAPI 从真实应用生成，不能恢复成手工维护的另一套设计稿。
 - API 不加载 GPU 模型或直接训练；Trainer 不依赖 HTTP/Celery/SQL。后续单 Worker 串行执行，训练与推理互斥。
 - M2 沿用 TrainRequest → train → TrainResult，类型在 trainer/contracts.py；原 trainer.train 导入位置保留，已从占位 dataclass 迁移为 Pydantic 关键字构造。Request 新增必填 model_revision/cache_dir/log_path，进度新增 learning_rate/epoch/recorded_at，结果新增 tokenizer/config/manifest 路径，详见契约迁移说明。
-- step 表示优化器更新步数，kind 区分 train/eval，时间归一 UTC。后续 Trainer 单独写入并 flush metrics.jsonl，再回调同源事件，Worker 更新数据库不重复写入。公开 TrainingConfig 保持不变，内部 RuntimeOptions 管理 precision/max_steps/local_files_only。
+- step 表示优化器更新步数，kind 区分 train/eval，时间归一 UTC。Trainer 通过 MetricWriter 单独写入并 flush metrics.jsonl，再回调同源事件，Worker 更新数据库不重复写入。公开 TrainingConfig 保持不变，内部 RuntimeOptions 管理 precision/max_steps/local_files_only。
 - 模型/tokenizer 固定 revision，使用同一 chat template，检查助手回答监督与截断。成功前校验 Adapter/配置/清单，工程验收须在新进程重载；不能将格式草稿训练或文本变化当作效果提升证据。
 - 模型缓存由 trainer.model_cache 统一解析、下载与校验，CLI 为 scripts/prepare_model.py。cache_dir 默认 HF_HOME/hub，环境/.env 与显式参数按文档优先级解析；verify_model_cache 不导入 HF/torch、不联网、不写文件，检查每个文件的大小/摘要与 revision，返回已验证的 snapshot_dir。缓存清单不是训练成功 manifest。
 - 训练数据由 trainer.preprocessing.prepare_training_data 处理，继续使用 DatasetScanner；固定模板无 generation 区块，完整文本偏移决定回答标签，不重复特殊 token，不手动 shift。InstructionCollator 保留 labels 并右 padding；部分回答截断不强行补 EOS，仅 prompt/EOS 的样本必须失败。
@@ -48,8 +49,8 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 
 M1-01 至 M1-06 的计划范围已完成；数据方案见 docs/data/README.md，格式草稿不等于正式语料，冻结题/族不得进入训练或调参。正式语料继续由团队编写/审核。下一步进入 M2：先以独立 Trainer 训练 0.5B 模型，保存并在独立进程重载 Adapter，再在 M3 接入 Celery。
 
-M2-01 已交付类型和格式约定，生成 Schema/样例使用 scripts/export_training_contract.py，--check 检查漂移。M2-02 已执行真实缓存与 GPU 前向；M2-01 的格式占位仍不是实验数据。未进行 LoRA 反向传播、优化器更新、产物保存/重载或效果评测。
+M2-01 已交付类型和格式约定，生成 Schema/样例使用 scripts/export_training_contract.py，--check 检查漂移。M2-02 已执行真实缓存与 GPU 前向；M2-01 的格式占位仍不是实验数据。M2-04 已进行真实 LoRA 反向/优化器更新和基础保存；独立产物审计、新进程重载与效果评测未完成。
 
-下一步 M2-04 真实训练 → M2-05 产物交付 → M2-06 重载验收。Trainer 复用 load_training_tokenizer / prepare_training_data / InstructionCollator，不另写标签逻辑；M2-03 按本次用户要求由当前侧交付，B 后续接续时核对调用方式。工程闭环预算约 14 团队人时；正式语料审核与效果实验继续独立记录；交接见 [M2-03 日志](worklogs/2026-10-22-m2-03.md)。
+下一步 M2-05 独立产物校验/故障验收 → M2-06 新进程重载。M2-04 由本次用户指定当前侧交付，入口见 training.md，实测见 [M2-04 日志](worklogs/2026-10-23-m2-04.md)。Trainer 复用 load_training_tokenizer / prepare_training_data / InstructionCollator，不另写标签逻辑；M2-03 按本次用户要求由当前侧交付，B 后续接续时核对调用方式。工程闭环预算约 14 团队人时；正式语料审核与效果实验继续独立记录；交接见 [M2-03 日志](worklogs/2026-10-22-m2-03.md)。
 
 入口：[项目规划](project-plan.md)、[M2 执行计划](m2-development-plan.md)、[数据集契约](api/datasets.md)、[成员 B 日志](worklogs/2026-10-21-m1-04-frontend.md)、[日志索引](worklogs/README.md)。

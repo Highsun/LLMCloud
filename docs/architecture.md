@@ -15,7 +15,7 @@ flowchart LR
     Worker --> Files
 ```
 
-该图描述 MVP 目标架构。M0 已实现健康检查、模型目录、元数据建表、Worker 配置和诊断任务；M1-02 已实现数据集服务层，M1-03 已接入真实数据集 HTTP API；M1-04 已在成员 B 工作台中验证真实数据集交互；业务训练与调度后续实现。
+该图描述 MVP 目标架构。M0 已实现健康检查、模型目录、元数据建表、Worker 配置和诊断任务；M1-02 已实现数据集服务层，M1-03 已接入真实数据集 HTTP API；M1-04 已在成员 B 工作台中验证真实数据集交互；M2-04 已实现独立真实 LoRA，业务调度后续由 M3 实现。
 
 M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读资源、原始字节 SHA-256 和相对 DATA_DIR 的存储键。M1-02 已落实共享扫描器、数据库迁移、文件服务和只读审计；M1-03 已实现路由和统一异常处理，详见 [HTTP 工作日志](worklogs/2026-10-21-m1-03.md)。
 
@@ -41,22 +41,24 @@ API 进程不加载模型和执行 GPU 计算。Celery 消息仅包含任务 ID�
 
 ## 二、训练调用与文件契约
 
-M2-01 已交付 [内部训练契约 1.0.0](contracts/training.md)、Pydantic 校验类型和生成 JSON Schema/样例；train 仍是占位。下述 I/O/GPU 行为按 [M2 开发计划](m2-development-plan.md) 后续任务实现，不因类型验证通过就成立。
+M2-01 已交付 [内部训练契约 1.0.0](contracts/training.md)、Pydantic 校验类型和生成 JSON Schema/样例；M2-04 已实现 [真实训练/指标/基础保存](training.md)，M2-05 独立产物审计与 M2-06 新进程重载待完成。
 
 `train(request, on_progress) -> TrainResult`：
 
 - `TrainRequest`：保留 task_id、dataset_path、output_dir、base_model、config，新增必填 model_revision/cache_dir/log_path，可选 validation_dataset_path/dataset_manifest_path 与 RuntimeOptions。
 - `TrainingProgress`：step、total_steps、loss、learning_rate、epoch、recorded_at，kind 区分 train/eval。均按契约生成版本字段和 UTC 时间。
 - `TrainResult`：adapter_dir、metrics_path、tokenizer_dir、config_path、manifest_path；类型检查同一目录布局，执行时返回前校验真实产物。
-- M2 计划由 Trainer 唯一写入 metrics.jsonl，并在回调中提供同源真实指标；M3 Worker 消费回调更新数据库进度，不重复追加指标。回调不依赖 HTTP 请求生命周期。
+- M2-04 已由 Trainer 通过 MetricWriter 唯一写入 metrics.jsonl，并在回调中提供同源真实指标；M3 Worker 消费回调更新数据库进度，不重复追加指标。回调不依赖 HTTP 请求生命周期。
 - step 表示优化器更新步数，区别于微批次；加载阶段只输出阶段日志，无 Loss 时不生成数据点。训练与验证指标区分，未执行验证时不填充 eval_loss。
 - Trainer 的配置类型保持 CPU 可导入，执行入口才加载训练库；路径/缓存参数由独立入口解析，不反向依赖后端 Settings。模型与 tokenizer 固定 revision，训练与重载使用一致模板。
 
 类型位于 trainer/contracts.py，原 trainer.train 导入位置保留；新构造使用关键字，不再使用位置 dataclass。RuntimeOptions 默认 bf16、max_steps=null、local_files_only=true，不改变公共 TrainingConfig。路径校验不访问文件系统，不能替代真实路径/符号链接与配置根目录检查。
 
-M2-02 已实现 scripts/prepare_model.py：prepare 将官方分支解析为固定 commit 并验证 9 个文件后原子保存缓存清单，check 对指定 commit 只读核对大小/摘要，不联网或加载训练包。HF_HOME 指缓存根，TrainRequest.cache_dir 指实际 Hub 缓存目录，默认 HF_HOME/hub；后续 Trainer 从 verify_model_cache 返回的 snapshot_dir 加载。真实基础模型的 BF16 GPU 前向已验证，见 [模型说明](model-cache.md)，不代表 LoRA 训练或 Adapter 重载已完成。
+M2-02 已实现 scripts/prepare_model.py：prepare 将官方分支解析为固定 commit 并验证 9 个文件后原子保存缓存清单，check 对指定 commit 只读核对大小/摘要，不联网或加载训练包。HF_HOME 指缓存根，TrainRequest.cache_dir 指实际 Hub 缓存目录，默认 HF_HOME/hub；Trainer 从 verify_model_cache 返回的 snapshot_dir 加载。真实基础模型的 BF16 GPU 前向已验证，见 [模型说明](model-cache.md)，不代表 LoRA 训练或 Adapter 重载已完成。
 
-M2-03 已实现 [训练数据准备](training-data.md)，继续共用 DatasetScanner。模板渲染的完整文本经字符偏移定位助手内容，不修改固定模板或重复特殊 token。只监督回答普通 token 与模板 EOS，截断后无有效回答则失败；collator 保留标签、右侧补齐，torch 在张量输出时才导入。后续 Trainer 直接消费 as_feature() 与 InstructionCollator，不再重新生成 labels。独立只读检查脚本不使用 GPU 或加载模型参数。
+M2-03 已实现 [训练数据准备](training-data.md)，继续共用 DatasetScanner。模板渲染的完整文本经字符偏移定位助手内容，不修改固定模板或重复特殊 token。只监督回答普通 token 与模板 EOS，截断后无有效回答则失败；collator 保留标签、右侧补齐，torch 在张量输出时才导入。Trainer 直接消费 as_feature() 与 InstructionCollator，不再重新生成 labels。独立只读检查脚本不使用 GPU 或加载模型参数。
+
+M2-04 使用 Transformers Trainer + PEFT，冻结基础权重并检查前后字节哈希，检查 LoRA 张量更新、真实指标及保存张量。模型/优化器在执行结束释放，异常栈不保留模型引用。run_storage 当前完成满足返回契约的基础保存；M2-05 再补独立审计器与系统故障验证。
 
 文件规划：
 

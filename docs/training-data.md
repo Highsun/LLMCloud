@@ -72,6 +72,8 @@ InstructionCollator 在当前批次最长长度右侧 padding：input_ids 填 pa
 
 ## 五、M2-04 调用方式
 
+M2-04 已按以下方式接入真实 Trainer，运行与指标语义见 [训练入口](training.md)。本节的数据诊断仍不加载基础模型或执行训练。
+
 ```python
 from trainer.preprocessing import (
     load_training_tokenizer, prepare_training_data, InstructionCollator,
