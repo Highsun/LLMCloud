@@ -1,6 +1,6 @@
 # M2-04 单 GPU LoRA 训练
 
-日期：2026-10-23。真实 Qwen LoRA、独立 CLI、指标/回调和基础保存已实现；M2-05 独立产物审计与系统故障验收、M2-06 新进程 Adapter 重载仍待完成。当前没有任务 HTTP/Celery 业务接入，不启用前端训练或推理操作。
+日期：2026-10-23。真实 Qwen LoRA、独立 CLI、指标/回调和基础保存已实现；M2-05 [独立产物审计与保存故障验收](training-artifacts.md) 已完成，M2-06 新进程 Adapter 重载待完成。当前没有任务 HTTP/Celery 业务接入，不启用前端训练或推理操作。
 
 ## 运行
 
@@ -43,7 +43,7 @@ request 使用 [契约 1.0.0](contracts/training.md) 的 TrainRequest，原导�
 | trainer/cli.py | 本地参数/.env、UUID、配置、stdout/stderr 与退出码 |
 | trainer/hf_training.py | 执行时导入训练库；Transformers Trainer + PEFT LoRA |
 | trainer/events.py | 验证事件、单写入方、flush 后回调、顺序与有限值检查 |
-| trainer/run_storage.py | 配置/环境、实际产物基础检查与成功 manifest 原子提交；M2-05 继续扩展 |
+| trainer/run_storage.py | 配置/环境、共享审计器及成功 manifest 排他原子提交 |
 
 直接使用 M2-03 的 as_feature()、InstructionCollator，保持回答 labels、EOS 与 padding，不重新套模板、packing 或手动 shift。基础模型 BF16/显式 FP32；PEFT 可训练 Adapter 使用其默认的 FP32 上转。固定 AdamW、线性学习率调度、无 warmup、weight_decay=0、梯度裁剪 1、不启用梯度检查点；这些是当前锁定 Trainer 的显式执行策略，不是新增的公开配置项。没有量化或分布式训练。
 
@@ -65,4 +65,4 @@ MetricWriter 是 metrics.jsonl 唯一写入方：校验 → write → flush → 
 
 本机已验证默认参数两步更新、格式草稿包完整 epoch、带验证集的稀疏日志/末步，以及同进程连续两次真实回调失败；命令、实际数值及未测项见 [工作日志](worklogs/2026-10-23-m2-04.md)。CPU CI 无需模型/训练依赖，受控 OOM 替身测试不能声称为真实 OOM。
 
-M2-05 应补独立可复用产物校验入口，检查跨文件/指标/配置/哈希和异常产物，系统验证缺失/损坏/保存失败与目录隔离，审查当前 run_storage 的基础实现。M2-06 在训练进程退出后启动新进程重载 Adapter 并生成；本次没有执行 generate，也没有冻结题评分或正式效果提升结论。
+M2-05 已交付 trainer.artifacts.verify_training_artifacts 和 scripts/check_training_artifacts.py，保存与独立审计共用同一检查，覆盖跨文件/指标/配置/哈希及保存失败隔离，见 [产物交付](training-artifacts.md)。M2-06 在训练进程退出后启动新进程重载 Adapter 并生成；本次没有执行 generate，也没有冻结题评分或正式效果提升结论。

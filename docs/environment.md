@@ -2,7 +2,7 @@
 
 ## 一、配置范围
 
-2026-10-23：M2-04 已在现有 uv training 环境完成真实 Qwen LoRA 更新与基础保存，无新增依赖；运行见 [训练说明](training.md)，实测见 [工作日志](worklogs/2026-10-23-m2-04.md)。独立产物审计与新进程 Adapter 重载仍待后续任务。
+2026-10-23：M2-04 已在现有 uv training 环境完成真实 Qwen LoRA 更新与基础保存，无新增依赖；运行见 [训练说明](training.md)，实测见 [工作日志](worklogs/2026-10-23-m2-04.md)。M2-05 的 CPU 产物审计/保存故障验收已完成，新增直接基础依赖 safetensors（锁定版本仍为 0.8.0）；新进程 Adapter 重载仍待 M2-06。
 
 本项目在 WSL2 Ubuntu 中开发。Python 使用 uv，前端使用 Node.js/npm，训练使用本机 GPU，Redis 为 Celery 提供队列与结果后端。SQLite 由 Python 标准库与 SQLAlchemy 使用，不需要单独部署数据库服务器。
 

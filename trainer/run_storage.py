@@ -1,28 +1,20 @@
-"""Initial run storage used by M2-04; independent artifact auditing follows in M2-05."""
+"""Run configuration and publication after the shared CPU artifact audit."""
 
 from datetime import datetime, timezone
-import hashlib
 from importlib.metadata import version
-import json
 import os
 from pathlib import Path
 import subprocess
 import platform
 import time
+from uuid import uuid4
 
 from pydantic import ValidationError
 
-from trainer.contracts import ArtifactFile, RunEnvironment, TrainRequest, TrainResult, TrainingManifest, TrainingSnapshot, TrainingSummary
+from trainer.contracts import RunEnvironment, TrainRequest, TrainingManifest, TrainingSnapshot, TrainingSummary
+from trainer.artifacts import inventory, sha256, validate_bundle
 from trainer.events import fail
 from trainer.model_cache import PROJECT_ROOT
-
-
-def sha256(path):
-    digest = hashlib.sha256()
-    with Path(path).open("rb") as source:
-        while chunk := source.read(1024 * 1024):
-            digest.update(chunk)
-    return digest.hexdigest()
 
 
 def resolve_request(request):
@@ -75,47 +67,49 @@ def environment(torch):
 
 
 def finish(request, prepared, cached, execution, env, started_at, started_clock):
-    """Check saved references and inventory before publishing the only success marker."""
+    """Audit the real bundle, then atomically publish without replacing another marker."""
     root = request.output_dir
     try:
-        adapter = json.loads((root / "adapter/adapter_config.json").read_text(encoding="utf-8"))
-        if (adapter.get("base_model_name_or_path") != request.base_model
-                or adapter.get("revision") != request.model_revision
-                or adapter.get("peft_type") != "LORA"
-                or adapter.get("r") != request.config.lora_r
-                or set(adapter.get("target_modules", [])) != set(request.config.target_modules)):
-            raise ValueError("Saved adapter configuration mismatch")
-        if TrainingSnapshot.model_validate_json((root / "training_config.json").read_bytes()) != snapshot(request):
-            raise ValueError("Saved snapshot differs from execution request")
-        json.loads((root / "tokenizer/tokenizer_config.json").read_text(encoding="utf-8"))
-        required = ("adapter/adapter_model.safetensors", "adapter/adapter_config.json",
-                    "tokenizer/tokenizer_config.json", "tokenizer/tokenizer.json", "tokenizer/chat_template.jinja",
-                    "metrics.jsonl", "training_config.json")
-        for key in required:
-            if not (root / key).is_file() or (root / key).stat().st_size == 0:
-                raise ValueError("Missing deliverable")
-        if sha256(root / "tokenizer/chat_template.jinja") != cached.manifest.chat_template_sha256:
-            raise ValueError("Saved tokenizer template changed")
-        files = [root / "metrics.jsonl", root / "training_config.json"]
-        files += sorted(path for directory in (root / "adapter", root / "tokenizer")
-                        for path in directory.rglob("*") if path.is_file())
-        artifacts = []
-        for path in files:
-            if path.is_symlink() or not path.resolve().is_relative_to(root):
-                raise ValueError("Unexpected artifact link")
-            artifacts.append(ArtifactFile(path=path.relative_to(root).as_posix(), size_bytes=path.stat().st_size,
-                                          sha256=sha256(path)))
+        if (root / "manifest.json").exists() or (root / "manifest.json").is_symlink():
+            raise ValueError("Success marker already exists")
         manifest = TrainingManifest(**snapshot(request).model_dump(), tokenizer_revision=request.model_revision,
             chat_template_sha256=cached.manifest.chat_template_sha256, train_dataset=prepared.train.summary,
             validation_dataset=prepared.validation.summary if prepared.validation else None, environment=env,
             started_at=started_at, finished_at=datetime.now(timezone.utc),
-            summary=TrainingSummary(**execution, elapsed_seconds=time.monotonic() - started_clock), artifacts=artifacts)
-        result = TrainResult(adapter_dir=root / "adapter", tokenizer_dir=root / "tokenizer",
-                             metrics_path=root / "metrics.jsonl", config_path=root / "training_config.json",
-                             manifest_path=root / "manifest.json")
-        temporary = root / ".manifest.tmp"
-        write_json(temporary, manifest)
-        temporary.replace(result.manifest_path)
-        return result
-    except (OSError, ValueError, TypeError) as error:
+            summary=TrainingSummary(**execution, elapsed_seconds=time.monotonic() - started_clock), artifacts=inventory(root))
+        verified = validate_bundle(root, manifest)
+        # Audit time belongs to the run duration; model/metric content is unchanged.
+        manifest = manifest.model_copy(update={"finished_at": datetime.now(timezone.utc),
+            "summary": manifest.summary.model_copy(update={"elapsed_seconds": time.monotonic() - started_clock})})
+        publish_manifest(root, manifest)
+        return verified.result
+    except Exception as error:
         fail("ARTIFACT_WRITE_FAILED", "saving", "训练产物保存、引用或清单校验失败。", cause=error)
+
+
+def publish_manifest(root, manifest):
+    """A same-filesystem hard link is an atomic, exclusive commit on local WSL/Linux."""
+    temporary = root / f".manifest.{uuid4().hex}.tmp"
+    marker = root / "manifest.json"
+    created = False
+    preserve_temporary = False
+    try:
+        write_json(temporary, manifest)
+        os.link(temporary, marker)  # fails if marker exists; never replaces foreign data
+        created = True
+        temporary.unlink()
+    except BaseException:
+        if created:
+            try:
+                marker.unlink()
+            except OSError:
+                # Retain both links: the read-only auditor rejects a multi-link
+                # marker, so a failed cleanup cannot become a valid success.
+                preserve_temporary = True
+        raise
+    finally:
+        if not preserve_temporary:
+            try:
+                temporary.unlink(missing_ok=True)
+            except OSError:
+                pass  # Never mask the primary write/publication failure.

@@ -245,6 +245,7 @@ requests==2.34.2
 safetensors==0.8.0
     # via
     #   accelerate
+    #   llmcloud
     #   peft
     #   transformers
 setuptools==84.0.0 ; python_full_version >= '3.12'

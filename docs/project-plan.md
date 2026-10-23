@@ -24,7 +24,7 @@ M1-03 已补齐数据集 HTTP 上传/列表/详情与统一错误，成员 B 数
 
 相关基线：[需求与接口契约](requirements.md)、[系统架构](architecture.md)、[开发环境](environment.md)、[实验记录](experiment.md)。
 
-M2 进度（2026-10-23）：用户已确认 [M2 完整开发计划](m2-development-plan.md)，登记六项任务；M2-01 [内部契约](contracts/training.md)、M2-02 [模型准备](model-cache.md)、M2-03 [数据转换与标签](training-data.md)、M2-04 [真实训练](training.md) 已完成，M2-05 独立产物审计、M2-06 新进程重载待完成。
+M2 进度（2026-10-23）：用户已确认 [M2 完整开发计划](m2-development-plan.md)，登记六项任务；M2-01 [内部契约](contracts/training.md)、M2-02 [模型准备](model-cache.md)、M2-03 [数据转换与标签](training-data.md)、M2-04 [真实训练](training.md) 已完成，M2-05 [产物审计与保存故障验收](training-artifacts.md) 已完成，M2-06 新进程重载待完成。
 
 ## 二、范围与技术决策
 
@@ -117,7 +117,7 @@ M2 进度（2026-10-23）：用户已确认 [M2 完整开发计划](m2-developme
 | M2-02 模型准备 | A，B 复核 | M2-01 | 固定真实模型 revision，可复用缓存并验证加载 | 完成；[日志](worklogs/2026-10-22-m2-02.md) |
 | M2-03 数据处理 | 默认 B；本次用户指定当前侧交付 | M2-01；模板验证需 M2-02 | 共用扫描器，chat template、监督标签与截断正确 | 完成；[日志](worklogs/2026-10-22-m2-03.md) |
 | M2-04 真实训练 | 默认 B；本次当前侧交付 | M2-01/02/03 | 独立 CLI 完成真实 LoRA 更新，指标与回调有效 | 完成；[日志](worklogs/2026-10-23-m2-04.md) |
-| M2-05 产物交付 | A，B 复核 | M2-01；联调需 M2-04 | Adapter/配置/清单完整、可追溯，失败不报成功 | 待办 |
+| M2-05 产物交付 | A，B 复核 | M2-01；联调需 M2-04 | Adapter/配置/清单完整、可追溯，失败不报成功 | 完成；[日志](worklogs/2026-10-23-m2-05.md) |
 | M2-06 重载验收 | B，A 复核 | M2-02/04/05 | 新进程加载 Adapter 并生成，完成失败检查与记录 | 待办 |
 
 1. 缓存 Qwen2.5-0.5B-Instruct，并记录模型 revision；不依赖演示时临时下载权重。
@@ -165,7 +165,7 @@ M2 进度（2026-10-23）：用户已确认 [M2 完整开发计划](m2-developme
 | --- | --- | --- |
 | M0 环境与骨架 | 已完成 | 初始化、uv 和环境配置提交；见 environment.md |
 | M1 数据管理 | 已完成 M1-01 至 M1-06 的计划交付；正式实验语料仍需人工编写/审核 | [故障验收](testing/m1-acceptance.md)、[数据方案](data/README.md)、[M1-06 日志](worklogs/2026-10-22-m1-06.md) |
-| M2 真实 LoRA | M2-01 至 M2-04 完成；M2-05/06 待验收 | [执行计划](m2-development-plan.md)、[M2-04 日志](worklogs/2026-10-23-m2-04.md)；真实 LoRA 更新/基础保存已验证，独立审计与重载待完成 |
+| M2 真实 LoRA | M2-01 至 M2-05 完成；M2-06 待验收 | [执行计划](m2-development-plan.md)、[M2-04 日志](worklogs/2026-10-23-m2-04.md)；真实 LoRA 更新/产物审计已验证，新进程重载待完成 |
 | M3 异步任务 | 待开始 | 待填写 |
 | M4 观测与交付 | 待开始 | 待填写 |
 | M5 推理、验证与部署 | 待开始 | 待填写 |

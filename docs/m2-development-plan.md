@@ -1,6 +1,6 @@
 # M2 单机真实 LoRA 开发计划
 
-版本：1.0.0。确认日期：2026-10-22；更新日期：2026-10-23。状态：M2-01 契约、M2-02 模型准备、M2-03 数据转换/监督标签已完成；M2-04 真实训练/基础保存已完成；M2-05 独立产物审计和 M2-06 新进程重载待完成。
+版本：1.0.0。确认日期：2026-10-22；更新日期：2026-10-23。状态：M2-01 契约、M2-02 模型准备、M2-03 数据转换/监督标签已完成；M2-04 真实训练/基础保存已完成；M2-05 独立产物审计/保存故障验收已完成，M2-06 新进程重载待完成。
 
 适用成员：A 主负责后端、存储与调度，B 主负责训练与前端。本文是 M2 执行入口；全局时间线见 [八周规划](project-plan.md)，协作规则见 [AGENTS.md](../AGENTS.md)，当前事实见 [项目记忆](project-memory.md)。
 
@@ -18,7 +18,7 @@ M2 演示流程：准备模型缓存 → 检查训练样本 → 命令行训练 
 | 训练输入 | `trainer.dataset.iter_records` 已复用 DatasetScanner | 继续复用，不另写宽松解析器 |
 | 训练边界 | M2-01 已有版本化 Request/Progress/Result/Snapshot/Manifest/Failure；公共 TrainingConfig 未改 | 后续实现按 [内部契约](contracts/training.md) 消费 |
 | 训练与调度 | `trainer.train` 已实现；`worker.train` 仍是占位 | M2 实现 Trainer；业务 Worker 留给 M3 |
-| GPU 环境 | 极小随机模型环境验证与真实预训练 Qwen 的 BF16 前向已通过 | M2-04 已验证 LoRA 更新/冻结与基础保存；独立产物审计和重载仍待后续验收 |
+| GPU 环境 | 极小随机模型环境验证与真实预训练 Qwen 的 BF16 前向已通过 | M2-04 已验证 LoRA 更新/冻结与基础保存；M2-05 已验证独立产物审计，M2-06 重载仍待验收 |
 | 数据准备 | 已有来源说明、按族划分工具和 12 道冻结题 | 正式语料尚待人工编写、交叉审核 |
 | 前端 | 数据集功能已验收，任务与推理页面等待后端 | M2 通过独立入口验收，不因 Trainer 完成而启用页面 |
 
@@ -45,7 +45,7 @@ M3 负责任务 HTTP API、Celery 业务调度、数据库状态与重复投递�
 | M2-02 模型准备 | A／B | M2-01 模型与路径约定 | 模型缓存与检查入口、revision 记录、真实模型加载证据 | 1.5 | 完成；[日志](worklogs/2026-10-22-m2-02.md) |
 | M2-03 数据处理 | 默认 B／A；本次当前侧交付 | M2-01；真实模板检查依赖 M2-02 | 对话转换、标签与截断检查、CPU 行为检查 | 2 | 完成；[日志](worklogs/2026-10-22-m2-03.md) |
 | M2-04 真实训练 | 默认 B／A；本次当前侧交付 | M2-01、02、03 | train 实现、CLI、进度回调、指标与异常处理 | 3.5 | 完成；[日志](worklogs/2026-10-23-m2-04.md) |
-| M2-05 产物交付 | A／B | M2-01；联调依赖 M2-04 | 产物保存/校验、版本化清单、失败隔离 | 2 | 待办 |
+| M2-05 产物交付 | A／B | M2-01；联调依赖 M2-04 | 产物保存/校验、版本化清单、失败隔离 | 2 | 完成；[日志](worklogs/2026-10-23-m2-05.md) |
 | M2-06 重载验收 | B／A | M2-02、04、05 | 新进程重载入口、GPU 验收、实验记录与工作日志 | 3.5 | 待办 |
 
 主依赖为 `01 → 02/03 → 04 → 05 → 06`。M2-02 与 M2-03 的非 GPU 工作可以并行；M2-05 的清单/校验器可在契约确认后先写，最终接入必须等待训练产物。每人同时只承担一个主要任务，GPU 加载、训练和重载安排在不重叠的时段。
@@ -63,7 +63,7 @@ M3 负责任务 HTTP API、Celery 业务调度、数据库状态与重复投递�
 | TrainRequest | task_id、dataset_path、output_dir、base_model、config | 必填 model_revision/cache_dir/log_path，可选验证集/数据清单、RuntimeOptions |
 | TrainingConfig | LoRA、学习率、epoch、batch、梯度累积、长度、日志频率、seed | 保持不变；precision/max_steps/local_files_only 属于独立内部 RuntimeOptions |
 | TrainingProgress | step、total_steps、loss | 必填 learning_rate/epoch/recorded_at，kind 区分 train/eval |
-| TrainResult | adapter_dir、metrics_path | 必填 tokenizer_dir/config_path/manifest_path；文件校验仍由 M2-05 实现 |
+| TrainResult | adapter_dir、metrics_path | 必填 tokenizer_dir/config_path/manifest_path；文件校验已由 M2-05 实现 |
 
 契约文档、生成的 JSON Schema 和格式样例已交付，写明版本、默认值、单位、必填/可选、失败语义及当前实现状态。使用 scripts/export_training_contract.py 导出，--check 检查漂移；Schema 保持 CPU 可导入，模型依赖在后续执行训练时加载。示例数值全部为格式占位，不是实验结果。
 
@@ -99,7 +99,7 @@ M3 负责任务 HTTP API、Celery 业务调度、数据库状态与重复投递�
 
 ### M2-04：实现真实 LoRA 与独立 CLI
 
-本项已交付 [训练入口](training.md) 及 [实测日志](worklogs/2026-10-23-m2-04.md)。为遵守 TrainResult 成功条件同时接入基础保存/清单；M2-05 继续独立产物校验和系统故障验收，M2-06 负责新进程重载，不提前记为完成。以下要求为后续维护基线。
+本项已交付 [训练入口](training.md) 及 [实测日志](worklogs/2026-10-23-m2-04.md)。为遵守 TrainResult 成功条件同时接入基础保存/清单；M2-05 现已补齐独立产物校验和保存故障验收，M2-06 新进程重载仍待完成。以下要求为后续维护基线。
 
 实现 `train(request, on_progress) -> TrainResult`，CLI 与后续 Worker 复用该函数。优先复用现有 Hugging Face/PEFT/TRL 能力，具体 API 以 `uv.lock` 对应版本为准，避免为实现训练重写一套训练框架。
 
@@ -114,6 +114,8 @@ CLI 成功返回 0，配置、模型、数据、OOM、指标/产物写入或核�
 **验收**：真实模型在本机完成优化器更新，Loss 有限；有证据确认 LoRA 权重发生更新，基础参数保持冻结；进度、日志与实际训练一致。CPU API 启动不需要安装训练依赖。
 
 ### M2-05：输出可追溯、可校验的产物
+
+本项已交付 [共享审计器与 CPU 命令](training-artifacts.md)、排他原子提交与保存故障验收，见 [日志](worklogs/2026-10-23-m2-05.md)。M2-04 基础保存已接入同一校验器；已审计此前真实产物并完成一次新保存联调，尚未执行 M2-06 模型重载。
 
 目录与相对路径语义已由 [M2-01 契约](contracts/training.md) 定稿；本任务实现真实保存与校验：
 

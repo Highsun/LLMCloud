@@ -1,6 +1,6 @@
 # 内部训练契约
 
-版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型/导出、M2-02 [模型缓存](../model-cache.md)、M2-03 [数据转换/标签/截断/清单核对](../training-data.md) 已实现；M2-04 [真实训练与基础保存](../training.md) 已实现；M2-05 独立产物审计/故障验收和 M2-06 Adapter 新进程重载仍待完成。
+版本：**1.0.0**。日期：2026-10-22。范围：M2-01 的 Python 类型、序列化格式和后续执行约定。类型/导出、M2-02 [模型缓存](../model-cache.md)、M2-03 [数据转换/标签/截断/清单核对](../training-data.md) 已实现；M2-04 [真实训练与基础保存](../training.md) 已实现；M2-05 [共享产物审计与保存故障验收](../training-artifacts.md) 已完成，M2-06 Adapter 新进程重载仍待完成。
 
 代码来源为 [trainer/contracts.py](../../trainer/contracts.py)，参数沿用 [TrainingConfig](../../trainer/lora_config.py)。[JSON Schema](training.schema.json) 由真实类型生成，不能手改；[样例说明](../examples/training/README.md) 中所有 Loss、revision、哈希、版本和产物条目均为格式示例，不是实验结果。
 
@@ -108,7 +108,7 @@ Trainer 先写入并 flush 真实事件，再以相同字段值调用 on_progres
 
 ## 五、TrainResult、配置快照与成功清单
 
-TrainResult 的 adapter_dir、metrics_path、tokenizer_dir、config_path、manifest_path 均为内部绝对 Path，必须处于同一个任务目录，名称分别为 adapter、metrics.jsonl、tokenizer、training_config.json、manifest.json。类型验证只检查布局；M2-05 执行时验证文件后才返回结果，M2-06 再做独立进程加载。
+TrainResult 的 adapter_dir、metrics_path、tokenizer_dir、config_path、manifest_path 均为内部绝对 Path，必须处于同一个任务目录，名称分别为 adapter、metrics.jsonl、tokenizer、training_config.json、manifest.json。类型验证只检查布局；M2-05 已实现执行时验证文件后才返回结果，M2-06 再做独立进程加载。
 
 文件相对 output_dir 的布局：
 
@@ -141,7 +141,7 @@ environment.packages 必须记录 torch、transformers、datasets、peft、trl�
 
 summary 包含 completed_steps、total_steps（成功时相等），elapsed_seconds（有限非负数，覆盖本次调用到最终清单提交前的加载/预处理/训练/保存校验，不含新进程重载），peak_memory_allocated_bytes（本次单 GPU 分配显存峰值字节，不是整卡显存或 reserved 值），trainable_parameters、total_parameters（均为正，可训练参数少于总参数），final_loss（最后 train 事件的 Loss）与可空 eval_loss（最后 eval 事件的 Loss）。具体是否真正冻结基础参数、统计是否真实，必须由执行与 GPU 验证证明，Schema 不能证明。
 
-artifact path 使用规范相对 POSIX 键，拒绝绝对路径、反斜杠、冒号、控制字符、`..`、重复斜杠或 `./`。仅允许 adapter/、tokenizer/ 下文件以及 metrics.jsonl、training_config.json；不包含数据、日志、检查点、完整基础模型或 manifest 自身，避免自哈希循环。文件与声明哈希必须由 M2-05 核对，不能仅通过 JSON 类型验证就宣布产物可用。
+artifact path 使用规范相对 POSIX 键，拒绝绝对路径、反斜杠、冒号、控制字符、`..`、重复斜杠或 `./`。仅允许 adapter/、tokenizer/ 下文件以及 metrics.jsonl、training_config.json；不包含数据、日志、检查点、完整基础模型或 manifest 自身，避免自哈希循环。文件与声明哈希由 M2-05 的共享审计器核对，不能仅通过 JSON 类型验证就宣布产物可用。
 
 保存顺序：独占创建新任务目录 → 写配置/真实指标/Adapter/tokenizer → 检查必需文件、配置和哈希 → 写临时清单并原子提交 manifest.json → 返回 TrainResult。中途失败允许留下本次部分文件供诊断，但不能有有效成功 manifest；不能删除输入、缓存或其他任务。未来数据库完成状态晚于该流程。manifest 不声称已完成 M2-06 新进程验收。
 

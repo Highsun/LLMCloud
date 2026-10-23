@@ -28,6 +28,8 @@ M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读
 | `trainer/contracts.py` | 内部参数/JSON | 可校验的 Request/Progress/Result/Manifest/Failure | CPU-only 类型；不做文件或 GPU 操作 |
 | `trainer/model_cache.py` | 根目录配置、模型 revision | 已校验 CachedModel/本地快照 | 显式下载与纯 CPU 离线校验分离，不依赖后端配置 |
 | `trainer/train.py` | TrainRequest | TrainResult 与进度回调 | 模型训练，独立于 HTTP/Celery |
+| `trainer/artifacts.py` | 任务目录、可选预期身份/revision/根目录 | VerifiedArtifacts 与安全摘要 | 保存/审计共用 CPU 文件、张量及跨文件校验，不执行模型推理 |
+| `trainer/run_storage.py` | 请求、数据摘要、执行统计与环境 | 校验后成功清单与 TrainResult | 配置/环境记录、独立目录和排他原子发布 |
 | `trainer/dataset.py` | 数据文件路径 | 校验后的训练样本 | 格式读取与验证 |
 | `trainer/preprocessing.py` | 校验记录、固定 tokenizer | 保留标签的模型特征/批次与统计 | 对话转换、监督、右截断/padding；不写数据 |
 | `trainer/dataset_manifest.py` | 准备清单、实际文件统计 | 校验后的审核状态/build_id | 核对 provenance、族和实际 train/validation，不读取 test 正文 |
@@ -41,7 +43,7 @@ API 进程不加载模型和执行 GPU 计算。Celery 消息仅包含任务 ID�
 
 ## 二、训练调用与文件契约
 
-M2-01 已交付 [内部训练契约 1.0.0](contracts/training.md)、Pydantic 校验类型和生成 JSON Schema/样例；M2-04 已实现 [真实训练/指标/基础保存](training.md)，M2-05 独立产物审计与 M2-06 新进程重载待完成。
+M2-01 已交付 [内部训练契约 1.0.0](contracts/training.md)、Pydantic 校验类型和生成 JSON Schema/样例；M2-04 已实现 [真实训练/指标/基础保存](training.md)，M2-05 [产物审计与故障验收](training-artifacts.md) 已完成，M2-06 新进程重载待完成。
 
 `train(request, on_progress) -> TrainResult`：
 
@@ -58,7 +60,7 @@ M2-02 已实现 scripts/prepare_model.py：prepare 将官方分支解析为固�
 
 M2-03 已实现 [训练数据准备](training-data.md)，继续共用 DatasetScanner。模板渲染的完整文本经字符偏移定位助手内容，不修改固定模板或重复特殊 token。只监督回答普通 token 与模板 EOS，截断后无有效回答则失败；collator 保留标签、右侧补齐，torch 在张量输出时才导入。Trainer 直接消费 as_feature() 与 InstructionCollator，不再重新生成 labels。独立只读检查脚本不使用 GPU 或加载模型参数。
 
-M2-04 使用 Transformers Trainer + PEFT，冻结基础权重并检查前后字节哈希，检查 LoRA 张量更新、真实指标及保存张量。模型/优化器在执行结束释放，异常栈不保留模型引用。run_storage 当前完成满足返回契约的基础保存；M2-05 再补独立审计器与系统故障验证。
+M2-04 使用 Transformers Trainer + PEFT，冻结基础权重并检查前后字节哈希，检查 LoRA 张量更新、真实指标及保存张量。模型/优化器在执行结束释放，异常栈不保留模型引用。run_storage.finish 已接入 trainer.artifacts 的共享审计，独立 CLI 与保存流程使用同一校验。通过后 flush/fsync 唯一临时清单，以排他硬链接原子发布 manifest，拒绝覆盖已有标记；保存/校验/提交失败保留诊断。审计不会加载基础模型或替代 M2-06 重载。
 
 文件规划：
 

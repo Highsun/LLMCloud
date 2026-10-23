@@ -21,7 +21,8 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 | M2-02 | [模型缓存与离线检查](model-cache.md) 已交付，真实 Qwen BF16 GPU 前向通过；固定 revision 为 7ae557604adf67be50417f59c2c2f167def9a775，9 文件/999,602,607 字节 |
 | M2-03 | [数据转换、标签、截断、padding 与清单核对](training-data.md) 已交付；真实 tokenizer 和 CPU 张量验证通过 |
 | M2-04 | [真实训练](training.md)、CLI、同源指标/回调、基础保存已完成；本机真实 Qwen LoRA 更新及冻结权重哈希验证通过 |
-| M2-05 至 M5 | 独立产物审计、Adapter 新进程重载、业务调度、页面观测/下载和在线推理待完成 |
+| M2-05 | [共享 CPU 产物审计](training-artifacts.md)、排他原子提交与保存故障验收已完成；已校验 M2-04 真实产物和新训练结果 |
+| M2-06 至 M5 | Adapter 新进程重载、业务调度、页面观测/下载和在线推理待完成 |
 
 `trainer.train` 已执行真实 Qwen LoRA，`worker.train` 仍是业务占位。训练保存成功不表示新进程重载成功，也不表示正式效果提升。
 
@@ -49,8 +50,8 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 
 M1-01 至 M1-06 的计划范围已完成；数据方案见 docs/data/README.md，格式草稿不等于正式语料，冻结题/族不得进入训练或调参。正式语料继续由团队编写/审核。下一步进入 M2：先以独立 Trainer 训练 0.5B 模型，保存并在独立进程重载 Adapter，再在 M3 接入 Celery。
 
-M2-01 已交付类型和格式约定，生成 Schema/样例使用 scripts/export_training_contract.py，--check 检查漂移。M2-02 已执行真实缓存与 GPU 前向；M2-01 的格式占位仍不是实验数据。M2-04 已进行真实 LoRA 反向/优化器更新和基础保存；独立产物审计、新进程重载与效果评测未完成。
+M2-01 已交付类型和格式约定，生成 Schema/样例使用 scripts/export_training_contract.py，--check 检查漂移。M2-02 已执行真实缓存与 GPU 前向；M2-01 的格式占位仍不是实验数据。M2-04 已进行真实 LoRA 反向/优化器更新和基础保存；M2-05 独立产物审计/保存故障验收已完成，新进程重载与效果评测未完成。
 
-下一步 M2-05 独立产物校验/故障验收 → M2-06 新进程重载。M2-04 由本次用户指定当前侧交付，入口见 training.md，实测见 [M2-04 日志](worklogs/2026-10-23-m2-04.md)。Trainer 复用 load_training_tokenizer / prepare_training_data / InstructionCollator，不另写标签逻辑；M2-03 按本次用户要求由当前侧交付，B 后续接续时核对调用方式。工程闭环预算约 14 团队人时；正式语料审核与效果实验继续独立记录；交接见 [M2-03 日志](worklogs/2026-10-22-m2-03.md)。
+下一步 M2-06 新进程重载；复用 trainer.artifacts.verify_training_artifacts 获取已校验的路径和清单，不能将 artifacts_verified 当成加载/生成成功。M2-05 见 [日志](worklogs/2026-10-23-m2-05.md)。M2-04 由本次用户指定当前侧交付，入口见 training.md，实测见 [M2-04 日志](worklogs/2026-10-23-m2-04.md)。Trainer 复用 load_training_tokenizer / prepare_training_data / InstructionCollator，不另写标签逻辑；M2-03 按本次用户要求由当前侧交付，B 后续接续时核对调用方式。工程闭环预算约 14 团队人时；正式语料审核与效果实验继续独立记录；交接见 [M2-03 日志](worklogs/2026-10-22-m2-03.md)。
 
 入口：[项目规划](project-plan.md)、[M2 执行计划](m2-development-plan.md)、[数据集契约](api/datasets.md)、[成员 B 日志](worklogs/2026-10-21-m1-04-frontend.md)、[日志索引](worklogs/README.md)。

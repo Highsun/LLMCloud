@@ -620,6 +620,7 @@ dependencies = [
     { name = "pydantic-settings" },
     { name = "python-dotenv" },
     { name = "python-multipart" },
+    { name = "safetensors" },
     { name = "sqlalchemy" },
     { name = "uvicorn", extra = ["standard"] },
 ]
@@ -653,6 +654,7 @@ requires-dist = [
     { name = "pydantic-settings", specifier = ">=2.8,<3.0" },
     { name = "python-dotenv", specifier = ">=1.0,<2.0" },
     { name = "python-multipart", specifier = ">=0.0.20,<1.0" },
+    { name = "safetensors", specifier = ">=0.8,<1.0" },
     { name = "sqlalchemy", specifier = ">=2.0,<2.1" },
     { name = "torch", marker = "(sys_platform == 'linux' and extra == 'training') or (sys_platform == 'win32' and extra == 'training')", specifier = "==2.9.1", index = "https://download.pytorch.org/whl/cu128" },
     { name = "torch", marker = "sys_platform != 'linux' and sys_platform != 'win32' and extra == 'training'", specifier = "==2.9.1" },

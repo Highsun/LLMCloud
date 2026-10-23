@@ -69,6 +69,8 @@ pyyaml==6.0.3
     # via uvicorn
 redis==6.4.0
     # via kombu
+safetensors==0.8.0
+    # via llmcloud
 six==1.17.0
     # via python-dateutil
 sqlalchemy==2.0.54
