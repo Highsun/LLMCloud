@@ -1,11 +1,9 @@
 """Initial API contracts; task creation routes are not exposed yet."""
 
-from typing import Literal
-from uuid import UUID
+from pydantic import BaseModel
 
-from pydantic import BaseModel, ConfigDict, Field
-
-from trainer.lora_config import TrainingConfig
+# Preserve the original import used by integrations before task routes exist.
+from backend.app.models.task_schemas import TaskCreate  # noqa: F401
 
 SUPPORTED_MODELS = ("Qwen/Qwen2.5-0.5B-Instruct",)
 
@@ -20,11 +18,3 @@ class ModelInfo(BaseModel):
     id: str
     name: str
     description: str
-
-
-class TaskCreate(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    dataset_id: UUID
-    base_model: Literal["Qwen/Qwen2.5-0.5B-Instruct"] = SUPPORTED_MODELS[0]
-    config: TrainingConfig = Field(default_factory=TrainingConfig)

@@ -8,7 +8,7 @@
 
 ## 一、当前进度
 
-当前完成 **M0 初始化、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3 已完成规划，业务实现待开始。
+当前完成 **M0 初始化、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3-01 共享代码已交付，待队友核对；任务业务实现待开始。
 
 M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-04 数据管理页面**。成员 B 交付的工作台已接通真实上传、列表与详情，本次补齐局部修复和浏览器验收；M1-05 故障验收与 CPU CI、M1-06 数据方案/划分工具/冻结题也已完成。M1 计划范围已验收，M2 工程闭环也已完成；正式实验语料仍需人工编写和审核。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，项目梳理见 [项目记忆](docs/project-memory.md)，页面接续见 [M1-04 日志](docs/worklogs/2026-10-22-m1-04-integration.md)，故障与 CI 见 [M1-05 日志](docs/worklogs/2026-10-22-m1-05.md)，数据来源/划分/冻结题见 [数据方案](docs/data/README.md) 与 [M1-06 日志](docs/worklogs/2026-10-22-m1-06.md)。
 
@@ -20,7 +20,9 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 **M2 单机真实 LoRA 工程闭环已验收**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成；任务 HTTP/Celery 接入属于 M3。
 
-**M3 协作开发入口**：[完整开发计划](docs/m3-development-plan.md)（已合并原两人交接，第三节可直接分配任务）和 [任务 API 草案](docs/api/tasks.md)。现在 A 开始 M3-01，B 先做 M3-05 的列表筛选/分页/请求竞争小交付；01 契约核对合入后，A 做 02 → 03 → 06，B 做 04 → 补齐 05，最后共同做 07。预计 20 人时加 4 人时缓冲；M3-01～07 目前均未实现。
+**M3 协作开发入口**：[完整开发计划](docs/m3-development-plan.md)（第三节可直接分配任务）、[共享契约 1.0.0](docs/contracts/tasks.md) 和 [任务 API 草案](docs/api/tasks.md)。M3-01 的 CPU 类型/Protocol/生成样例及迁移清单已交付，B 核对待完成；任务 SQL/HTTP/Worker 业务尚未实现。B 可先做 M3-05 列表基础；核对同步 01 后，A 做 02 → 03 → 06，B 做 04 → 补齐 05，最后共同做 07。预计总计 20 人时加 4 人时缓冲。
+
+任务类型/样例只读检查：`uv run --locked python scripts/export_task_contract.py --check`；重新生成时去掉 `--check`。当前输出为 JSON Schema 与明确标记的 [mock 样例](docs/examples/tasks/README.md)，没有任务路由或任务运行时 OpenAPI。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 

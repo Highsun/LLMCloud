@@ -37,6 +37,7 @@ jobs:
           uv run --locked python -m unittest discover -s tests -v
           uv run --locked python scripts/export_dataset_contract.py --check
           uv run --locked python scripts/export_training_contract.py --check
+          uv run --locked python scripts/export_task_contract.py --check
           uv run --locked python scripts/check_dataset_http.py
           uv run --locked python scripts/prepare_dataset.py --source docs/examples/train.jsonl --curation docs/examples/datasets/curation.example.json --allow-unreviewed --check-only
           bash scripts/export_requirements.sh

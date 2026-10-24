@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "DATABASE_UNAVAILABLE",
+    "message": "任务存储暂时不可用。",
+    "details": [],
+    "details_truncated": false,
+    "request_id": "f63b14e1-7748-4e24-9db8-6d24810dd6df"
+  }
+}

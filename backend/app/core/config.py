@@ -7,6 +7,9 @@ from typing import Literal
 from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from backend.app.core.task_contract import DEFAULT_MODEL_REVISION
+from trainer.contracts import PositiveInt, Revision
+
 PROJECT_ROOT = Path(__file__).resolve().parents[3]
 
 
@@ -26,6 +29,17 @@ class Settings(BaseSettings):
     celery_result_backend: str = "redis://127.0.0.1:6379/1"
     training_queue: str = "gpu"
     default_model: Literal["Qwen/Qwen2.5-0.5B-Instruct"] = "Qwen/Qwen2.5-0.5B-Instruct"
+    default_model_revision: Revision = DEFAULT_MODEL_REVISION
+    training_precision: Literal["bf16", "fp32"] = "bf16"
+    training_max_steps: PositiveInt | None = None
+
+    @field_validator("training_max_steps", mode="before")
+    @classmethod
+    def parse_internal_step_limit(cls, value):
+        # Environment variables are text; direct bool/float values stay invalid.
+        if isinstance(value, str) and value.isascii() and value.isdecimal():
+            return int(value)
+        return value
 
     @field_validator("data_dir", "log_dir", mode="before")
     @classmethod

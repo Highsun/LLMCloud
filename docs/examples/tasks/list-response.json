@@ -1,0 +1,83 @@
+{
+  "items": [
+    {
+      "id": "11111111-1111-4111-8111-000000000001",
+      "dataset_id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "status": "PENDING",
+      "current_step": 0,
+      "total_steps": null,
+      "progress": null,
+      "error_code": null,
+      "error_message": null,
+      "created_at": "2026-10-24T01:00:00Z",
+      "started_at": null,
+      "finished_at": null
+    },
+    {
+      "id": "11111111-1111-4111-8111-000000000002",
+      "dataset_id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "status": "QUEUED",
+      "current_step": 0,
+      "total_steps": null,
+      "progress": null,
+      "error_code": null,
+      "error_message": null,
+      "created_at": "2026-10-24T01:00:00Z",
+      "started_at": null,
+      "finished_at": null
+    },
+    {
+      "id": "11111111-1111-4111-8111-000000000003",
+      "dataset_id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "status": "RUNNING",
+      "current_step": 0,
+      "total_steps": null,
+      "progress": null,
+      "error_code": null,
+      "error_message": null,
+      "created_at": "2026-10-24T01:00:00Z",
+      "started_at": "2026-10-24T01:00:01Z",
+      "finished_at": null
+    },
+    {
+      "id": "11111111-1111-4111-8111-000000000004",
+      "dataset_id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "status": "COMPLETED",
+      "current_step": 2,
+      "total_steps": 2,
+      "progress": 1.0,
+      "error_code": null,
+      "error_message": null,
+      "created_at": "2026-10-24T01:00:00Z",
+      "started_at": "2026-10-24T01:00:01Z",
+      "finished_at": "2026-10-24T01:00:04Z"
+    },
+    {
+      "id": "11111111-1111-4111-8111-000000000005",
+      "dataset_id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "status": "FAILED",
+      "current_step": 0,
+      "total_steps": null,
+      "progress": null,
+      "error_code": "MODEL_NOT_CACHED",
+      "error_message": "指定 revision 的模型缓存不完整，请先准备模型。",
+      "created_at": "2026-10-24T01:00:00Z",
+      "started_at": "2026-10-24T01:00:01Z",
+      "finished_at": "2026-10-24T01:00:04Z"
+    }
+  ],
+  "total": 5,
+  "page": 1,
+  "page_size": 20,
+  "total_pages": 1
+}

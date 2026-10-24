@@ -2,13 +2,13 @@
 
 import uuid
 from datetime import datetime, timezone
-from enum import StrEnum
 from typing import Any
 
 from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.core.database import Base
+from backend.app.core.task_contract import TaskStatus
 
 
 def utcnow() -> datetime:
@@ -17,14 +17,6 @@ def utcnow() -> datetime:
 
 def new_id() -> str:
     return str(uuid.uuid4())
-
-
-class TaskStatus(StrEnum):
-    PENDING = "PENDING"
-    QUEUED = "QUEUED"
-    RUNNING = "RUNNING"
-    COMPLETED = "COMPLETED"
-    FAILED = "FAILED"
 
 
 class User(Base):

@@ -1,6 +1,6 @@
 # M3 任务 API 设计草案
 
-日期：2026-10-24；设计基线 0.1。状态：仅规划，未注册路由、未发布 API，也未生成运行时 OpenAPI。M3-01 固定 Pydantic 类型/生成样例，M3-03 从真实应用导出，不能手工维护另一份长期 OpenAPI。总计划见 [M3 开发计划](../m3-development-plan.md)。
+日期：2026-10-24；共享类型契约 1.0.0。状态：M3-01 已交付 Pydantic 类型/Protocol/生成样例，B 核对待完成；HTTP 路由未注册、API 未发布，也未生成运行时 OpenAPI。类型使用与迁移见 [共享契约](../contracts/tasks.md)，M3-03 再从真实应用导出，不能手工维护另一份长期 OpenAPI。总计划见 [M3 开发计划](../m3-development-plan.md)。
 
 ## 接口与输入
 
@@ -12,7 +12,7 @@
 | GET /tasks | 先按 status 筛选再分页，created_at DESC/id DESC | 200，TaskPage |
 | GET /tasks/{task_id} | 数据库业务状态与配置详情 | 200，TaskDetail |
 
-POST 保留现有 TaskCreate：dataset_id 必填；base_model 默认且只允许 Qwen/Qwen2.5-0.5B-Instruct；config 默认 {}，按原 TrainingConfig 补齐默认值。未知字段拒绝。服务器固定 model_revision/runtime，不接收服务器路径、revision、max_steps、状态、哈希或用户归属。任务 JSON 请求体上限拟定 64 KiB，由 01 明确并检查；不改变数据集上传上限。
+POST 保留 TaskCreate 的 dataset_id/base_model/config 字段：dataset_id 必填并收敛为 UUIDv4（旧类型接受任意 UUID，但尚无已发布任务路由）；base_model 默认且只允许 Qwen/Qwen2.5-0.5B-Instruct；config 默认 {}，按原 TrainingConfig 补齐默认值。未知字段拒绝。服务器固定 model_revision/runtime，不接收服务器路径、revision、max_steps、状态、哈希或用户归属。任务 JSON 请求体上限已由 01 固定为 64 KiB，运行时限制由 03 实现；不改变数据集上传上限。
 
 可选请求头 Idempotency-Key 为 UUIDv4。首次成功保存时原子绑定规范请求哈希（dataset_id/base_model/完整 config）；同键同请求返回 200 和原 TaskDetail，不重新派发；同键不同请求 409/IDEMPOTENCY_CONFLICT。服务端 revision/内部 runtime 变化不会改写已存在任务快照。没有该头时每个 POST 都是新任务。浏览器刷新后若有任务 ID，查询原任务，不盲目重新提交。
 
@@ -80,7 +80,7 @@ TaskDetail.error_code 是业务诊断，和 HTTP error.code 不必相同：训�
 | 503 / DISPATCH_FAILED | 明确未派发，保存的任务已条件更新 FAILED | 用 task_id 查询失败记录 |
 | 503 / DISPATCH_UNCERTAIN | 可能已派发、确认或后续状态写入失败 | 查询同一 task_id，保留去重键；可能稍后 RUNNING |
 
-413 新错误 code、TASK_NOT_FOUND、去重/派发 code 均由 01 加入对应类型，不能在实现时临时用中文文案兼容。已有数据接口错误保持原含义；若共用 enum 变化影响导出，同提交重导出和检查。
+413 新错误 code、TASK_NOT_FOUND、去重/派发 code 已由 01 加入对应类型，实际错误处理由 03 实现，不能临时用中文文案兼容。已有数据接口错误保持原含义；共享 enum 扩展已重导出并检查数据集 OpenAPI。
 
 若任务已持久化而 POST 返回派发错误，采用专用 TaskSubmissionErrorResponse：仍为顶层 error，继承原 code/message/details/details_truncated/request_id 核心字段，新增必填 error.task_id。仅该响应子类型增加字段，不给所有数据集错误强行增加 null 字段。数据库在任务创建前失败时仍用原 ErrorResponse，无可用任务 ID，不伪造 ID。
 
@@ -103,6 +103,6 @@ TaskDetail.error_code 是业务诊断，和 HTTP error.code 不必相同：训�
 
 01 前 B 可先按本草案完成列表筛选/分页/请求竞争小交付，范围与验收见 [完整计划第三节](../m3-development-plan.md)。ALL 不发送 status，其余发送五状态之一；切状态回第一页，翻页/刷新/轮询保留筛选；旧成功、失败及 finally 不能覆盖最新状态。该小交付只计为 05 部分完成，不抢先猜 Worker 类型。
 
-01 共享类型生成 fixture 后同步前端测试；B 的测试替身必须显式标为 mock、单独用于测试，不能形成第二套长期响应约定。未注册真实路由时 supports 仍返回 false。03 实现后导出 docs/api/tasks.openapi.json，路径采用 /api/v1 server + 相对 paths，运行时完整 paths 与操作/Schema 一致。不要在当前规划阶段伪造已实现的 OpenAPI。
+01 已生成 [fixture](../examples/tasks/README.md)，使用 scripts/export_task_contract.py --check 检查漂移；B 核对后同步前端测试。测试替身必须显式标为 mock、单独用于测试，不能形成第二套长期响应约定。重复查询/请求头解析仍属 03，Schema 不检查原始重复 HTTP 字段。未注册真实路由时 supports 仍返回 false。03 实现后导出 docs/api/tasks.openapi.json，路径采用 /api/v1 server + 相对 paths，运行时完整 paths 与操作/Schema 一致。当前只生成类型 Schema，不伪造已实现的 OpenAPI。
 
 B 修改通用 request 以可选 headers 携带去重键、读取专用 error.task_id，A 修改允许头以配合跨域；不改变数据集上传行为。任务列表状态筛选上送服务端，过时请求不能覆盖较新页/筛选结果，终态停止详情轮询。M3 不接通 Loss/日志/下载：保持能力探测和未实现提示，不在真实 API 请求失败后自动回退 mock。

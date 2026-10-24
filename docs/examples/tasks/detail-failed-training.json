@@ -1,0 +1,31 @@
+{
+  "id": "11111111-1111-4111-8111-000000000003",
+  "dataset_id": "03a853e2-1bf1-45da-92fb-5a1548499fc4",
+  "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+  "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "status": "FAILED",
+  "current_step": 1,
+  "total_steps": 2,
+  "progress": 0.5,
+  "error_code": "TRAINING_FAILED",
+  "error_message": "训练执行失败，请查看任务诊断。",
+  "created_at": "2026-10-24T01:00:00Z",
+  "started_at": "2026-10-24T01:00:01Z",
+  "finished_at": "2026-10-24T01:00:04Z",
+  "config": {
+    "lora_r": 8,
+    "lora_alpha": 16,
+    "lora_dropout": 0.05,
+    "target_modules": [
+      "q_proj",
+      "v_proj"
+    ],
+    "learning_rate": 0.0002,
+    "num_train_epochs": 1,
+    "per_device_train_batch_size": 1,
+    "gradient_accumulation_steps": 8,
+    "max_seq_length": 512,
+    "logging_steps": 1,
+    "seed": 42
+  }
+}

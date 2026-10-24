@@ -1,0 +1,843 @@
+{
+  "$defs": {
+    "ApiError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ApiErrorCode"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "details": {
+          "items": {
+            "$ref": "#/$defs/ErrorDetail"
+          },
+          "maxItems": 10,
+          "title": "Details",
+          "type": "array"
+        },
+        "details_truncated": {
+          "title": "Details Truncated",
+          "type": "boolean"
+        },
+        "request_id": {
+          "format": "uuid4",
+          "title": "Request Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "details",
+        "details_truncated",
+        "request_id"
+      ],
+      "title": "ApiError",
+      "type": "object"
+    },
+    "ApiErrorCode": {
+      "enum": [
+        "INVALID_MULTIPART",
+        "UNSUPPORTED_MEDIA_TYPE",
+        "UPLOAD_TOO_LARGE",
+        "VALIDATION_ERROR",
+        "INVALID_DATASET",
+        "DATASET_NOT_FOUND",
+        "TASK_NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "REQUEST_TOO_LARGE",
+        "DISPATCH_FAILED",
+        "DISPATCH_UNCERTAIN",
+        "NOT_FOUND",
+        "METHOD_NOT_ALLOWED",
+        "STORAGE_UNAVAILABLE",
+        "DATABASE_UNAVAILABLE",
+        "INTERNAL_ERROR",
+        "HTTP_ERROR"
+      ],
+      "title": "ApiErrorCode",
+      "type": "string"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "loc": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Loc",
+          "type": "array"
+        },
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Line"
+        },
+        "column": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Column"
+        }
+      },
+      "required": [
+        "loc",
+        "code",
+        "message",
+        "line",
+        "column"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ApiError"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    },
+    "RuntimeOptions": {
+      "additionalProperties": false,
+      "description": "Internal execution choices; these are not public LoRA form fields.",
+      "properties": {
+        "precision": {
+          "default": "bf16",
+          "enum": [
+            "bf16",
+            "fp32"
+          ],
+          "title": "Precision",
+          "type": "string"
+        },
+        "max_steps": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Steps"
+        },
+        "local_files_only": {
+          "default": true,
+          "title": "Local Files Only",
+          "type": "boolean"
+        }
+      },
+      "title": "RuntimeOptions",
+      "type": "object"
+    },
+    "TaskCreate": {
+      "additionalProperties": false,
+      "properties": {
+        "dataset_id": {
+          "format": "uuid4",
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "base_model": {
+          "const": "Qwen/Qwen2.5-0.5B-Instruct",
+          "default": "Qwen/Qwen2.5-0.5B-Instruct",
+          "title": "Base Model",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/TrainingConfig"
+        }
+      },
+      "required": [
+        "dataset_id"
+      ],
+      "title": "TaskCreate",
+      "type": "object"
+    },
+    "TaskDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid4",
+          "title": "Id",
+          "type": "string"
+        },
+        "dataset_id": {
+          "format": "uuid4",
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "base_model": {
+          "const": "Qwen/Qwen2.5-0.5B-Instruct",
+          "title": "Base Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/TaskStatus"
+        },
+        "current_step": {
+          "minimum": 0,
+          "title": "Current Step",
+          "type": "integer"
+        },
+        "total_steps": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Steps"
+        },
+        "progress": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Progress"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "enum": [
+                "INVALID_REQUEST",
+                "INVALID_DATASET",
+                "MODEL_NOT_CACHED",
+                "MODEL_LOAD_FAILED",
+                "NO_SUPERVISED_TOKENS",
+                "CUDA_OUT_OF_MEMORY",
+                "TRAINING_FAILED",
+                "ARTIFACT_WRITE_FAILED",
+                "INVALID_ARTIFACT",
+                "PROGRESS_CALLBACK_FAILED"
+              ],
+              "type": "string"
+            },
+            {
+              "enum": [
+                "DISPATCH_FAILED",
+                "DISPATCH_UNCERTAIN",
+                "WORKER_INTERRUPTED",
+                "TASK_ABANDONED"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error Code"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error Message"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Started At"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Finished At"
+        },
+        "config": {
+          "$ref": "#/$defs/TrainingConfig"
+        }
+      },
+      "required": [
+        "id",
+        "dataset_id",
+        "base_model",
+        "model_revision",
+        "status",
+        "current_step",
+        "total_steps",
+        "progress",
+        "error_code",
+        "error_message",
+        "created_at",
+        "started_at",
+        "finished_at",
+        "config"
+      ],
+      "title": "TaskDetail",
+      "type": "object"
+    },
+    "TaskExecutionSpec": {
+      "additionalProperties": false,
+      "description": "Detached claim snapshot. Key validation performs no filesystem checks.",
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid4",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "dataset_id": {
+          "format": "uuid4",
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "dataset_key": {
+          "title": "Dataset Key",
+          "type": "string"
+        },
+        "dataset_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Dataset Sha256",
+          "type": "string"
+        },
+        "dataset_size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Dataset Size Bytes",
+          "type": "integer"
+        },
+        "dataset_row_count": {
+          "exclusiveMinimum": 0,
+          "title": "Dataset Row Count",
+          "type": "integer"
+        },
+        "base_model": {
+          "const": "Qwen/Qwen2.5-0.5B-Instruct",
+          "title": "Base Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/TrainingConfig"
+        },
+        "runtime": {
+          "$ref": "#/$defs/RuntimeOptions"
+        }
+      },
+      "required": [
+        "task_id",
+        "dataset_id",
+        "dataset_key",
+        "dataset_sha256",
+        "dataset_size_bytes",
+        "dataset_row_count",
+        "base_model",
+        "model_revision",
+        "config"
+      ],
+      "title": "TaskExecutionSpec",
+      "type": "object"
+    },
+    "TaskListQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "page": {
+          "default": 1,
+          "minimum": 1,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "default": 20,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "status": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/TaskStatus"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        }
+      },
+      "title": "TaskListQuery",
+      "type": "object"
+    },
+    "TaskPage": {
+      "additionalProperties": false,
+      "properties": {
+        "items": {
+          "items": {
+            "$ref": "#/$defs/TaskSummary"
+          },
+          "title": "Items",
+          "type": "array"
+        },
+        "total": {
+          "minimum": 0,
+          "title": "Total",
+          "type": "integer"
+        },
+        "page": {
+          "exclusiveMinimum": 0,
+          "title": "Page",
+          "type": "integer"
+        },
+        "page_size": {
+          "exclusiveMinimum": 0,
+          "maximum": 100,
+          "title": "Page Size",
+          "type": "integer"
+        },
+        "total_pages": {
+          "minimum": 0,
+          "title": "Total Pages",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "items",
+        "total",
+        "page",
+        "page_size",
+        "total_pages"
+      ],
+      "title": "TaskPage",
+      "type": "object"
+    },
+    "TaskStatus": {
+      "enum": [
+        "PENDING",
+        "QUEUED",
+        "RUNNING",
+        "COMPLETED",
+        "FAILED"
+      ],
+      "title": "TaskStatus",
+      "type": "string"
+    },
+    "TaskSubmissionError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "enum": [
+            "DISPATCH_FAILED",
+            "DISPATCH_UNCERTAIN"
+          ],
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "details": {
+          "items": {
+            "$ref": "#/$defs/ErrorDetail"
+          },
+          "maxItems": 10,
+          "title": "Details",
+          "type": "array"
+        },
+        "details_truncated": {
+          "title": "Details Truncated",
+          "type": "boolean"
+        },
+        "request_id": {
+          "format": "uuid4",
+          "title": "Request Id",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid4",
+          "title": "Task Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "details",
+        "details_truncated",
+        "request_id",
+        "task_id"
+      ],
+      "title": "TaskSubmissionError",
+      "type": "object"
+    },
+    "TaskSubmissionErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/TaskSubmissionError"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "title": "TaskSubmissionErrorResponse",
+      "type": "object"
+    },
+    "TaskSubmissionHeaders": {
+      "additionalProperties": false,
+      "description": "An extracted header DTO, not the full browser header collection.",
+      "properties": {
+        "Idempotency-Key": {
+          "anyOf": [
+            {
+              "format": "uuid4",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Idempotency-Key"
+        }
+      },
+      "title": "TaskSubmissionHeaders",
+      "type": "object"
+    },
+    "TaskSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "format": "uuid4",
+          "title": "Id",
+          "type": "string"
+        },
+        "dataset_id": {
+          "format": "uuid4",
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "base_model": {
+          "const": "Qwen/Qwen2.5-0.5B-Instruct",
+          "title": "Base Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "status": {
+          "$ref": "#/$defs/TaskStatus"
+        },
+        "current_step": {
+          "minimum": 0,
+          "title": "Current Step",
+          "type": "integer"
+        },
+        "total_steps": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Total Steps"
+        },
+        "progress": {
+          "anyOf": [
+            {
+              "maximum": 1,
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Progress"
+        },
+        "error_code": {
+          "anyOf": [
+            {
+              "enum": [
+                "INVALID_REQUEST",
+                "INVALID_DATASET",
+                "MODEL_NOT_CACHED",
+                "MODEL_LOAD_FAILED",
+                "NO_SUPERVISED_TOKENS",
+                "CUDA_OUT_OF_MEMORY",
+                "TRAINING_FAILED",
+                "ARTIFACT_WRITE_FAILED",
+                "INVALID_ARTIFACT",
+                "PROGRESS_CALLBACK_FAILED"
+              ],
+              "type": "string"
+            },
+            {
+              "enum": [
+                "DISPATCH_FAILED",
+                "DISPATCH_UNCERTAIN",
+                "WORKER_INTERRUPTED",
+                "TASK_ABANDONED"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error Code"
+        },
+        "error_message": {
+          "anyOf": [
+            {
+              "maxLength": 1000,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Error Message"
+        },
+        "created_at": {
+          "format": "date-time",
+          "title": "Created At",
+          "type": "string"
+        },
+        "started_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Started At"
+        },
+        "finished_at": {
+          "anyOf": [
+            {
+              "format": "date-time",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Finished At"
+        }
+      },
+      "required": [
+        "id",
+        "dataset_id",
+        "base_model",
+        "model_revision",
+        "status",
+        "current_step",
+        "total_steps",
+        "progress",
+        "error_code",
+        "error_message",
+        "created_at",
+        "started_at",
+        "finished_at"
+      ],
+      "title": "TaskSummary",
+      "type": "object"
+    },
+    "TrainingConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "lora_r": {
+          "default": 8,
+          "maximum": 64,
+          "minimum": 1,
+          "title": "Lora R",
+          "type": "integer"
+        },
+        "lora_alpha": {
+          "default": 16,
+          "maximum": 128,
+          "minimum": 1,
+          "title": "Lora Alpha",
+          "type": "integer"
+        },
+        "lora_dropout": {
+          "default": 0.05,
+          "exclusiveMaximum": 1,
+          "minimum": 0,
+          "title": "Lora Dropout",
+          "type": "number"
+        },
+        "target_modules": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Target Modules",
+          "type": "array"
+        },
+        "learning_rate": {
+          "default": 0.0002,
+          "exclusiveMinimum": 0,
+          "maximum": 0.01,
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "num_train_epochs": {
+          "default": 1,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Num Train Epochs",
+          "type": "integer"
+        },
+        "per_device_train_batch_size": {
+          "default": 1,
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Per Device Train Batch Size",
+          "type": "integer"
+        },
+        "gradient_accumulation_steps": {
+          "default": 8,
+          "maximum": 64,
+          "minimum": 1,
+          "title": "Gradient Accumulation Steps",
+          "type": "integer"
+        },
+        "max_seq_length": {
+          "default": 512,
+          "maximum": 2048,
+          "minimum": 64,
+          "title": "Max Seq Length",
+          "type": "integer"
+        },
+        "logging_steps": {
+          "default": 1,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Logging Steps",
+          "type": "integer"
+        },
+        "seed": {
+          "default": 42,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "title": "TrainingConfig",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LLMCloud task contracts (types only)",
+  "x-contract-version": "1.0.0",
+  "x-implementation-status": "types_only",
+  "x-generated-by": "scripts/export_task_contract.py",
+  "x-max-task-body-bytes": 65536,
+  "x-publish-outcomes": [
+    "accepted",
+    "not_sent",
+    "unknown"
+  ],
+  "x-execution-outcomes": [
+    "completed",
+    "failed",
+    "skipped",
+    "ownership_lost",
+    "reconciliation_required"
+  ]
+}

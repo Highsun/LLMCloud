@@ -90,6 +90,8 @@ M3 再将训练成功结果映射为数据库 COMPLETED。M4 Adapter 下载打�
 
 M3 具体设计及分工统一在 [完整执行计划](m3-development-plan.md) 与 [API 草案](api/tasks.md)，当前未实现。A 先主笔共享契约，再负责状态仓储/HTTP/派发/离线对账；B 可先做前端列表筛选/分页/请求竞争，契约合入后经共同 Protocol 接入 Worker，再补齐前端。列表独立测试不代表任务链路已实现，真实仓储装配及最终 Redis/GPU/浏览器联调必须合作。不将 SQL 写进 Trainer；请求去重、领取 token、快照和稳定错误码必须显式迁移。
 
+M3-01 已交付 [CPU 共享契约 1.0.0](contracts/tasks.md)、类型和生成样例，B 核对待完成；上述业务仍未实现。TaskStatus 独立于 ORM，TaskRepository 通过 get_status/claim/record_progress/complete/fail 供 Worker 使用，完成提交确认丢失时读真实状态而不覆盖有效产物。Settings 已有固定模型 revision/精度/内部步数上限；后续列、空值、索引和旧行处置见契约迁移清单，当前未增加 ORM 列或执行迁移。
+
 
 初始表：
 

@@ -1,10 +1,10 @@
 # M3 异步任务开发计划
 
-版本：规划 1.1；日期：2026-10-24。状态：需求、分工和接口设计已整理，M3-01 至 M3-07 均未开始实现。用户已确认本次任务安排；共享代码契约仍须在 M3-01 落地并由双方核对，不能将规划确认写成代码验收。
+版本：执行计划 1.2；日期：2026-10-24。状态：M3-01 的 A 侧代码/Schema/样例/检查与迁移清单已交付，待 B 核对消费者接口；M3-02～07 尚未实现。共享契约见 [任务契约 1.0.0](contracts/tasks.md)，不把类型交付写成任务 HTTP/Worker 已实现，也不冒充双方已核对。
 
-成员 A 指当前侧/你，主负责后端；成员 B 指队友，已有前端交付。本文合并原 m3-handoff.md 的任务入口与交接要求，作为 M3 分工、依赖、验收和交接的完整执行依据；旧交接文件只保留跳转。对外字段草案见 [任务 API](api/tasks.md)。
+成员 A 指当前侧/你，主负责后端；成员 B 指队友，已有前端交付。本文已合并原交接文档的任务入口与交接要求，作为 M3 分工、依赖、验收和交接的完整执行依据。对外字段与待实施 HTTP 行为见 [任务 API](api/tasks.md)。
 
-立即执行：A 开始 M3-01；B 先完成 M3-05 的“列表筛选、分页与请求竞争处理”小交付。双方核对并合入 01 后，A 依次做 02 → 03 → 06，B 做 04 → 补齐 05；最后共同做 07。B 的首个小交付不依赖真实后端，但不代表整个 M3-05 已完成。可直接分配的工作说明见第三节。
+立即接续：B 可先完成 M3-05 的“列表筛选、分页与请求竞争处理”小交付，并核对 01 已交付的实际类型/Protocol/样例。双方核对同步契约后，A 依次做 02 → 03 → 06，B 做 04 → 补齐 05；最后共同做 07。B 的首个小交付不依赖真实后端，但不代表整个 M3-05 已完成。可直接分配的工作说明见第三节。
 
 ## 一、目标与已有基础
 
@@ -17,7 +17,7 @@ M3 将已经通过本地验收的 Trainer 接入服务：浏览器配置 → API
 | M1 数据 API、不可变存储、共享扫描器已完成 | 用已有 dataset_id 和服务端相对存储键，保持数据契约 |
 | M2-01～06 工程闭环完成，174 项 CPU 检查为历史验收基线 | 复用 TrainRequest、train、TrainingProgress 和 verify_training_artifacts，不复制训练/指标逻辑 |
 | TrainingTask 表只有 M0 占位字段 | 缺 revision/数据快照/领取归属/稳定错误码/请求去重等，需显式迁移，不能假定表为空 |
-| TaskCreate 只定义输入，未注册任务路由 | 可以在发布路由前完善响应和请求去重约定；不能称任务 API 已存在 |
+| M3-01 输入/响应/错误/Protocol/生成样例已交付，未注册任务路由 | 消费者核对实际类型，不另造字段；不能称任务 API 已存在 |
 | worker.train 仍抛 NotImplementedError，Worker 仅配置/ping 可用 | 必须实现真实领取和执行，Celery ping 不能作为本阶段完成证据 |
 | Vue 已有 TrainingPanel/TasksPanel、配置校验、轮询壳 | 主要做字段收敛、错误处理及真实联调，保留组件和视觉设计 |
 | 当前任务筛选只筛当前页，指标以 step 合并 | M3 改为服务端状态筛选；M4 再改指标游标，不能沿用 step 合并 train/eval |
@@ -46,7 +46,7 @@ B 的列表小交付、Worker 和前端收尾由同一个人顺序完成，不�
 
 | 编号 | 主负责 | 依赖 | 交付与主要文件 | 人时 | 状态 |
 | --- | --- | --- | --- | --- | --- |
-| M3-01 共用契约 | A+B，各 1 | 阅读本计划 | Task Schema、task_protocols、生成样例/契约检查；API 字段/迁移清单确认 | 2 | 待办 |
+| M3-01 共用契约 | A+B，各 1 | 阅读本计划 | Task Schema、task_protocols、生成样例/契约检查；API 字段/迁移清单确认 | 2 | 待验收：A 侧已交付，B 核对待完成 |
 | M3-02 存储与状态 | A | 01 | entities、task_repository、task_migration/migrate_tasks；CAS、所有权、唯一请求键 | 3 | 待办 |
 | M3-03 API 与派发 | A | 01/02 | api/tasks、services/tasks、task_dispatch、运行时 OpenAPI 导出与 HTTP 检查 | 2.5 | 待办 |
 | M3-04 Worker 适配 | B | 01；真实仓储接入等 02 | worker/execution、tasks、单实例锁、Trainer/路径/产物适配及替身检查 | 4 | 待办 |
@@ -60,7 +60,7 @@ B 的列表小交付、Worker 和前端收尾由同一个人顺序完成，不�
 
 - 阅读本文、API 草案、现有 TaskCreate/TrainingTask、Trainer 契约与新增工作日志。
 - 主改 CPU Task Schema、task_protocols、任务错误集合、生成 fixture/检查；列清 ORM 迁移和 Settings/.env.example 后续需求，字段细则见第四节。
-- 请 B 用 Worker 消费者和前端消费者的角度核对：四个仓储操作、执行快照、三种派发结果、分页/空进度、提交错误及去重语义是否足够。
+- 请 B 用 Worker 消费者和前端消费者的角度核对：五个仓储方法（含 get_status）、执行快照、三种派发结果、分页/空进度、提交错误及去重语义是否足够。
 - 交付一个小型共享提交，记录提交号、类型导入位置、生成命令、迁移清单和未实现项。B 同步该提交后才按实际类型编写 04。
 - 验收：CPU 无训练依赖可导入；生成样例合法且可检查漂移；未知字段/非法状态等被类型拒绝；不注册空任务路由，不以文档或样例代替 01 代码完成。
 
@@ -101,19 +101,20 @@ B 的列表小交付、Worker 和前端收尾由同一个人顺序完成，不�
 
 开始时用三句话确认“本次做什么、不做什么、如何验收”。约定一次中途同步，给出分支/当前提交、已通过检查和阻塞；卡住约 30 分钟就反馈具体报错、已尝试步骤和所需接口。到约定时间即使未完成也提交可检查的进度及剩余项，不把失败测试或未联调写成通过。接收方按本次范围及时核对，新需求另记，不临时扩大验收范围。这些同步计入原工时，不新增审批环节。
 
-## 四、共同边界：M3-01 必须落地什么
+## 四、共同边界：M3-01 交付内容
 
 ### 4.1 公共 HTTP
 
 按 [任务 API 草案](api/tasks.md) 形成 TaskCreate、TaskSummary、TaskDetail、TaskPage 和提交错误类型；保留现有 TrainingConfig。客户端不提交 revision、路径、RuntimeOptions、状态或归属，服务端生成 UUID 并保存固定 revision/配置/数据统计快照。
 
-样例从共享类型生成，明确为 fixture。M3-01 可生成 JSON Schema/样例，不把未注册的接口伪装成运行时 OpenAPI；M3-03 注册路由后，从真实 app.openapi() 导出任务接口。共享 ErrorCode 如有扩展，同时重导出受影响的数据集契约，不能手改生成文件。
+样例已由 scripts/export_task_contract.py 从共享类型生成，明确为 fixture；--check 检查漂移。M3-01 只生成 JSON Schema/样例，不把未注册的接口伪装成运行时 OpenAPI；M3-03 注册路由后，从真实 app.openapi() 导出任务接口。共享 ErrorCode 已扩展并重导出数据集契约，不能手改生成文件。
 
 ### 4.2 Worker 与 SQL 的内部接口
 
-新增 backend/app/core/task_protocols.py，A 在 01 主改、B 复核；只放 CPU 可导入的 DTO/Protocol，不放 SQL、Celery、Settings 或 GPU 执行代码。以下是拟定签名，01 通过类型/行为检查固定，后续双方不得各自改一套：
+已新增 backend/app/core/task_protocols.py，A 在 01 主改、B 待核对；只放 CPU 可导入的 DTO/Protocol，不放 SQL、Celery、Settings 或 GPU 执行代码。以下已落实为契约 1.0.0，完整参数类型、返回/失败含义见 [共享契约](contracts/tasks.md)，后续双方不得各自改一套：
 
 ```text
+TaskRepository.get_status(task_id) -> TaskStatus | None
 TaskRepository.claim(task_id, claim_token, worker_id) -> TaskExecutionSpec | None
 TaskRepository.record_progress(task_id, claim_token, event: TrainingProgress) -> bool
 TaskRepository.complete(task_id, claim_token, output_key, manifest_sha256, summary) -> bool
@@ -125,17 +126,19 @@ PublishOutcome = accepted | not_sent | unknown
 execute_training(task_id, repository, settings, train_fn) -> execution outcome
 ```
 
-TaskExecutionSpec 包含 task_id/dataset_id、原始数据相对键及 sha256/size_bytes/row_count、base_model/model_revision、完整 TrainingConfig/RuntimeOptions；不把 SQL Session/实体传给 Trainer。config 做深拷贝，claim_token 由 Worker 每次尝试生成并用于后续条件更新。TaskRepository 的 SQL 实现放 A 的 services/task_repository.py，B 提供同接口内存替身测试；生产装配在 B 的 worker/tasks.py，使用约定的 SqlTaskRepository(sessions) 工厂。
+TaskExecutionSpec 固定 contract_version、task_id/dataset_id、dataset_key/dataset_sha256/dataset_size_bytes/dataset_row_count、base_model/model_revision、config/runtime；不把 SQL Session/实体传给 Trainer。config 构造时重新验证并深拷贝，claim_token 由 Worker 每次尝试生成并用于后续条件更新。TaskRepository 的 SQL 实现放 A 的 services/task_repository.py，B 提供同接口内存替身测试；生产装配在 B 的 worker/tasks.py，使用约定的 SqlTaskRepository(sessions) 工厂。
+
+get_status 用于完成写入确认丢失时读取真实已提交状态，不能凭异常将有效产物改为失败；读取异常抛 TaskStoreError。新增该只读方法是补全原故障设计所需，原四个写入/领取方法语义不变。ExecutionOutcome 同时区分 completed/failed/skipped/ownership_lost/reconciliation_required，不把失去归属和待对账统一当作失败。
 
 claim 以单个条件更新事务领取 PENDING/QUEUED；返回 None 表示已被领取/终态/不存在，Worker 直接跳过，不访问 GPU 或删除目录。数据库错误抛安全 TaskStoreError，不当成正常跳过。record_progress/complete/fail 仅允许 RUNNING 且 token 一致；更新 0 行表示失去归属，不能继续把状态改为完成。B 不写 SQL，A 不调用 GPU。
 
 ### 4.3 持久化与迁移
 
-在现有任务字段上增加：model_revision、dataset_sha256/size_bytes/row_count 快照、runtime_options、claim_token/worker_id、error_code、请求去重键/规范请求哈希、manifest_sha256；output_path 继续保存相对 DATA_DIR 的 outputs/{task_id} 键。具体列空值/索引在 01 定稿，由 A 一次维护 ORM/迁移/检查。
+M3-02 在现有任务字段上增加：model_revision、dataset_key/dataset_sha256/dataset_size_bytes/dataset_row_count 快照、runtime_options、claim_token/worker_id、error_code、idempotency_key/request_sha256、manifest_sha256；output_path 继续保存相对 DATA_DIR 的 outputs/{task_id} 键。具体列类型/空值/索引与旧行处置已在 [迁移清单](contracts/tasks.md) 固定，01 没有增加 ORM 列或执行迁移；02 由 A 一次维护 ORM/迁移/检查。
 
 新增 scripts/migrate_tasks.py --check/--apply：停止 API/Worker、SQLite backup、显式事务迁移、旧行核对。旧记录缺少可信 revision/数据快照时报告阻塞或要求显式映射，不擅自填 main、不删库。不用 create_all 变更既有表；启动检查阻止旧结构继续提供业务服务。新库正常创建当前表。
 
-01 同时确认服务端固定 revision/精度的配置字段（默认沿用已验收的 40 位 revision、BF16、max_steps=null），由 A 维护 Settings/.env.example。HTTP 创建只读数据库数据集元数据，不校验大模型权重；Worker 才核验实际文件和缓存。跨机器不传本机绝对路径，缓存解析显式结合当前 Settings/既有模型路径工具。
+01 已新增 Settings/.env.example 的 DEFAULT_MODEL_REVISION、TRAINING_PRECISION、可选 TRAINING_MAX_STEPS（默认已验收的 40 位 revision、BF16、max_steps=null）；尚无任务服务消费。HTTP 创建只读数据库数据集元数据，不校验大模型权重；Worker 才核验实际文件和缓存。跨机器不传本机绝对路径，缓存解析显式结合当前 Settings/既有模型路径工具。
 
 ## 五、状态、派发和故障原则
 
@@ -218,7 +221,7 @@ M3 不要求每个服务任务自动执行文本生成。COMPLETED 表示训练�
 
 ## 八、完成定义
 
-- [ ] 01 共享类型/样例和文件边界落地，两边可各自编译/检查。
+- [ ] 01 共享类型/样例和文件边界落地，两边可各自编译/检查（A 侧已交付，B 核对待完成）。
 - [ ] 任务 API、SQLite 显式迁移、派发结果语义符合运行时 OpenAPI。
 - [ ] Worker 只接任务 ID，原子领取、持有归属、单实例、复用 Trainer/审计。
 - [ ] 两个真实任务串行完成，重复投递/不确定提交不会重复训练。
@@ -226,4 +229,4 @@ M3 不要求每个服务任务自动执行文本生成。COMPLETED 表示训练�
 - [ ] 最低限度的离线对账有失败/恢复证据，无自动重训或覆盖。
 - [ ] 本阶段日志、测试证据和共享文档同步，正式效果/后续阶段边界明确。
 
-当前这些项全部属于计划，本次只交付规划文档，不运行或声称已实现 M3 服务。
+当前只交付 01 的共享代码与检查，B 核对及后续业务均待完成；M3 服务验收项不能由类型/fixture 测试代替。

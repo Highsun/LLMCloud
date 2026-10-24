@@ -1,0 +1,10 @@
+{
+  "error": {
+    "code": "DISPATCH_UNCERTAIN",
+    "message": "任务派发结果待确认，请查询该任务。",
+    "details": [],
+    "details_truncated": false,
+    "request_id": "f63b14e1-7748-4e24-9db8-6d24810dd6df",
+    "task_id": "11111111-1111-4111-8111-000000000003"
+  }
+}
