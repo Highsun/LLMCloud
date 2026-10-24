@@ -1,6 +1,6 @@
 # 项目状态与协作记忆
 
-梳理日期：2026-10-23。这是成员及 AI 助手的当前状态摘要；详细契约以 datasets.md 和 Pydantic Schema 为准，历史过程见工作日志。开始任务时仍须核对最新 Git、日志和实际代码。
+梳理日期：2026-10-24。这是成员及 AI 助手的当前状态摘要；详细契约以 datasets.md 和 Pydantic Schema 为准，历史过程见工作日志。开始任务时仍须核对最新 Git、日志和实际代码。
 
 ## 项目目标与边界
 
@@ -23,7 +23,8 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 | M2-04 | [真实训练](training.md)、CLI、同源指标/回调、基础保存已完成；本机真实 Qwen LoRA 更新及冻结权重哈希验证通过 |
 | M2-05 | [共享 CPU 产物审计](training-artifacts.md)、排他原子提交与保存故障验收已完成；已校验 M2-04 真实产物和新训练结果 |
 | M2-06 | [新进程重载](adapter-reload.md) 已实际加载并生成，M2 工程闭环完成 |
-| M3–M5 | 业务调度、页面观测/下载和在线推理待完成 |
+| M3 | [协作计划](m3-development-plan.md)/[API 草案](api/tasks.md)/[交接](m3-handoff.md) 已整理；01～07 实现均待开始 |
+| M4–M5 | 页面观测/下载和在线推理待完成 |
 
 `trainer.train` 已执行真实 Qwen LoRA，`worker.train` 仍是业务占位。已有产物的新进程重载已通过；未来各任务仍须分别验收，不表示正式效果提升。
 
@@ -56,3 +57,9 @@ M2-01 已交付类型和格式约定，生成 Schema/样例使用 scripts/export
 下一步 M3 异步调度；M2-06 已完成真实生成验收，接续见 [日志](worklogs/2026-10-23-m2-06.md)。复用 trainer.artifacts.verify_training_artifacts 获取已校验的路径和清单，不能将 artifacts_verified 当成加载/生成成功。M2-05 见 [日志](worklogs/2026-10-23-m2-05.md)。M2-04 由本次用户指定当前侧交付，入口见 training.md，实测见 [M2-04 日志](worklogs/2026-10-23-m2-04.md)。Trainer 复用 load_training_tokenizer / prepare_training_data / InstructionCollator，不另写标签逻辑；M2-03 按本次用户要求由当前侧交付，B 后续接续时核对调用方式。工程闭环预算约 14 团队人时；正式语料审核与效果实验继续独立记录；交接见 [M2-03 日志](worklogs/2026-10-22-m2-03.md)。
 
 入口：[项目规划](project-plan.md)、[M2 执行计划](m2-development-plan.md)、[数据集契约](api/datasets.md)、[成员 B 日志](worklogs/2026-10-21-m1-04-frontend.md)、[日志索引](worklogs/README.md)。
+
+## M3 接续决定（规划，未实现）
+
+A 负责 SQL 仓储/条件状态更新、显式迁移、HTTP/派发与离线对账；B 负责 Worker/单实例保护及现有前端接通。先共同提交 Task Schema/Protocol/样例，两边随后用独立替身检查，不互相等待完整实现；真实 Redis/GPU/浏览器验收仍须合作。预算约 20 人时加 4 缓冲，不能沿用一周必然完成的假设。
+
+派发 not_sent 与 unknown 分开；unknown 可留 PENDING 或已被领取状态，返回可查询 task_id。计划支持可选 Idempotency-Key，同键不重发；消息领取仍需 claim_token CAS。早确认不承诺崩溃自动恢复；最低限度对账离线应用，先停 API/Worker，不擅自重训。上述均须在 M3-01～07 实现并验收，当前任务路由和 worker.train 仍未实现。

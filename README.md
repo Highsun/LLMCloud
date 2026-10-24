@@ -8,9 +8,9 @@
 
 ## 一、当前进度
 
-当前完成 **M0：需求理解与项目初始化** 和 **M1：数据管理的计划交付**。
+当前完成 **M0 初始化、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3 已完成规划，业务实现待开始。
 
-M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-04 数据管理页面**。成员 B 交付的工作台已接通真实上传、列表与详情，本次补齐局部修复和浏览器验收；M1-05 故障验收与 CPU CI、M1-06 数据方案/划分工具/冻结题也已完成。M1 计划范围已验收，下一阶段为 M2 真实 LoRA；正式实验语料仍需人工编写和审核。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，项目梳理见 [项目记忆](docs/project-memory.md)，页面接续见 [M1-04 日志](docs/worklogs/2026-10-22-m1-04-integration.md)，故障与 CI 见 [M1-05 日志](docs/worklogs/2026-10-22-m1-05.md)，数据来源/划分/冻结题见 [数据方案](docs/data/README.md) 与 [M1-06 日志](docs/worklogs/2026-10-22-m1-06.md)。
+M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-04 数据管理页面**。成员 B 交付的工作台已接通真实上传、列表与详情，本次补齐局部修复和浏览器验收；M1-05 故障验收与 CPU CI、M1-06 数据方案/划分工具/冻结题也已完成。M1 计划范围已验收，M2 工程闭环也已完成；正式实验语料仍需人工编写和审核。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，项目梳理见 [项目记忆](docs/project-memory.md)，页面接续见 [M1-04 日志](docs/worklogs/2026-10-22-m1-04-integration.md)，故障与 CI 见 [M1-05 日志](docs/worklogs/2026-10-22-m1-05.md)，数据来源/划分/冻结题见 [数据方案](docs/data/README.md) 与 [M1-06 日志](docs/worklogs/2026-10-22-m1-06.md)。
 
 - 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、上传/列表/详情 API 和统一错误、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 工作台与数据集页面。
 - 已定义：数据集格式、训练参数校验、训练输入/输出及进度回调接口、任务状态、后续 API 契约。
@@ -19,6 +19,8 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 `trainer.train` 已实现真实单 GPU LoRA 与独立 CLI，`worker.train` 仍是明确报错的占位，业务任务调度尚待 M3。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
 
 **M2 单机真实 LoRA 工程闭环已验收**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成；任务 HTTP/Celery 接入属于 M3。
+
+**M3 协作开发入口**：[详细计划](docs/m3-development-plan.md)、[任务 API 草案](docs/api/tasks.md)、[两人交接](docs/m3-handoff.md)。先共同固定小型契约提交，再由 A 独立做存储/状态/API/派发，B 独立做 Worker 和前端，最后共同联调。预计 20 人时加 4 人时缓冲；M3-01～07 目前均未实现。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 

@@ -44,7 +44,7 @@ MVP 的训练与推理使用同一 GPU 时需要互斥；训练期间推理返�
 - `COMPLETED`：训练完成且可加载的 Adapter 和结果清单已写入。
 - `FAILED`：校验、派发、执行或产物保存失败，记录错误原因。
 
-派发失败进入 FAILED。Worker 的 RUNNING 更新必须兼容读取到 PENDING 或 QUEUED，防止快速领取与 API 更新竞争；API 只在当前仍为 PENDING 时更新 QUEUED。数据库业务状态与 Celery 内部状态分开。
+明确未派发才可将仍 PENDING 的任务记为 FAILED；确认未知时保留当前状态并提供原 task_id 查询，不能把可能已执行的任务一律记为失败。该细化设计在 [M3 计划](m3-development-plan.md) 中待实现。Worker 的 RUNNING 更新必须兼容读取到 PENDING 或 QUEUED，防止快速领取与 API 更新竞争；API 只在当前仍为 PENDING 时更新 QUEUED。数据库业务状态与 Celery 内部状态分开。
 
 ## 五、后续 HTTP 接口契约
 
@@ -57,7 +57,7 @@ MVP 的训练与推理使用同一 GPU 时需要互斥；训练期间推理返�
 | `POST /datasets` | multipart `file`，可选 `name` | 201；DatasetDetail，含哈希与原始文件名 | M1 |
 | `GET /datasets` | `page=1`，`page_size=20`（最大 100） | DatasetPage；固定时间/ID 倒序 | M1 |
 | `GET /datasets/{id}` | 数据集 UUID | DatasetDetail 或 404 | M1 |
-| `POST /tasks` | dataset_id、base_model、config | 202；任务 ID 与状态 | M3 |
+| `POST /tasks` | dataset_id、base_model、config；可选 Idempotency-Key | 202；同键重放 200；派发异常保留可查询任务 ID | M3 设计草案，待实现 |
 | `GET /tasks` | 状态、分页参数 | 任务列表 | M3 |
 | `GET /tasks/{id}` | 任务 ID | 状态、步数、进度、时间与错误 | M3 |
 | `GET /tasks/{id}/metrics` | 游标 after_step | step/loss/learning_rate/epoch 数据点 | M4 |
@@ -88,6 +88,8 @@ MVP 的训练与推理使用同一 GPU 时需要互斥；训练期间推理返�
 ```
 
 文件上传上限为 50 MiB，整个 multipart 请求体上限为 50 MiB + 64 KiB；超限返回 413，格式错误返回 422，实体不存在返回 404。保存时使用系统生成 ID，客户端文件名仅作显示，API 不接收任意文件系统路径。
+
+M3 请求/响应、状态筛选、去重与提交错误详见 [任务 API 草案](api/tasks.md)，在注册路由前是设计输入，不能当作运行时能力。
 
 ## 六、分阶段交付
 

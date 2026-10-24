@@ -88,6 +88,9 @@ M3 再将训练成功结果映射为数据库 COMPLETED。M4 Adapter 下载打�
 
 ## 三、数据库与任务状态
 
+M3 具体设计及分工已在 [执行计划](m3-development-plan.md) 与 [API 草案](api/tasks.md) 整理，当前未实现。A 负责状态仓储/HTTP/派发，B 经共同 Protocol 接入 Worker，并负责前端；不将 SQL 写进 Trainer。待加入的请求去重、领取 token、快照和稳定错误码必须显式迁移。
+
+
 初始表：
 
 - `users`：ID、用户名、创建时间；MVP 单用户使用，认证尚未实现。
@@ -103,7 +106,7 @@ stateDiagram-v2
     [*] --> PENDING: 保存任务元数据
     PENDING --> QUEUED: Broker 接受消息
     PENDING --> RUNNING: Worker 在派发确认更新前领取
-    PENDING --> FAILED: 派发失败
+    PENDING --> FAILED: 明确未发送
     QUEUED --> RUNNING: Worker 领取
     QUEUED --> FAILED: 等待异常或任务过期
     RUNNING --> COMPLETED: 训练与产物校验成功
@@ -112,7 +115,7 @@ stateDiagram-v2
 
 数据库是业务状态的唯一来源，不能将 Celery 的 `SUCCESS` 直接作为训练完成。使用条件更新领取任务，重复消息不会重复运行；API 更新 QUEUED 时只允许从 PENDING 转换，不能覆盖 RUNNING。此状态逻辑将在 M3 实现。
 
-数据库提交与 Redis 派发不是同一事务。MVP 需要保留派发失败原因，并在启动/定时恢复检查中处理长期 PENDING/QUEUED/RUNNING；稳定性扩展阶段可采用 outbox。初始化不启用自动重试或晚确认，避免在没有幂等和恢复逻辑时自动重复训练。
+数据库提交与 Redis 派发不是同一事务。M3 规划区分 not_sent 与 unknown：确认未知时保留当前业务状态和 task_id，不能覆盖已 RUNNING/终态。恢复最低范围为停 API/Worker、取得实例锁后显式离线对账，不按加载阶段无 Loss 超时将活任务误判失联。保留早确认、不自动重训；outbox、在线租约/heartbeat 和自动补发暂不实现。详情以 M3 计划为准。
 
 ## 四、GPU 资源与可观测性
 
