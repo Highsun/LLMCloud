@@ -20,7 +20,7 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 **M2 单机真实 LoRA 工程闭环已验收**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成；任务 HTTP/Celery 接入属于 M3。
 
-**M3 协作开发入口**：[详细计划](docs/m3-development-plan.md)、[任务 API 草案](docs/api/tasks.md)、[两人交接](docs/m3-handoff.md)。先共同固定小型契约提交，再由 A 独立做存储/状态/API/派发，B 独立做 Worker 和前端，最后共同联调。预计 20 人时加 4 人时缓冲；M3-01～07 目前均未实现。
+**M3 协作开发入口**：[完整开发计划](docs/m3-development-plan.md)（已合并原两人交接，第三节可直接分配任务）和 [任务 API 草案](docs/api/tasks.md)。现在 A 开始 M3-01，B 先做 M3-05 的列表筛选/分页/请求竞争小交付；01 契约核对合入后，A 做 02 → 03 → 06，B 做 04 → 补齐 05，最后共同做 07。预计 20 人时加 4 人时缓冲；M3-01～07 目前均未实现。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
@@ -91,6 +91,7 @@ LLMCloud/
     ├── architecture.md
     ├── project-plan.md
     ├── m2-development-plan.md  # M2 任务、分工、依赖与验收
+    ├── m3-development-plan.md  # M3 完整执行计划，含两人任务与交接
     ├── model-cache.md          # 模型缓存命令与后续 Trainer 接入
     ├── training-data.md        # 数据转换、标签及诊断命令
     ├── contracts/training.md  # 内部训练协议，配套生成 JSON Schema

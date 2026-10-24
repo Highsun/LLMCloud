@@ -30,6 +30,10 @@ npm run dev
 
 ## M3–M5 联调约定
 
+M3 的任务分配、交接与验收统一见 [完整开发计划](../docs/m3-development-plan.md)，原 m3-handoff.md 只保留跳转。成员 B 先完成 M3-05 列表基础：ALL/五状态服务端筛选、切状态回首页、分页/轮询保留筛选及旧响应隔离，主改 workspace.js、TasksPanel.vue 和对应测试；用隔离替身验证并运行 npm test/npm run build，写独立日志。此处是待开发安排，不是当前功能。
+
+M3-01 共享契约核对合入后，B 再按 Protocol 做 M3-04 Worker，随后补齐 05 的提交去重键、专用 error.task_id、TaskDetail/config、空进度与真实接通。真实仓储装配及最终 Redis/GPU/浏览器验收须与 A 配合；列表小交付不代表 05 已完成。不要修改后端/SQL 或另写 Trainer；Loss/日志/下载和推理留给 M4/M5，运行时未支持的操作继续禁用，不在 API 出错后回退 mock。
+
 数据集严格按 `../docs/api/datasets.md` 实现。任务/指标/日志/推理目前只有规划，以下是隔离在前端适配层中的暂定读取方式，需等后端正式 Schema 完成后再联调，不构成新增共享契约：
 
 | 接口                   | 当前前端读取                                                                                                         |

@@ -18,7 +18,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成，不能把训练保存成功当作完整 M2 验收。
 
-执行 M3 前继续读 [M3 开发计划](docs/m3-development-plan.md)、[任务 API 设计草案](docs/api/tasks.md) 和 [两人交接](docs/m3-handoff.md)。当前只完成规划，M3-01～07 未实现。先共同交付 CPU 类型/Protocol，再 A 实现 SQL/迁移/API/派发/离线对账，B 实现 Worker/单实例保护及现有前端接通；具体文件归属以该计划为准，不延用“A 独自做全部 Worker”的旧排期。01 接口核对、真实仓储装配和最终 Redis/GPU/浏览器联调需要合作，不能以 mock 验收代替。
+执行 M3 前继续读 [M3 完整开发计划](docs/m3-development-plan.md) 和 [任务 API 设计草案](docs/api/tasks.md)。原两人交接内容已合并到完整计划，m3-handoff.md 仅保留跳转。当前只完成规划，M3-01～07 未实现。现在 A 开始 01，B 可先做 05 的列表筛选/分页/请求竞争小交付；01 共享 CPU 类型/Protocol 核对合入后，A 做 02 → 03 → 06，B 做 04 → 补齐 05，最后共同做 07。具体任务、文件与验收见完整计划第三、七节；不能把列表小交付记成 05 全部完成。01 接口核对、真实仓储装配和最终 Redis/GPU/浏览器联调需要合作，不能以 mock 验收代替。
 
 ## 当前事实与任务边界
 
@@ -60,6 +60,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 - 本阶段规划不是已实现 API。M3-01 先交付共享 Schema/样例、task_protocols 和迁移清单；M3-03 注册路由后再从真实 app.openapi() 导出，不能把设计草案写成运行时能力。
 - A 主改 SQL 仓储/状态/迁移/任务 HTTP/Publisher/离线对账；B 主改 Worker 执行/进程实例锁和 frontend。B 按 TaskRepository Protocol 用替身独立检查，不写 SQL、不复制 Trainer；A 不为了联调改 B 页面。共享 config/类型/入口文档由 A 汇总，双方各写独立任务日志。
+- B 首个任务为 M3-05 列表基础：ALL/五状态服务端筛选、切状态回首页、分页/轮询保留筛选、旧响应不覆盖最新数据/错误/加载状态；先用隔离测试验证，保留真实 OpenAPI 能力探测。01 合入前不猜 Worker 类型。该小交付独立提交/写日志后，再按 01 开发 04 并补齐 05。具体截止时间由双方约定，中途同步提交/检查，阻塞约 30 分钟反馈。
 - 派发明确未发送与确认未知要区分；未知时保留可查询的原 task_id，不覆盖 RUNNING/终态、不自动重投。POST 去重键与消息重复领取是两层不同保护，设计见 tasks.md。
 - 数据库状态为业务来源；用 claim_token 条件更新；Trainer 唯一写 metrics。M3 离线对账先停 API/Worker 并取得实例锁，不按无 Loss 超时判断正常训练失联。该策略是待实现设计，不是当前恢复能力。
 - 两人使用不同 checkout/worktree 和临时 DB/队列，GPU 验收不重叠。共同主线预算约 20 人时，另 4 人时缓冲，按每人每周 6–8 小时安排约 1.25–2 周；保留必要共同确认和真实联调。

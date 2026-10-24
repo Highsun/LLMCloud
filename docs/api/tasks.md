@@ -101,6 +101,8 @@ TaskDetail.error_code 是业务诊断，和 HTTP error.code 不必相同：训�
 
 ## 交付和前端接入
 
-01 共享类型生成 fixture，B 的测试必须显式标为 mock、单独用于测试；未注册真实路由时 supports 仍返回 false。03 实现后导出 docs/api/tasks.openapi.json，路径采用 /api/v1 server + 相对 paths，运行时完整 paths 与操作/Schema 一致。不要在当前规划阶段伪造已实现的 OpenAPI。
+01 前 B 可先按本草案完成列表筛选/分页/请求竞争小交付，范围与验收见 [完整计划第三节](../m3-development-plan.md)。ALL 不发送 status，其余发送五状态之一；切状态回第一页，翻页/刷新/轮询保留筛选；旧成功、失败及 finally 不能覆盖最新状态。该小交付只计为 05 部分完成，不抢先猜 Worker 类型。
+
+01 共享类型生成 fixture 后同步前端测试；B 的测试替身必须显式标为 mock、单独用于测试，不能形成第二套长期响应约定。未注册真实路由时 supports 仍返回 false。03 实现后导出 docs/api/tasks.openapi.json，路径采用 /api/v1 server + 相对 paths，运行时完整 paths 与操作/Schema 一致。不要在当前规划阶段伪造已实现的 OpenAPI。
 
 B 修改通用 request 以可选 headers 携带去重键、读取专用 error.task_id，A 修改允许头以配合跨域；不改变数据集上传行为。任务列表状态筛选上送服务端，过时请求不能覆盖较新页/筛选结果，终态停止详情轮询。M3 不接通 Loss/日志/下载：保持能力探测和未实现提示，不在真实 API 请求失败后自动回退 mock。
