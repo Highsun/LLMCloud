@@ -11,6 +11,7 @@ before(async () => {
   server = await createServer({
     server: { middlewareMode: true, hmr: false, watch: null },
     appType: "custom",
+    optimizeDeps: { noDiscovery: true, include: [] },
   });
   ({ workspace, supports, refreshWorkspace } = await server.ssrLoadModule("/src/workspace.js"));
 });

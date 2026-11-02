@@ -19,6 +19,8 @@ export const workspace = reactive({
   taskError: null,
   taskLoading: false,
   taskPage: 1,
+  taskStatus: "ALL",
+  taskPagination: null,
 });
 
 export function supports(path, method = "get") {
@@ -72,24 +74,89 @@ export async function loadDatasets(
   }
 }
 
-export async function loadTasks(page = workspace.taskPage) {
-  if (workspace.taskLoading) return;
+let taskRequestSequence = 0;
+let taskController;
+export const TASK_PAGE_SIZE = 20;
+
+export function cancelTaskRequest() {
+  ++taskRequestSequence;
+  taskController?.abort();
+  taskController = null;
+  workspace.taskLoading = false;
+}
+
+export function selectTaskStatus(status) {
+  return loadTasks(1, status);
+}
+
+// A polling tick must never supersede an in-flight user selection or page change.
+export function pollTasks() {
+  if (workspace.taskLoading) return Promise.resolve();
+  return loadTasks();
+}
+
+export async function loadTasks(
+  page = workspace.taskPage,
+  status = workspace.taskStatus,
+) {
+  if (
+    !Number.isSafeInteger(page) ||
+    page < 1 ||
+    (status !== "ALL" && !Object.hasOwn(taskStates, status))
+  ) {
+    throw new RangeError("任务查询页码或状态无效。");
+  }
+  const changed =
+    page !== workspace.taskPage || status !== workspace.taskStatus;
+  if (status !== workspace.taskStatus) workspace.taskPagination = null;
+  const sequence = ++taskRequestSequence;
+  taskController?.abort();
+  const controller = new AbortController();
+  taskController = controller;
+  // Store the user's intent immediately, so refresh/polling cannot restore an old query.
+  workspace.taskPage = page;
+  workspace.taskStatus = status;
+  if (changed) workspace.tasks = null;
   workspace.taskLoading = true;
   workspace.taskError = null;
   try {
-    const data = await request(`/tasks?page=${page}&page_size=20`);
-    if (!Array.isArray(data.items) || !Number.isInteger(data.total))
+    const query = new URLSearchParams({
+      page: String(page),
+      page_size: String(TASK_PAGE_SIZE),
+    });
+    if (status !== "ALL") query.set("status", status);
+    const data = await request(`/tasks?${query}`, {
+      signal: controller.signal,
+    });
+    if (sequence !== taskRequestSequence) return;
+    if (
+      !Array.isArray(data.items) ||
+      !Number.isSafeInteger(data.total) ||
+      data.total < 0 ||
+      data.page !== page ||
+      data.page_size !== TASK_PAGE_SIZE ||
+      data.total_pages !== Math.ceil(data.total / TASK_PAGE_SIZE) ||
+      data.items.length > Math.min(TASK_PAGE_SIZE, data.total) ||
+      (page > data.total_pages && data.items.length !== 0)
+    )
       throw new ApiError(
-        "任务列表接口待联调：预期返回分页对象与 items、total 字段。",
+        "任务列表响应与分页契约不一致，请刷新或联系服务维护者。",
         { code: "INVALID_RESPONSE" },
       );
     workspace.tasks = data;
-    workspace.taskPage = page;
+    workspace.taskPagination = {
+      total: data.total,
+      total_pages: data.total_pages,
+    };
   } catch (error) {
+    if (sequence !== taskRequestSequence) return;
     workspace.taskError = error;
     workspace.tasks = null;
   } finally {
-    workspace.taskLoading = false;
+    if (sequence === taskRequestSequence) {
+      workspace.taskLoading = false;
+      taskController = null;
+    }
   }
 }
 
@@ -140,9 +207,11 @@ export async function refreshWorkspace() {
           workspace.datasetError = null;
         }),
     supports("/tasks")
-      ? loadTasks(1)
+      ? loadTasks()
       : Promise.resolve().then(() => {
+          cancelTaskRequest();
           workspace.tasks = null;
+          workspace.taskPagination = null;
           workspace.taskError = null;
         }),
   ]);

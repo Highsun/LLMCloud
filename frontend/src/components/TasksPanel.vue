@@ -1,9 +1,12 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { ApiError, baseUrl, request, saveFile } from "../api";
 import {
   formatDate,
+  cancelTaskRequest,
   loadTasks,
+  pollTasks,
+  selectTaskStatus,
   supports,
   taskStates,
   workspace,
@@ -12,8 +15,9 @@ import AppIcon from "./AppIcon.vue";
 import EmptyState from "./EmptyState.vue";
 import ErrorNotice from "./ErrorNotice.vue";
 import LossChart from "./LossChart.vue";
+import { createTaskPolling } from "../task-polling";
 
-const filter = ref("ALL");
+const filter = computed(() => workspace.taskStatus);
 const selected = ref(null);
 const tab = ref("metrics");
 const metrics = ref([]);
@@ -25,16 +29,9 @@ const downloading = ref(false);
 const downloadError = ref(null);
 const polling = ref(true);
 const detailLoading = ref(false);
-const visibleTasks = computed(() =>
-  (workspace.tasks?.items || []).filter(
-    (task) => filter.value === "ALL" || task.status === filter.value,
-  ),
-);
-const totalPages = computed(() =>
-  Math.ceil((workspace.tasks?.total || 0) / 20),
-);
-let timer,
-  alive = true,
+const visibleTasks = computed(() => workspace.tasks?.items || []);
+const totalPages = computed(() => workspace.taskPagination?.total_pages ?? 0);
+let alive = true,
   sequence = 0,
   detailController;
 const stateOf = (status) =>
@@ -116,18 +113,25 @@ async function readDetail(id, isNew = false) {
     if (current === sequence && alive) detailLoading.value = false;
   }
 }
-async function tick() {
-  if (!alive) return;
-  if (polling.value && !document.hidden && supports("/tasks")) {
-    await loadTasks();
+const taskPolling = createTaskPolling({
+  shouldPoll: () =>
+    alive && polling.value && !document.hidden && supports("/tasks"),
+  async refresh() {
+    await pollTasks();
     if (
       alive &&
+      polling.value &&
+      !document.hidden &&
       selected.value &&
       !["COMPLETED", "FAILED"].includes(selected.value.status)
     )
       await readDetail(selected.value.id);
-  }
-  if (alive) timer = setTimeout(tick, 2000);
+  },
+});
+function updatePolling() {
+  if (polling.value && !document.hidden) taskPolling.start();
+  else taskPolling.stop();
+  if (document.hidden) cancelTaskRequest();
 }
 async function download() {
   if (downloading.value || selected.value?.status !== "COMPLETED") return;
@@ -152,12 +156,18 @@ function closeDetail() {
   detailLoading.value = false;
 }
 onMounted(() => {
-  timer = setTimeout(tick, 2000);
+  if (!document.hidden && supports("/tasks") && !workspace.taskLoading)
+    loadTasks();
+  document.addEventListener("visibilitychange", updatePolling);
+  updatePolling();
 });
+watch(polling, updatePolling);
 onBeforeUnmount(() => {
   alive = false;
   sequence++;
-  clearTimeout(timer);
+  taskPolling.stop();
+  document.removeEventListener("visibilitychange", updatePolling);
+  cancelTaskRequest();
   detailController?.abort();
 });
 </script>
@@ -175,10 +185,11 @@ onBeforeUnmount(() => {
   </div>
   <section class="panel">
     <div class="task-toolbar">
-      <div class="segmented" aria-label="筛选当前页任务">
+      <div class="segmented" aria-label="按状态筛选任务">
         <button
           v-for="[value, label] in [
             ['ALL', '全部'],
+            ['PENDING', '待派发'],
             ['RUNNING', '训练中'],
             ['QUEUED', '排队中'],
             ['COMPLETED', '已完成'],
@@ -187,7 +198,8 @@ onBeforeUnmount(() => {
           :key="value"
           :class="{ active: filter === value }"
           :aria-pressed="filter === value"
-          @click="filter = value"
+          :disabled="!supports('/tasks')"
+          @click="selectTaskStatus(value)"
         >
           {{ label }}
         </button>
@@ -198,7 +210,7 @@ onBeforeUnmount(() => {
         ><button
           class="icon-button"
           aria-label="刷新任务"
-          :disabled="!supports('/tasks') || workspace.taskLoading"
+          :disabled="!supports('/tasks')"
           @click="loadTasks()"
         >
           <AppIcon
@@ -210,6 +222,13 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <ErrorNotice :error="workspace.taskError" />
+    <p
+      v-if="workspace.taskLoading && workspace.tasks"
+      class="field-help"
+      role="status"
+    >
+      正在刷新任务…
+    </p>
     <div
       v-if="workspace.taskLoading && !workspace.tasks"
       class="loading-state"
@@ -256,38 +275,50 @@ onBeforeUnmount(() => {
       v-else
       icon="activity"
       :title="
-        workspace.tasks
-          ? workspace.tasks.total
-            ? '当前筛选下没有任务'
-            : '你的第一场实验，从这里开始'
-          : '等待训练服务就绪'
+        workspace.taskError
+          ? '任务列表读取失败'
+          : workspace.tasks
+            ? workspace.tasks.total > 0
+              ? '当前页没有任务'
+              : filter === 'ALL'
+                ? '还没有训练任务'
+                : '当前状态下没有任务'
+            : '等待训练服务就绪'
       "
       :description="
-        workspace.tasks
-          ? '创建训练任务后，即可查看排队状态、训练指标和模型产物。'
-          : '你可以先在配置微调中准备参数，任务服务就绪后再提交训练。'
+        workspace.taskError
+          ? '请重试刷新，也可以切换状态重新查询。'
+          : workspace.tasks
+            ? workspace.tasks.total > 0
+              ? '任务数量可能已变化，请返回上一页或重新选择状态。'
+              : '创建训练任务后，即可查看排队状态、训练指标和模型产物。'
+            : '你可以先在配置微调中准备参数，任务服务就绪后再提交训练。'
       "
       ><a class="button secondary" href="#training"
         >配置微调<AppIcon name="arrow" size="16" /></a
     ></EmptyState>
-    <div v-if="workspace.tasks" class="pagination">
+    <div v-if="workspace.taskPagination" class="pagination">
       <span
-        >本页 {{ workspace.tasks.items.length }} 条 / 共
-        {{ workspace.tasks.total }} 条 · 筛选当前页</span
+        >本页 {{ workspace.tasks?.items.length ?? "—" }} 条 / 共
+        {{ workspace.taskPagination.total }} 条 ·
+        {{ filter === "ALL" ? "全部状态" : taskStates[filter].label }}</span
       >
       <div>
         <button
           class="icon-button"
           aria-label="上一页任务"
-          :disabled="workspace.taskPage <= 1 || workspace.taskLoading"
+          :disabled="
+            !supports('/tasks') || workspace.taskPage <= 1 || totalPages === 0
+          "
           @click="loadTasks(workspace.taskPage - 1)"
         >
           <AppIcon name="chevron" class="rotate" size="16" /></button
-        ><span>{{ workspace.taskPage }} / {{ totalPages || 1 }}</span
+        ><span
+          >{{ totalPages ? workspace.taskPage : 0 }} / {{ totalPages }}</span
         ><button
           class="icon-button"
           aria-label="下一页任务"
-          :disabled="workspace.taskPage >= totalPages || workspace.taskLoading"
+          :disabled="!supports('/tasks') || workspace.taskPage >= totalPages"
           @click="loadTasks(workspace.taskPage + 1)"
         >
           <AppIcon name="chevron" size="16" />
