@@ -1,6 +1,6 @@
 # M3-02 任务存储、状态与迁移
 
-日期：2026-11-02。已实现 SQL 仓储、任务表约束/索引、显式 SQLite 迁移和启动检查。任务 HTTP/Publisher 已由 M3-03 交付，Worker 编排与离线对账仍待 M3-04/06；本次 SQL 测试不代表真实队列/GPU 联调通过。[共享契约](contracts/tasks.md) 的五个 Worker 方法保持不变。
+日期：2026-11-02。已实现 SQL 仓储、任务表约束/索引、显式 SQLite 迁移和启动检查。任务 HTTP/Publisher 已由 M3-03 交付，M3-06 [离线对账](task-reconciliation.md) A 侧已独立验收，Worker 编排及真实锁/退出对账仍待 M3-04/07；本次 SQL 测试不代表真实队列/GPU 联调通过。[共享契约](contracts/tasks.md) 的五个 Worker 方法保持不变。
 
 ## 使用仓储
 
@@ -85,4 +85,4 @@ revision/runtime 必须来自该旧任务的可信记录，不用当前默认值
 
 隔离 SQLite 测试覆盖并发同键创建、并发领取、快 Worker 与派发竞争、归属丢失、重复/eval 事件、失败保留进度、终态保护、完成提交失败/确认丢失、迁移备份/外键/索引/阻塞/回滚与 CLI。旧成功产物迁移使用显式标识的合成 CPU bundle 调用真实审计器，不是新增 GPU 训练证据。
 
-M3-03 已装配请求校验/错误/CORS、Publisher 和真实任务路由/OpenAPI，见 [任务 API](api/tasks.md)；A 下一步推进 M3-06，B 可按现有 Protocol 在 M3-04 装配 SqlTaskRepository(SessionLocal)。两边真实装配与最终 Redis/GPU/浏览器联调仍需共同验收，M3-01 Worker 消费者核对仍由 B 明确记录。
+M3-03 已装配请求校验/错误/CORS、Publisher 和真实任务路由/OpenAPI，见 [任务 API](api/tasks.md)；M3-06 的独立 CLI/SQL 与公共 worker_lock 已交付，见 [对账说明](task-reconciliation.md)。B 可按现有 Protocol 在 M3-04 装配 SqlTaskRepository(SessionLocal)，并复用公共实例锁原语。两边真实装配/退出对账与最终 Redis/GPU/浏览器联调仍需共同验收，M3-01 Worker 消费者核对仍由 B 明确记录。

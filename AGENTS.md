@@ -18,7 +18,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成，不能把训练保存成功当作完整 M2 验收。
 
-执行 M3 前继续读 [M3 完整开发计划](docs/m3-development-plan.md)、[任务 API 契约](docs/api/tasks.md) 和 [共享契约 1.0.0](docs/contracts/tasks.md)。原两人交接内容已合并到完整计划。M3-01 A 侧类型/Protocol/生成样例/检查已交付，B 的 Worker 消费者核对待完成；M3-02 SQL 仓储/显式迁移已独立验收，M3-05 列表基础已由 B 交付，M3-03 HTTP/真实 Publisher 已独立验收，04/06/07 尚未实现。继续读 [任务存储](docs/task-storage.md)。下一步 A 推进 06（实例锁/真实失联证据需配合 B），B 完整核对契约后做 04 → 补齐 05，最后共同做 07。具体任务、文件与验收见完整计划第三、七节；不能把列表小交付记成 05 全部完成。01 接口核对、真实仓储装配和最终 Redis/GPU/浏览器联调需要合作，不能以 mock 验收代替。
+执行 M3 前继续读 [M3 完整开发计划](docs/m3-development-plan.md)、[任务 API 契约](docs/api/tasks.md) 和 [共享契约 1.0.0](docs/contracts/tasks.md)。原两人交接内容已合并到完整计划。M3-01 A 侧类型/Protocol/生成样例/检查已交付，B 的 Worker 消费者核对待完成；M3-02 SQL 仓储/显式迁移已独立验收，M3-05 列表基础已由 B 交付，M3-03 HTTP/真实 Publisher 已独立验收，M3-06 A 侧离线对账已独立验收，04/07 尚未实现。继续读 [任务存储](docs/task-storage.md) 和 [离线对账](docs/task-reconciliation.md)。A 的独立主线已交付，06 真实 Worker 锁接入/退出证据仍需配合 B，B 完整核对契约后做 04 → 补齐 05，最后共同做 07。具体任务、文件与验收见完整计划第三、七节；不能把列表小交付记成 05 全部完成。01 接口核对、真实仓储装配和最终 Redis/GPU/浏览器联调需要合作，不能以 mock 验收代替。
 
 ## 当前事实与任务边界
 
@@ -65,7 +65,8 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - A 主改 SQL 仓储/状态/迁移/任务 HTTP/Publisher/离线对账；B 主改 Worker 执行/进程实例锁和 frontend。B 按 TaskRepository Protocol 用替身独立检查，不写 SQL、不复制 Trainer；A 不为了联调改 B 页面。共享 config/类型/入口文档由 A 汇总，双方各写独立任务日志。
 - B 已交付 M3-05 列表基础：ALL/五状态服务端筛选、切状态回首页、分页/轮询保留筛选、旧响应不覆盖最新数据/错误/加载状态；先用隔离测试验证，保留真实 OpenAPI 能力探测。01 合入前不猜 Worker 类型。该小交付独立提交/写日志后，再按 01 开发 04 并补齐 05。具体截止时间由双方约定，中途同步提交/检查，阻塞约 30 分钟反馈。
 - 派发明确未发送与确认未知要区分；未知时保留可查询的原 task_id，不覆盖 RUNNING/终态、不自动重投。POST 去重键与消息重复领取是两层不同保护，设计见 tasks.md。
-- 数据库状态为业务来源；用 claim_token 条件更新；Trainer 唯一写 metrics。M3 离线对账先停 API/Worker 并取得实例锁，不按无 Loss 超时判断正常训练失联。该策略是待实现设计，不是当前恢复能力。
+- 数据库状态为业务来源；用 claim_token 条件更新；Trainer 唯一写 metrics。M3-06 已交付 scripts/reconcile_tasks.py：默认只读 --check；--apply 必须 --services-stopped 且取得实例锁。核对成功产物/固定快照后恢复 RUNNING 为 COMPLETED，否则 WORKER_INTERRUPTED；等待任务 TASK_ABANDONED，终态不动，不重投、不改文件。短事务重读全行指纹和 token，未知提交不继续 fail。真实 Worker 联合验收仍待 04/07。
+- M3-06 的公共锁原语为 core/worker_lock.WorkerInstanceLock(log_dir)，固定 LOG_DIR/worker.lock，禁止删除/替换锁文件。B 的 worker/instance_lock.py 和启动/worker_init 生命周期必须复用同一原语/handle，不能另建一把锁；当前尚未接入。25 项独立检查与真实子进程锁/SQL 退出检查不代表真实 Celery/GPU 已验收。
 - 两人使用不同 checkout/worktree 和临时 DB/队列，GPU 验收不重叠。共同主线预算约 20 人时，另 4 人时缓冲，按每人每周 6–8 小时安排约 1.25–2 周；保留必要共同确认和真实联调。
 
 ## 接口与数据边界

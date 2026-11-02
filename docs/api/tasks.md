@@ -119,7 +119,7 @@ CeleryPublisher 使用独立客户端，以 worker.train 名称发送 args=[task
 
 accepted 后仅条件更新仍 PENDING 为 QUEUED，再重读真实 TaskDetail；若快 Worker 已 RUNNING/终态，直接保留。not_sent 仅在本次确实把仍 PENDING 改为 FAILED 后返回 DISPATCH_FAILED；若已有领取/终态等矛盾结果，保守返回 DISPATCH_UNCERTAIN。unknown 或发布确认后的状态写入/查询失败返回带原 ID 的 503，暂态诊断写入失败也不丢弃 ID，不覆盖 RUNNING/终态。
 
-数据库在创建完成确认前失败时可能没有可用任务 ID，返回通用 DATABASE_UNAVAILABLE，且不发布消息。同一去重键之后可读取已提交记录，但不会自动补发；离线对账/显式处置属于 M3-06。这是无 outbox/自动重投 MVP 的已知边界。
+数据库在创建完成确认前失败时可能没有可用任务 ID，返回通用 DATABASE_UNAVAILABLE，且不发布消息。同一去重键之后可读取已提交记录，但不会自动补发；M3-06 已提供 [离线对账/显式处置工具](../task-reconciliation.md)，真实 Worker 的共享锁接入/退出验收仍待 04/07。这是无 outbox/自动重投 MVP 的已知边界。
 
 ## 运行与验证
 

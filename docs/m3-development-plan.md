@@ -1,10 +1,10 @@
 # M3 异步任务开发计划
 
-版本：执行计划 1.4；更新：2026-11-02。状态：M3-01 的 A 侧代码/Schema/样例/检查与迁移清单已交付，待 B 核对消费者接口；M3-02 SQL 仓储与显式迁移已独立验收；B 已交付 05 列表基础，03 HTTP/真实 Publisher 已独立验收；04/06/07 尚未实现。共享契约见 [任务契约 1.0.0](contracts/tasks.md)，不把类型或 HTTP 交付写成 Worker/GPU 已验收，也不冒充双方已核对。
+版本：执行计划 1.5；更新：2026-11-02。状态：M3-01 的 A 侧代码/Schema/样例/检查与迁移清单已交付，待 B 核对消费者接口；M3-02 SQL 仓储与显式迁移已独立验收；B 已交付 05 列表基础，03 HTTP/真实 Publisher 已独立验收；06 离线对账 A 侧已独立验收，真实 Worker 锁接入/退出证据待 04/07；04/07 尚未实现。共享契约见 [任务契约 1.0.0](contracts/tasks.md)，不把类型或 HTTP 交付写成 Worker/GPU 已验收，也不冒充双方已核对。
 
 成员 A 指当前侧/你，主负责后端；成员 B 指队友，已有前端交付。本文已合并原交接文档的任务入口与交接要求，作为 M3 分工、依赖、验收和交接的完整执行依据。对外字段与已实现 HTTP 行为见 [任务 API](api/tasks.md)。
 
-立即接续：02 SQL 仓储/迁移、03 HTTP/Publisher 和 B 的 05 列表小交付已完成；A 下一步推进 06（实例锁/进程故障证据需配合 B），B 完整核对实际类型/Protocol 后做 04 → 补齐 05，最后共同 07。SqlTaskRepository(SessionLocal) 已可供 B 装配，真实 Worker/Redis/GPU 仍需合作验收。列表交付不代表整个 M3-05 已完成，具体工作说明见第三节。
+立即接续：02 SQL 仓储/迁移、03 HTTP/Publisher 和 B 的 05 列表小交付已完成；A 独立主线（含 06）已交付，06 实际 Worker/锁装配和退出验收需配合 B，B 完整核对实际类型/Protocol 后做 04 → 补齐 05，最后共同 07。SqlTaskRepository(SessionLocal) 已可供 B 装配，真实 Worker/Redis/GPU 仍需合作验收。列表交付不代表整个 M3-05 已完成，具体工作说明见第三节。
 
 ## 一、目标与已有基础
 
@@ -51,7 +51,7 @@ B 的列表小交付、Worker 和前端收尾由同一个人顺序完成，不�
 | M3-03 API 与派发 | A | 01/02 | api/tasks、services/tasks、task_dispatch、运行时 OpenAPI 导出与 HTTP 检查 | 2.5 | 完成：HTTP/独立 Redis 验收，Worker 联调待 04/07 |
 | M3-04 Worker 适配 | B | 01；真实仓储接入等 02 | worker/execution、tasks、单实例锁、Trainer/路径/产物适配及替身检查 | 4 | 待办 |
 | M3-05 前端接通 | B | 列表基础已交付；03 真实 HTTP 已就绪 | 再补 TrainingPanel/api.js 提交/详情接通 | 3 | 部分完成：列表，完整接通待办 |
-| M3-06 离线对账 | A | 02；真实进程失败证据等 04 | reconcile_tasks 只读检查/显式应用、终态修复与隔离检查 | 1.5 | 待办 |
+| M3-06 离线对账 | A | 02；真实 Worker 失败/锁接入等 04 | reconcile_tasks、task_reconciliation、公共 worker_lock 与隔离检查 | 1.5 | A 侧独立完成：CLI/SQL/合成产物/子进程；真实 Worker 接入/退出待 04/07 |
 | M3-07 共同验收 | A+B，各 2 | 02～06 | 真实 Redis/两任务串行/失败/重复消息/浏览器；项目状态与日志归档 | 4 | 待办 |
 
 实际启动顺序：A 做 01，同时 B 做 05 的列表基础；01 合入后，A：02 → 03 → 06，B：04 → 05 剩余部分。03 不依赖 04，04 的替身测试不依赖 SQL 实现，05 的 fixture 测试不依赖 03。真实仓储装配要等 02/04，真实页面接通要等 03，07 汇合全部能力。若迁移/异常排查超时，先使用缓冲，不削掉正确状态、去重或真实联调来追赶表格。
@@ -168,7 +168,7 @@ POST 支持可选 Idempotency-Key（UUIDv4）；B 的真实表单每次明确的
 
 B 接入仍使用 solo、concurrency=1、prefetch_multiplier=1，只发 task_id，沿用早确认，不启用自动重训/晚确认来替代幂等。早确认不能保证 Worker 崩溃后自动恢复，必须由 06 处理遗留任务；此处不承诺 exactly-once。[Celery 任务说明](https://docs.celeryq.dev/en/stable/userguide/tasks.html)、[配置说明](https://docs.celeryq.dev/en/stable/userguide/configuration.html)。
 
-Worker 启动前持有同主机/同 LOG_DIR 的非阻塞进程文件锁（独立 worker/instance_lock.py）；重复启动明确失败。标准启动与 Celery worker_init 钩子都接入，避免绕过脚本；Worker 全生命周期持锁，不用超时 Redis 锁冒充进程存活。solo/预取设置只约束一个 Worker 的行为，不自行证明没有第二实例。[预取说明](https://docs.celeryq.dev/en/stable/userguide/optimizing.html#prefetch-limits)。
+Worker 启动前持有同主机/同 LOG_DIR 的非阻塞进程文件锁（公共原语 backend.app.core.worker_lock.WorkerInstanceLock(log_dir)，固定 LOG_DIR/worker.lock；B 的 worker/instance_lock.py 负责生命周期装配）；重复启动明确失败。标准启动与 Celery worker_init 钩子都接入，避免绕过脚本；Worker 全生命周期持锁，不用超时 Redis 锁冒充进程存活。solo/预取设置只约束一个 Worker 的行为，不自行证明没有第二实例。[预取说明](https://docs.celeryq.dev/en/stable/userguide/optimizing.html#prefetch-limits)。
 
 同一物理 GPU 的实例必须共享锁位置，M3 演示期间不同时手工运行训练/重载 CLI；该锁不解决多机共享 GPU 或全部外部程序互斥。GPU 真实验收由 B 预约执行，A 同时可做 CPU/HTTP 检查。
 
@@ -180,9 +180,9 @@ API/Worker 不预先创建 outputs/{task_id} 或 tasks/{task_id}.log；这两处
 
 ### 5.4 最低限度恢复范围
 
-M3-06 提供只读 reconcile_tasks --check 与显式 --apply，先停止 API/全部 Worker，并能取得实例锁再应用。只凭长时间无 Loss 不能判正常训练失联；不在 API 启动时按时间粗暴标 FAILED。
+M3-06 A 侧已提供只读 reconcile_tasks --check 与显式 --apply --services-stopped，详见 [对账使用说明](task-reconciliation.md)。先停止 API/全部 Worker，并能取得实例锁再应用；公共原语已提供，真实 Worker 使用同一锁及退出验收仍待 04/07。只凭长时间无 Loss 不能判正常训练失联；不在 API 启动时按时间粗暴标 FAILED。
 
-对账在短事务条件更新中处理：遗留 RUNNING 且完整产物与任务快照完全相符 → COMPLETED；否则结束为 FAILED/WORKER_INTERRUPTED，保留部分文件。遗留 PENDING/QUEUED 没有成功产物时标 FAILED/TASK_ABANDONED，不自动重投或覆盖旧目录。队列残留消息之后到达也只会跳过终态。检查报告和应用结果写日志，不能自动重训。在线 heartbeat/租约接管/outbox/自动补发留给后续扩展。
+对账在短事务条件更新中处理：遗留 RUNNING 且完整产物与任务快照完全相符 → COMPLETED；否则结束为 FAILED/WORKER_INTERRUPTED，保留部分文件。遗留 PENDING/QUEUED 没有成功产物时标 FAILED/TASK_ABANDONED；若出现可审计的完整成功 bundle 则阻塞人工调查，不伪造领取身份。终态不修改，非法路径/记录/未知 Schema 阻塞。不自动重投或覆盖旧目录。队列残留消息之后到达也只会跳过终态。检查报告和应用结果写日志，不能自动重训。在线 heartbeat/租约接管/outbox/自动补发留给后续扩展。
 
 ## 六、共同验收及合并顺序
 
@@ -210,7 +210,7 @@ M3 不要求每个服务任务自动执行文本生成。COMPLETED 表示训练�
 | models/entities、task_repository、task_migration、api/tasks、services/tasks/task_dispatch、main.py | A | B 不在 Worker 内复制 SQL、补表或注册路由 |
 | worker/tasks、execution、instance_lock、celery_app、__main__、start_worker | B | 只在已定配置字段内装配；缺字段交 A 修改，避免同文件编辑 |
 | frontend/src、frontend/tests/e2e | B | 保留组件；A 不为联调方便另写一套任务页面 |
-| scripts/migrate_tasks、reconcile_tasks、export_task_contract | A | 新脚本，不混入数据集迁移/训练 CLI |
+| core/worker_lock、services/task_reconciliation、scripts/migrate_tasks、reconcile_tasks、export_task_contract | A | 新脚本，不混入数据集迁移/训练 CLI |
 | tests/test_task_* | A | 状态、SQL、迁移、HTTP/派发及契约 |
 | tests/test_worker_*、前端测试 | B | 内存仓储/训练替身与真实接入差异明确 |
 | README、AGENTS、project-memory/plan、架构/需求、日志索引 | A 汇总 | 两边各写独立日志，阶段合并时统一更新共享入口 |
@@ -229,4 +229,4 @@ M3 不要求每个服务任务自动执行文本生成。COMPLETED 表示训练�
 - [ ] 最低限度的离线对账有失败/恢复证据，无自动重训或覆盖。
 - [ ] 本阶段日志、测试证据和共享文档同步，正式效果/后续阶段边界明确。
 
-当前 01 共享代码、02 SQL/迁移、03 HTTP/Publisher 和 05 列表基础已交付；B 的完整 Worker 契约核对、真实执行、对账与最终联调仍待完成。M3 服务验收项不能由类型、SQL 或 fixture 测试代替。
+当前 01 共享代码、02 SQL/迁移、03 HTTP/Publisher 和 05 列表基础已交付；06 的 CLI/SQL/共享锁原语及独立检查也已交付；B 的完整 Worker 契约核对、真实锁接入/执行/退出对账与最终联调仍待完成。M3 服务验收项不能由类型、SQL 或 fixture 测试代替。

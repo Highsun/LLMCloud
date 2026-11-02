@@ -1,6 +1,6 @@
 # M3 任务共享契约 1.0.0
 
-日期：2026-10-24，更新：2026-11-02。M3-01 已交付 CPU 类型、Protocol、生成样例与检查；成员 B 已核对列表字段，Worker 消费者完整核对仍待完成。M3-02 SQL 仓储/迁移已交付，使用与运维见 [任务存储](../task-storage.md)。M3-03 已实现任务 HTTP/真实 Publisher 并导出运行时 OpenAPI，Worker 执行与恢复仍待后续任务。执行分工见 [完整计划](../m3-development-plan.md)，HTTP 语义见 [任务 API](../api/tasks.md)。
+日期：2026-10-24，更新：2026-11-02。M3-01 已交付 CPU 类型、Protocol、生成样例与检查；成员 B 已核对列表字段，Worker 消费者完整核对仍待完成。M3-02 SQL 仓储/迁移已交付，使用与运维见 [任务存储](../task-storage.md)。M3-03 已实现任务 HTTP/真实 Publisher 并导出运行时 OpenAPI，M3-06 A 侧离线恢复已独立验收，真实 Worker 执行/共享锁接入及退出对账仍待 04/07。执行分工见 [完整计划](../m3-development-plan.md)，HTTP 语义见 [任务 API](../api/tasks.md)。
 
 ## 导入与生成
 
@@ -91,6 +91,12 @@ M3-02/03 的请求哈希输入固定为 TaskCreate 补默认后的 model_dump(mo
 既有 output_path 保持可空 Text，COMPLETED 必须为 outputs/{task_id}；celery_task_id 创建时生成，保留 String(255) 类型并收敛为非空，值采用 UUIDv4。既有 status、progress/current_step/total_steps 和时间列保留；SQL 初始 total_steps=0/progress=0 映射到响应 null/null，不能显示成已知总步数。已知真实步数禁止回退；终态错误和时间按上述 DTO 语义处理。新表保留 status/dataset_id 索引，并增加 (created_at,id) 及 (status,created_at,id) 索引支持默认排序/筛选；SQLite 约束与应用验证共同保证快照/去重一致性。
 
 迁移前停 API/Worker，用 SQLite backup 备份；先 --check 报告表结构、旧行与阻塞，再显式 --apply。空旧表可重建复制结构；非空旧表逐行核对数据集键/摘要/统计和 revision/runtime 来源，缺少可信资料必须阻塞或要求显式映射，禁止填 main 或用当前默认值冒充旧执行记录。旧 COMPLETED 必须有可信成功产物和清单，否则阻塞；旧 RUNNING 缺领取信息不得凭空伪造活实例，需明确人工处置方案后再迁移。迁移用事务保留主外键与历史，不丢行；应用启动检查拒绝旧任务结构。数据集迁移仍是独立入口。
+
+## M3-06 共享实例锁与离线对账
+
+离线工具/SQL 条件更新已交付，见 [操作说明](../task-reconciliation.md)。新增 CPU 原语 backend.app.core.worker_lock.WorkerInstanceLock(log_dir)，固定 LOG_DIR/worker.lock，非阻塞 acquire/release，禁止删除锁文件。B 的 worker/instance_lock.py 必须复用该原语，在标准/直接 Celery 入口共用同一 handle 并持有整个 Worker 生命周期，重复启动需真正退出。当前 Worker 钩子尚未接入，真实进程/GPU 退出验收仍需 04/07。
+
+本次没有改变五个 TaskRepository 方法、Spec、HTTP Schema、Settings 字段或契约 1.0.0。对账只在显式停机声明/取锁后修复非终态；有效产物完成确认丢失时仍不继续 fail。不能把公共锁类存在或子进程检查当作 Worker 已使用此锁。
 
 ## 两人接续核对
 

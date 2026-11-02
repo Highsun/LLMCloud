@@ -117,7 +117,7 @@ stateDiagram-v2
 
 数据库是业务状态的唯一来源，不能将 Celery 的 `SUCCESS` 直接作为训练完成。使用条件更新领取任务，重复消息不会重复运行；API 更新 QUEUED 时只允许从 PENDING 转换，不能覆盖 RUNNING。SQL 状态逻辑已由 02 实现，03 的派发入口已使用；Worker 仍需在 04 接入。
 
-数据库提交与 Redis 派发不是同一事务。M3-03 已区分 not_sent 与 unknown：确认未知时保留当前业务状态和 task_id，不能覆盖已 RUNNING/终态。恢复最低范围为停 API/Worker、取得实例锁后显式离线对账，不按加载阶段无 Loss 超时将活任务误判失联。保留早确认、不自动重训；outbox、在线租约/heartbeat 和自动补发暂不实现。详情以 M3 计划为准。
+数据库提交与 Redis 派发不是同一事务。M3-03 已区分 not_sent 与 unknown：确认未知时保留当前业务状态和 task_id，不能覆盖已 RUNNING/终态。M3-06 已实现停 API/Worker、显式 --services-stopped 并取得实例锁后的离线对账；成功产物核验并比对快照后恢复 RUNNING 为 COMPLETED，否则 WORKER_INTERRUPTED，排队遗留 TASK_ABANDONED，终态不动。公共原语 core/worker_lock 固定 LOG_DIR/worker.lock，B 的生命周期接入及真实 Worker 退出验收仍待 04/07。使用见 [对账说明](task-reconciliation.md)。不按加载阶段无 Loss 超时将活任务误判失联。保留早确认、不自动重训；outbox、在线租约/heartbeat 和自动补发暂不实现。详情以 M3 计划为准。
 
 ## 四、GPU 资源与可观测性
 
