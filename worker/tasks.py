@@ -1,4 +1,6 @@
 from worker.celery_app import celery_app
+from worker.execution import execute_training, parse_task_id
+from worker.instance_lock import acquire_worker_lock
 
 
 @celery_app.task(name="worker.ping")
@@ -7,9 +9,17 @@ def ping() -> dict[str, str]:
     return {"status": "ok", "service": "llmcloud-worker"}
 
 
-@celery_app.task(name="worker.train")
+@celery_app.task(name="worker.train", acks_late=False, reject_on_worker_lost=False, max_retries=0)
 def run_training(task_id: str) -> dict[str, str]:
-    """M3 will load the SQL task, claim it once and invoke trainer.train."""
-    raise NotImplementedError(
-        f"任务 {task_id}：异步训练尚未实现；初始化阶段请仅使用 worker.ping 检查连通性。"
-    )
+    """Only a task ID crosses the queue; no ORM object or file path is accepted."""
+    parsed = parse_task_id(task_id)
+    from backend.app.core.config import get_settings
+    from backend.app.core.database import SessionLocal
+    from backend.app.services.task_repository import SqlTaskRepository
+    from trainer.train import train
+
+    settings = get_settings()
+    # Also protects trusted direct/eager invocation; regular Worker startup holds it already.
+    acquire_worker_lock(settings.log_dir)
+    outcome = execute_training(parsed, SqlTaskRepository(SessionLocal), settings, train)
+    return {"task_id": str(parsed), "outcome": outcome.value}
