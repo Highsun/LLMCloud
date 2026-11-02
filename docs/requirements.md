@@ -44,7 +44,7 @@ MVP 的训练与推理使用同一 GPU 时需要互斥；训练期间推理返�
 - `COMPLETED`：训练完成且可加载的 Adapter 和结果清单已写入。
 - `FAILED`：校验、派发、执行或产物保存失败，记录错误原因。
 
-明确未派发才可将仍 PENDING 的任务记为 FAILED；确认未知时保留当前状态并提供原 task_id 查询，不能把可能已执行的任务一律记为失败。该细化设计在 [M3 计划](m3-development-plan.md) 中待实现。Worker 的 RUNNING 更新必须兼容读取到 PENDING 或 QUEUED，防止快速领取与 API 更新竞争；API 只在当前仍为 PENDING 时更新 QUEUED。数据库业务状态与 Celery 内部状态分开。
+明确未派发才可将仍 PENDING 的任务记为 FAILED；确认未知时保留当前状态并提供原 task_id 查询，不能把可能已执行的任务一律记为失败。该派发细化已由 M3-03 实现，Worker 实际领取仍待 04；见 [M3 计划](m3-development-plan.md)。Worker 的 RUNNING 更新必须兼容读取到 PENDING 或 QUEUED，防止快速领取与 API 更新竞争；API 只在当前仍为 PENDING 时更新 QUEUED。数据库业务状态与 Celery 内部状态分开。
 
 ## 五、后续 HTTP 接口契约
 
@@ -57,9 +57,9 @@ MVP 的训练与推理使用同一 GPU 时需要互斥；训练期间推理返�
 | `POST /datasets` | multipart `file`，可选 `name` | 201；DatasetDetail，含哈希与原始文件名 | M1 |
 | `GET /datasets` | `page=1`，`page_size=20`（最大 100） | DatasetPage；固定时间/ID 倒序 | M1 |
 | `GET /datasets/{id}` | 数据集 UUID | DatasetDetail 或 404 | M1 |
-| `POST /tasks` | dataset_id、base_model、config；可选 Idempotency-Key | 202；同键重放 200；派发异常保留可查询任务 ID | M3 设计草案，待实现 |
-| `GET /tasks` | 状态、分页参数 | 任务列表 | M3 |
-| `GET /tasks/{id}` | 任务 ID | 状态、步数、进度、时间与错误 | M3 |
+| `POST /tasks` | dataset_id、base_model、config；可选 Idempotency-Key | 202；同键重放 200；派发异常保留可查询任务 ID | M3-03 已实现，真实 Worker 待 04 |
+| `GET /tasks` | 状态、分页参数 | 任务列表 | M3-03 已实现 |
+| `GET /tasks/{id}` | 任务 ID | 状态、步数、进度、时间与错误 | M3-03 已实现 |
 | `GET /tasks/{id}/metrics` | 游标 after_step | step/loss/learning_rate/epoch 数据点 | M4 |
 | `GET /tasks/{id}/logs` | 有上限的 tail 参数 | 日志尾部 | M4 |
 | `GET /tasks/{id}/adapter` | 任务 ID | ZIP 下载；未完成返回 409 | M4 |
@@ -89,9 +89,9 @@ MVP 的训练与推理使用同一 GPU 时需要互斥；训练期间推理返�
 
 文件上传上限为 50 MiB，整个 multipart 请求体上限为 50 MiB + 64 KiB；超限返回 413，格式错误返回 422，实体不存在返回 404。保存时使用系统生成 ID，客户端文件名仅作显示，API 不接收任意文件系统路径。
 
-M3 请求/响应、状态筛选、去重与提交错误详见 [任务 API 草案](api/tasks.md)，在注册路由前是设计输入，不能当作运行时能力。分工、分批交付及验收统一见 [M3 完整计划](m3-development-plan.md)：A 先做共享契约，B 可先做列表基础；Worker 实现依赖已合入契约，最终仍须共同真实联调。此顺序调整不改变功能需求或已有 API。
+M3 请求/响应、状态筛选、去重与提交错误详见 [任务 API 契约](api/tasks.md)，M3-03 已注册真实路由并导出运行时 OpenAPI。分工、分批交付及验收统一见 [M3 完整计划](m3-development-plan.md)：A 先做共享契约，B 可先做列表基础；Worker 实现依赖已合入契约，最终仍须共同真实联调。此顺序调整不改变功能需求或已有 API。
 
-M3-01 的 [共享类型契约 1.0.0](contracts/tasks.md)、Protocol/Schema/fixture 与迁移清单已由 A 侧交付并检查，B 核对待完成；M3-02 任务 SQL 仓储/显式迁移已实现并独立验收，任务 HTTP 仍未实现；详见 [任务存储](task-storage.md)。任务 JSON 上限固定 64 KiB，运行时限制等 M3-03；客户端 dataset_id 使用真实上传返回的 UUIDv4。M1 数据集行为不变。
+M3-01 的 [共享类型契约 1.0.0](contracts/tasks.md)、Protocol/Schema/fixture 与迁移清单已由 A 侧交付并检查，B 核对待完成；M3-02 任务 SQL 仓储/显式迁移已实现并独立验收，M3-03 任务 HTTP/真实 Publisher 已实现；详见 [任务存储](task-storage.md)。任务 JSON 上限固定 64 KiB，M3-03 已实施运行时限制；客户端 dataset_id 使用真实上传返回的 UUIDv4。M1 数据集行为不变。
 
 ## 六、分阶段交付
 

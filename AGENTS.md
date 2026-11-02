@@ -18,7 +18,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成，不能把训练保存成功当作完整 M2 验收。
 
-执行 M3 前继续读 [M3 完整开发计划](docs/m3-development-plan.md)、[任务 API 设计草案](docs/api/tasks.md) 和 [共享契约 1.0.0](docs/contracts/tasks.md)。原两人交接内容已合并到完整计划。M3-01 A 侧类型/Protocol/生成样例/检查已交付，B 的 Worker 消费者核对待完成；M3-02 SQL 仓储/显式迁移已独立验收，M3-05 列表基础已由 B 交付，03/04/06/07 尚未实现。继续读 [任务存储](docs/task-storage.md)。下一步 A 做 03 → 06，B 完整核对契约后做 04 → 补齐 05，最后共同做 07。具体任务、文件与验收见完整计划第三、七节；不能把列表小交付记成 05 全部完成。01 接口核对、真实仓储装配和最终 Redis/GPU/浏览器联调需要合作，不能以 mock 验收代替。
+执行 M3 前继续读 [M3 完整开发计划](docs/m3-development-plan.md)、[任务 API 契约](docs/api/tasks.md) 和 [共享契约 1.0.0](docs/contracts/tasks.md)。原两人交接内容已合并到完整计划。M3-01 A 侧类型/Protocol/生成样例/检查已交付，B 的 Worker 消费者核对待完成；M3-02 SQL 仓储/显式迁移已独立验收，M3-05 列表基础已由 B 交付，M3-03 HTTP/真实 Publisher 已独立验收，04/06/07 尚未实现。继续读 [任务存储](docs/task-storage.md)。下一步 A 推进 06（实例锁/真实失联证据需配合 B），B 完整核对契约后做 04 → 补齐 05，最后共同做 07。具体任务、文件与验收见完整计划第三、七节；不能把列表小交付记成 05 全部完成。01 接口核对、真实仓储装配和最终 Redis/GPU/浏览器联调需要合作，不能以 mock 验收代替。
 
 ## 当前事实与任务边界
 
@@ -58,9 +58,10 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 ## M3 规划与协作边界
 
-- M3-01 已交付共享类型/样例、task_protocols、Settings 默认 revision/precision/内部步数上限和迁移清单，CPU 检查已通过，B 消费者核对待完成；M3-02 已实现 SQL 仓储/迁移，仍没有任务 HTTP/Worker 执行。scripts/export_task_contract.py --check 检查生成文件漂移，M3-03 注册路由后再从真实 app.openapi() 导出，不伪造运行时能力。
+- M3-01 已交付共享类型/样例、task_protocols、Settings 默认 revision/precision/内部步数上限和迁移清单，CPU 检查已通过，B 消费者核对待完成；M3-02 已实现 SQL 仓储/迁移，M3-03 已发布任务 HTTP/有界 Publisher，仍没有真实 Worker 执行。scripts/export_task_contract.py --check 检查生成文件漂移，任务运行时 OpenAPI 已从真实 app.openapi() 用 scripts/export_task_openapi.py 导出；--check 检查漂移，不能把 HTTP 能力当作 Worker/GPU 验收。
 - M3-02 的 SqlTaskRepository(sessions) 位于 services/task_repository.py，五个 Worker 方法不变；额外提供 create/get_detail/list 与 mark_queued/mark_dispatch_failed/mark_dispatch_uncertain。SQLite 写锁/条件更新/唯一索引保护状态和去重，complete 持久化 training_summary，不读产物文件。旧库先 scripts/migrate_tasks.py --check，再停 API/Worker 后显式 --apply；不补造旧 revision/归属，未知旧结构阻塞。本机空旧任务表已备份升级，231 项 CPU/HTTP 检查通过，真实 Worker/Redis/GPU 装配仍待验收。
 - TaskStatus 在 core/task_contract.py（entities 原导入保留），TaskCreate 在 models/task_schemas.py（schemas 原导入保留）。TaskRepository 固定 get_status/claim/record_progress/complete/fail 五个方法，新增只读 get_status 用于完成写入确认丢失时读真实状态。Spec 固定 dataset_key/sha256/size/rows 和 config/runtime 快照，不能传 SQL 对象；有效产物已存在但完成提交失败时不得继续 fail 覆盖，应读状态并留待对账。详见共享契约。
+- M3-03 TaskService/CeleryPublisher 已接入：先提交 DB，再按 worker.train 发布 task_id；同键重放 200 不重发，新建确认接受 202。连接/发送/Redis 命令均禁用重试；TASK_PUBLISH_TIMEOUT_SECONDS 默认每操作 1 秒。not_sent 与 unknown 分开，已持久化的派发 503 必须保留 error.task_id/Location，不覆盖 RUNNING/终态。POST 64 KiB、重复 JSON/查询/头、统一错误/CORS 已实现；真实 Redis 冒烟不启动 Worker/GPU。
 - A 主改 SQL 仓储/状态/迁移/任务 HTTP/Publisher/离线对账；B 主改 Worker 执行/进程实例锁和 frontend。B 按 TaskRepository Protocol 用替身独立检查，不写 SQL、不复制 Trainer；A 不为了联调改 B 页面。共享 config/类型/入口文档由 A 汇总，双方各写独立任务日志。
 - B 已交付 M3-05 列表基础：ALL/五状态服务端筛选、切状态回首页、分页/轮询保留筛选、旧响应不覆盖最新数据/错误/加载状态；先用隔离测试验证，保留真实 OpenAPI 能力探测。01 合入前不猜 Worker 类型。该小交付独立提交/写日志后，再按 01 开发 04 并补齐 05。具体截止时间由双方约定，中途同步提交/检查，阻塞约 30 分钟反馈。
 - 派发明确未发送与确认未知要区分；未知时保留可查询的原 task_id，不覆盖 RUNNING/终态、不自动重投。POST 去重键与消息重复领取是两层不同保护，设计见 tasks.md。

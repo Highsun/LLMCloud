@@ -1,4 +1,4 @@
-"""Version 1 task DTOs. Types only; HTTP routes are delivered in M3-03."""
+"""CPU-importable version 1 task DTOs used by HTTP and persistence services."""
 
 from datetime import datetime, timezone
 import math

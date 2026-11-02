@@ -110,9 +110,11 @@ class SqlTaskRepository:
             query = TaskListQuery.model_validate((query or TaskListQuery()).model_dump())
             conditions = [] if query.status is None else [TABLE.c.status == query.status]
             total = session.scalar(select(func.count()).select_from(TABLE).where(*conditions))
-            rows = session.execute(select(TABLE).where(*conditions)
+            offset = (query.page - 1) * query.page_size
+            # Beyond-last pages are valid even when their number exceeds SQLite's integer range.
+            rows = [] if offset >= total else session.execute(select(TABLE).where(*conditions)
                 .order_by(TABLE.c.created_at.desc(), TABLE.c.id.desc())
-                .offset((query.page - 1) * query.page_size).limit(query.page_size)).mappings()
+                .offset(offset).limit(query.page_size)).mappings()
             items = [TaskSummary.model_validate(task_detail(row).model_dump(exclude={"config"})) for row in rows]
             return TaskPage(items=items, total=total, page=query.page, page_size=query.page_size,
                             total_pages=(total + query.page_size - 1) // query.page_size)

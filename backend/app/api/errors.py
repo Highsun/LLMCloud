@@ -8,6 +8,7 @@ from starlette.responses import JSONResponse
 from backend.app.core.dataset_contract import MAX_ERROR_DETAILS
 from backend.app.core.request_context import request_id_context
 from backend.app.models.error_schemas import ApiError, ApiErrorCode, ErrorDetail, ErrorResponse
+from backend.app.models.task_schemas import TaskSubmissionError, TaskSubmissionErrorResponse
 from backend.app.services.errors import DatasetServiceError
 
 
@@ -40,17 +41,20 @@ def safe_validation_details(errors, prefix=()) -> list[ErrorDetail]:
 
 
 def error_response(error: DatasetServiceError, *, headers=None) -> JSONResponse:
-    payload = ErrorResponse(error=ApiError(
-        code=error.code, message=error.message,
+    fields = dict(code=error.code, message=error.message,
         details=error.details[:MAX_ERROR_DETAILS],
         details_truncated=len(error.details) > MAX_ERROR_DETAILS,
-        request_id=request_id_context.get(),
-    ))
+        request_id=request_id_context.get())
+    task_id = getattr(error, "task_id", None)
+    payload = (TaskSubmissionErrorResponse(error=TaskSubmissionError(**fields, task_id=task_id))
+               if task_id is not None else ErrorResponse(error=ApiError(**fields)))
     return JSONResponse(payload.model_dump(mode="json"), status_code=error.status_code, headers=headers)
 
 
-async def service_error_handler(_request: Request, error: DatasetServiceError):
-    return error_response(error)
+async def service_error_handler(request: Request, error: DatasetServiceError):
+    task_id = getattr(error, "task_id", None)
+    headers = {"Location": f"{request.app.state.settings.api_prefix}/tasks/{task_id}"} if task_id is not None else None
+    return error_response(error, headers=headers)
 
 
 async def request_validation_handler(_request: Request, error: RequestValidationError):

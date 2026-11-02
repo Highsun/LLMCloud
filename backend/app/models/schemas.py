@@ -1,4 +1,4 @@
-"""Initial API contracts; task creation routes are not exposed yet."""
+"""System API DTOs and the compatible TaskCreate import."""
 
 from pydantic import BaseModel
 

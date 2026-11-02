@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import field_validator
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.app.core.task_contract import DEFAULT_MODEL_REVISION
@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     default_model_revision: Revision = DEFAULT_MODEL_REVISION
     training_precision: Literal["bf16", "fp32"] = "bf16"
     training_max_steps: PositiveInt | None = None
+    task_publish_timeout_seconds: float = Field(default=1.0, gt=0, le=5, allow_inf_nan=False)
 
     @field_validator("training_max_steps", mode="before")
     @classmethod

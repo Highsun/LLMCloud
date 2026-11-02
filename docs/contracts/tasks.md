@@ -1,6 +1,6 @@
 # M3 任务共享契约 1.0.0
 
-日期：2026-10-24，更新：2026-11-02。M3-01 已交付 CPU 类型、Protocol、生成样例与检查；成员 B 已核对列表字段，Worker 消费者完整核对仍待完成。M3-02 SQL 仓储/迁移已交付，使用与运维见 [任务存储](../task-storage.md)。HTTP、Publisher、Worker 执行与恢复仍待后续任务，当前没有任务路由。执行分工见 [完整计划](../m3-development-plan.md)，HTTP 语义见 [任务 API](../api/tasks.md)。
+日期：2026-10-24，更新：2026-11-02。M3-01 已交付 CPU 类型、Protocol、生成样例与检查；成员 B 已核对列表字段，Worker 消费者完整核对仍待完成。M3-02 SQL 仓储/迁移已交付，使用与运维见 [任务存储](../task-storage.md)。M3-03 已实现任务 HTTP/真实 Publisher 并导出运行时 OpenAPI，Worker 执行与恢复仍待后续任务。执行分工见 [完整计划](../m3-development-plan.md)，HTTP 语义见 [任务 API](../api/tasks.md)。
 
 ## 导入与生成
 
@@ -10,7 +10,7 @@
 | TaskStatus、TaskErrorCode、PublishOutcome、ExecutionOutcome、版本和上限 | backend.app.core.task_contract |
 | TaskExecutionSpec、TaskRepository、Publisher、TaskStoreError、ExecutionSettings、TrainFunction、TaskExecutor | backend.app.core.task_protocols |
 
-旧 backend.app.models.schemas.TaskCreate 和 entities.TaskStatus 导入保留；M3-01 状态枚举移到 CPU 模块时未改表，M3-02 已扩展任务表并要求显式迁移，枚举值不变。原 TaskCreate 尚未发布为 HTTP 接口，M3-01 dataset_id 从任意 UUID 收敛为项目使用的 UUIDv4；后续消费者须用真实上传返回的 ID。TrainingConfig 与 M2 契约不变。
+旧 backend.app.models.schemas.TaskCreate 和 entities.TaskStatus 导入保留；M3-01 状态枚举移到 CPU 模块时未改表，M3-02 已扩展任务表并要求显式迁移，枚举值不变。TaskCreate 在 M3-01 从任意 UUID 收敛为项目使用的 UUIDv4，M3-03 首次发布该 HTTP 输入；后续消费者须用真实上传返回的 ID。TrainingConfig 与 M2 契约不变。
 
 共享类型模块不导入 FastAPI、Celery、SQLAlchemy、Settings 或训练包。字段类型/一致性验证不读取文件、校验哈希或执行授权；Protocol 本身也不自动执行 CAS。SQL 和 Worker 实现须完成执行检查。
 
@@ -19,7 +19,7 @@ uv run --locked python scripts/export_task_contract.py
 uv run --locked python scripts/export_task_contract.py --check
 ```
 
-生成 [tasks.schema.json](tasks.schema.json) 与 [测试样例](../examples/tasks/README.md)，明确 types_only/mock，无运行时 OpenAPI。不要手改生成文件。M3-03 注册路由后才从真实 app.openapi() 导出任务 OpenAPI；当前服务的能力探测继续判任务接口不可用。
+生成 [tasks.schema.json](tasks.schema.json) 与 [测试样例](../examples/tasks/README.md)，此导出只包含 types_only/mock，不是运行时 OpenAPI。不要手改生成文件；M3-03 已另外用 scripts/export_task_openapi.py 从真实 app.openapi() 导出任务 OpenAPI，能力探测可发现任务路由，但不代表 GPU 就绪。
 
 ## HTTP 类型与边界
 
@@ -32,7 +32,7 @@ uv run --locked python scripts/export_task_contract.py --check
 - TaskDetail 额外包含完整 config；不接受 training_config 别名，不暴露路径、归属、claim_token 或 celery_task_id。TaskPage 对页数、数量上限、越界空页做一致性检查，SQL 实现仍须先筛选后分页。
 - TaskSubmissionErrorResponse 仅用于已持久化任务的 DISPATCH_FAILED/DISPATCH_UNCERTAIN，继承统一错误核心，必填 error.task_id；其他错误仍使用原 ErrorResponse，不强加空 task_id。
 
-任务 JSON 请求体上限固定为 MAX_TASK_BODY_BYTES=65,536（64 KiB），由 M3-03 实现运行时限制。新增 ApiErrorCode 为 TASK_NOT_FOUND、IDEMPOTENCY_CONFLICT、REQUEST_TOO_LARGE、DISPATCH_FAILED、DISPATCH_UNCERTAIN；共享枚举变化已通过脚本重导出数据集 OpenAPI。它是枚举扩展，M1 字段/错误行为和 1.0.0 契约不变，当前 M1 不因此新增这些错误行为。
+任务 JSON 请求体上限固定为 MAX_TASK_BODY_BYTES=65,536（64 KiB），M3-03 已实现运行时限制。新增 ApiErrorCode 为 TASK_NOT_FOUND、IDEMPOTENCY_CONFLICT、REQUEST_TOO_LARGE、DISPATCH_FAILED、DISPATCH_UNCERTAIN；共享枚举变化已通过脚本重导出数据集 OpenAPI。它是枚举扩展，M1 字段/错误行为和 1.0.0 契约不变，当前 M1 不因此新增这些错误行为。
 
 ## Worker 与仓储
 
@@ -64,9 +64,9 @@ TaskExecutor 固定 execute_training(task_id, repository, settings, train_fn) �
 
 Settings 新增 default_model_revision（已验收的 7ae557604adf67be50417f59c2c2f167def9a775）、training_precision（bf16 默认，也允许 fp32）、training_max_steps（默认 None，显式内部冒烟可设正整数）。对应环境变量为 DEFAULT_MODEL_REVISION、TRAINING_PRECISION、TRAINING_MAX_STEPS，最后一项不用时不设置，不填空字符串。API 创建时保存配置快照，Worker 使用快照，不用执行时的新默认值覆盖。
 
-构造 runtime：RuntimeOptions(precision=settings.training_precision, max_steps=settings.training_max_steps, local_files_only=True)。此配置已经可加载，但尚未被任务服务消费，任务创建由 M3-03 实施。
+构造 runtime：RuntimeOptions(precision=settings.training_precision, max_steps=settings.training_max_steps, local_files_only=True)。M3-03 TaskService 已消费这些配置并通过仓储创建快照，HTTP 客户端不能覆盖。
 
-M3-02/03 的请求哈希输入固定为 TaskCreate 补默认后的 model_dump(mode="json")：只包含 dataset_id、base_model、完整 config；JSON 使用 sort_keys=True、ensure_ascii=False、separators=(",", ":")、allow_nan=False，UTF-8 后 SHA-256。UUID 用规范字符串，target_modules 保持请求顺序，不推断语义等价。revision/runtime 不加入请求哈希，同键重放必须读取旧快照。M3-02 已在 services/task_records.request_sha256 和仓储中实现规范哈希/唯一索引/重放冲突，HTTP 使用与是否派发由 03 接入。
+M3-02/03 的请求哈希输入固定为 TaskCreate 补默认后的 model_dump(mode="json")：只包含 dataset_id、base_model、完整 config；JSON 使用 sort_keys=True、ensure_ascii=False、separators=(",", ":")、allow_nan=False，UTF-8 后 SHA-256。UUID 用规范字符串，target_modules 保持请求顺序，不推断语义等价。revision/runtime 不加入请求哈希，同键重放必须读取旧快照。M3-02 已在 services/task_records.request_sha256 和仓储中实现规范哈希/唯一索引/重放冲突，03 已接入 HTTP 与 Publisher，只有首次创建尝试发布。
 
 ## M3-02 显式迁移清单（已实现）
 
@@ -94,4 +94,4 @@ M3-02/03 的请求哈希输入固定为 TaskCreate 补默认后的 model_dump(mo
 
 ## 两人接续核对
 
-A 侧代码和检查可独立交付，不能代表 B 已核对。B 请确认：实际导入位置、五个仓储方法、Spec/runtime 字段、完成确认丢失的读状态流程、提交去重/专用错误及所有 fixture。差异在共享小提交一次同步，不各自复制类型。核对后按 M3-04 做独立 Worker；SQL 仓储已由 M3-02 提供，真实 Worker 装配仍须在 04 合作验证；完整前端接通等 M3-03，Redis/GPU/浏览器仍在 M3-07 共同验收。
+A 侧代码和检查可独立交付，不能代表 B 已核对。B 请确认：实际导入位置、五个仓储方法、Spec/runtime 字段、完成确认丢失的读状态流程、提交去重/专用错误及所有 fixture。差异在共享小提交一次同步，不各自复制类型。核对后按 M3-04 做独立 Worker；SQL 仓储已由 M3-02 提供，真实 Worker 装配仍须在 04 合作验证；真实 HTTP 已由 M3-03 提供，完整前端接通仍待 B 补齐 05，Redis/GPU/浏览器仍在 M3-07 共同验收。

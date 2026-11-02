@@ -1,6 +1,6 @@
 # M3-02 任务存储、状态与迁移
 
-日期：2026-11-02。已实现 SQL 仓储、任务表约束/索引、显式 SQLite 迁移和启动检查。任务 HTTP/Publisher、Worker 编排与离线对账仍分别属于 M3-03/04/06；本次 SQL 测试不代表真实队列/GPU 联调通过。[共享契约](contracts/tasks.md) 的五个 Worker 方法保持不变。
+日期：2026-11-02。已实现 SQL 仓储、任务表约束/索引、显式 SQLite 迁移和启动检查。任务 HTTP/Publisher 已由 M3-03 交付，Worker 编排与离线对账仍待 M3-04/06；本次 SQL 测试不代表真实队列/GPU 联调通过。[共享契约](contracts/tasks.md) 的五个 Worker 方法保持不变。
 
 ## 使用仓储
 
@@ -24,7 +24,7 @@ repository = SqlTaskRepository(SessionLocal)
 | mark_dispatch_uncertain(task_id) | 仅 PENDING/QUEUED 记录未知说明，不改状态，不覆盖 RUNNING/终态 |
 | claim / record_progress / complete / fail | 按共享 Protocol 原子领取、核对 token、推进 train 事件、保存终态或失败；不写指标文件、不打开产物 |
 
-HTTP 调用者后续由 M3-03 提供：将 TaskDatasetNotFound 映射 404、IdempotencyConflict 映射 409、TaskStoreError 映射安全存储错误。以上不是本次新增路由。调用 mark_* 后应读取真实 TaskDetail，不硬编码返回 QUEUED。完整离线恢复与重投不在本仓储自动执行。
+HTTP 调用者已由 M3-03 TaskService/任务路由提供：将 TaskDatasetNotFound 映射 404、IdempotencyConflict 映射 409、TaskStoreError 映射安全存储错误。该 HTTP 交付独立于本节 M3-02 SQL 验收。调用 mark_* 后应读取真实 TaskDetail，不硬编码返回 QUEUED。完整离线恢复与重投不在本仓储自动执行。
 
 同键同规范请求返回 created=False，同键异请求冲突；未提供键或不同键的相同请求允许分别创建。规范请求哈希复用共享契约的补默认/排序 JSON 规则，revision/runtime 不加入哈希；重放不会用新默认覆盖旧快照。SQLite 写锁配合数据库完整唯一索引防止并发先查后插产生重复，NULL 去重键可重复。
 
@@ -85,4 +85,4 @@ revision/runtime 必须来自该旧任务的可信记录，不用当前默认值
 
 隔离 SQLite 测试覆盖并发同键创建、并发领取、快 Worker 与派发竞争、归属丢失、重复/eval 事件、失败保留进度、终态保护、完成提交失败/确认丢失、迁移备份/外键/索引/阻塞/回滚与 CLI。旧成功产物迁移使用显式标识的合成 CPU bundle 调用真实审计器，不是新增 GPU 训练证据。
 
-A 下一步 M3-03，装配请求校验/错误/CORS、Publisher 和真实任务路由/OpenAPI；B 可按现有 Protocol 在 M3-04 装配 SqlTaskRepository(SessionLocal)。两边真实装配与最终 Redis/GPU/浏览器联调仍需共同验收，M3-01 Worker 消费者核对仍由 B 明确记录。
+M3-03 已装配请求校验/错误/CORS、Publisher 和真实任务路由/OpenAPI，见 [任务 API](api/tasks.md)；A 下一步推进 M3-06，B 可按现有 Protocol 在 M3-04 装配 SqlTaskRepository(SessionLocal)。两边真实装配与最终 Redis/GPU/浏览器联调仍需共同验收，M3-01 Worker 消费者核对仍由 B 明确记录。

@@ -1,6 +1,6 @@
-# M3 任务 API 设计草案
+# M3 任务 API 契约
 
-日期：2026-10-24；共享类型契约 1.0.0。状态：M3-01 已交付 Pydantic 类型/Protocol/生成样例，B 核对待完成；HTTP 路由未注册、API 未发布，也未生成运行时 OpenAPI。类型使用与迁移见 [共享契约](../contracts/tasks.md)，M3-03 再从真实应用导出，不能手工维护另一份长期 OpenAPI。总计划见 [M3 开发计划](../m3-development-plan.md)。
+更新：2026-11-02；契约 1.0.0。M3-03 已实现任务创建/列表/详情 HTTP、请求去重和真实 Redis/Celery Publisher；[任务 OpenAPI](tasks.openapi.json) 从实际 app.openapi() 导出。类型使用与迁移见 [共享契约](../contracts/tasks.md)，总计划见 [M3 开发计划](../m3-development-plan.md)。Worker 执行/单实例保护尚待 B 的 M3-04；HTTP 已发布不表示 GPU 训练链路已经联调通过。
 
 ## 接口与输入
 
@@ -12,7 +12,9 @@
 | GET /tasks | 先按 status 筛选再分页，created_at DESC/id DESC | 200，TaskPage |
 | GET /tasks/{task_id} | 数据库业务状态与配置详情 | 200，TaskDetail |
 
-POST 保留 TaskCreate 的 dataset_id/base_model/config 字段：dataset_id 必填并收敛为 UUIDv4（旧类型接受任意 UUID，但尚无已发布任务路由）；base_model 默认且只允许 Qwen/Qwen2.5-0.5B-Instruct；config 默认 {}，按原 TrainingConfig 补齐默认值。未知字段拒绝。服务器固定 model_revision/runtime，不接收服务器路径、revision、max_steps、状态、哈希或用户归属。任务 JSON 请求体上限已由 01 固定为 64 KiB，运行时限制由 03 实现；不改变数据集上传上限。
+POST 保留 TaskCreate 的 dataset_id/base_model/config 字段：dataset_id 必填且为 UUIDv4；base_model 默认且只允许 Qwen/Qwen2.5-0.5B-Instruct；config 默认 {}，按原 TrainingConfig 补齐默认值。未知字段拒绝。服务器固定 model_revision/runtime，不接收服务器路径、revision、max_steps、状态、哈希或用户归属。请求为未压缩 UTF-8 application/json，允许 UTF-8 charset/identity 编码；不接受重复 JSON 键（含嵌套配置）、非有限数字、无效 JSON 或非对象正文。未知/重复查询和重复去重请求头也拒绝。
+
+任务 JSON 运行时上限为 64 KiB（65,536 字节）。声明超限不读取正文；真实分块累计也受限，伪造 Content-Length 不能绕过。415 使用 UNSUPPORTED_MEDIA_TYPE，JSON/字段错误 422/VALIDATION_ERROR，非法 Content-Length 为 400/HTTP_ERROR。M1 数据集上传上限和错误语义不变。
 
 可选请求头 Idempotency-Key 为 UUIDv4。首次成功保存时原子绑定规范请求哈希（dataset_id/base_model/完整 config）；同键同请求返回 200 和原 TaskDetail，不重新派发；同键不同请求 409/IDEMPOTENCY_CONFLICT。服务端 revision/内部 runtime 变化不会改写已存在任务快照。没有该头时每个 POST 都是新任务。浏览器刷新后若有任务 ID，查询原任务，不盲目重新提交。
 
@@ -80,11 +82,11 @@ TaskDetail.error_code 是业务诊断，和 HTTP error.code 不必相同：训�
 | 503 / DISPATCH_FAILED | 明确未派发，保存的任务已条件更新 FAILED | 用 task_id 查询失败记录 |
 | 503 / DISPATCH_UNCERTAIN | 可能已派发、确认或后续状态写入失败 | 查询同一 task_id，保留去重键；可能稍后 RUNNING |
 
-413 新错误 code、TASK_NOT_FOUND、去重/派发 code 已由 01 加入对应类型，实际错误处理由 03 实现，不能临时用中文文案兼容。已有数据接口错误保持原含义；共享 enum 扩展已重导出并检查数据集 OpenAPI。
+上述错误已接入实际路由/错误处理；已有数据接口错误保持原含义。通用错误无 task_id，已持久化任务的派发错误才使用专用 TaskSubmissionErrorResponse。错误与成功均返回服务端 X-Request-ID；202、200 重放及带 task_id 的 503 返回该任务的 Location。
 
 若任务已持久化而 POST 返回派发错误，采用专用 TaskSubmissionErrorResponse：仍为顶层 error，继承原 code/message/details/details_truncated/request_id 核心字段，新增必填 error.task_id。仅该响应子类型增加字段，不给所有数据集错误强行增加 null 字段。数据库在任务创建前失败时仍用原 ErrorResponse，无可用任务 ID，不伪造 ID。
 
-规划错误样例，未发生实际发送：
+以下仍为格式样例，不对应某次实际请求：
 
 ```json
 {
@@ -101,8 +103,31 @@ TaskDetail.error_code 是业务诊断，和 HTTP error.code 不必相同：训�
 
 ## 交付和前端接入
 
-01 前 B 可先按本草案完成列表筛选/分页/请求竞争小交付，范围与验收见 [完整计划第三节](../m3-development-plan.md)。ALL 不发送 status，其余发送五状态之一；切状态回第一页，翻页/刷新/轮询保留筛选；旧成功、失败及 finally 不能覆盖最新状态。该小交付只计为 05 部分完成，不抢先猜 Worker 类型。
+B 已交付列表筛选/分页/请求竞争小交付，范围与验收见 [完整计划第三节](../m3-development-plan.md)。ALL 不发送 status，其余发送五状态之一；切状态回第一页，翻页/刷新/轮询保留筛选；旧成功、失败及 finally 不能覆盖最新状态。该小交付只计为 05 部分完成，Worker 仍需核对共享类型后接入。
 
-01 已生成 [fixture](../examples/tasks/README.md)，使用 scripts/export_task_contract.py --check 检查漂移；B 核对后同步前端测试。测试替身必须显式标为 mock、单独用于测试，不能形成第二套长期响应约定。重复查询/请求头解析仍属 03，Schema 不检查原始重复 HTTP 字段。未注册真实路由时 supports 仍返回 false。03 实现后导出 docs/api/tasks.openapi.json，路径采用 /api/v1 server + 相对 paths，运行时完整 paths 与操作/Schema 一致。当前只生成类型 Schema，不伪造已实现的 OpenAPI。
+01 的 [fixture](../examples/tasks/README.md)继续用于隔离测试，scripts/export_task_contract.py --check 检查类型样例漂移。03 已实现原始重复字段解析，并用 scripts/export_task_openapi.py 从实际路由生成任务 OpenAPI：/api/v1 server + 相对 paths，运行时 /openapi.json 使用完整 paths，操作/Schema 一致。此输出表示 HTTP 已实现，不证明 Worker/GPU 就绪。
 
-B 修改通用 request 以可选 headers 携带去重键、读取专用 error.task_id，A 修改允许头以配合跨域；不改变数据集上传行为。任务列表状态筛选上送服务端，过时请求不能覆盖较新页/筛选结果，终态停止详情轮询。M3 不接通 Loss/日志/下载：保持能力探测和未实现提示，不在真实 API 请求失败后自动回退 mock。
+B 在 M3-05 剩余部分为通用 request 增加可选 headers 携带去重键、读取专用 error.task_id；后端 CORS 已允许 Content-Type/Idempotency-Key，并暴露 X-Request-ID/Location，不启用凭据。列表筛选/分页可对接真实 HTTP，仍须浏览器联调。M3 不接通 Loss/日志/下载：这些能力继续禁用，不能在 API 出错后回退 mock；本次没有修改 B 的前端代码。
+
+## Publisher 与失败边界
+
+API 的 TaskService 先通过 SqlTaskRepository 保存任务/快照，再调用 Publisher，一次提交只有一次发布尝试。重放 created=False 直接返回原任务，不补发；即使原记录停在 PENDING 或已有失败，也不自动创建/发布第二项任务。Broker 状态不作为查询任务的来源。
+
+CeleryPublisher 使用独立客户端，以 worker.train 名称发送 args=[task_id]，消息 ID 使用单独保存的 celery_task_id，队列取 TRAINING_QUEUE；不导入 worker.tasks、Trainer、GPU 或结果后端。连接/读写按 TASK_PUBLISH_TIMEOUT_SECONDS 配置，默认每次操作 1 秒（可设 >0 且 ≤5）；Kombu 建连 max_retries=0、发送 retry=False、Celery 发布重试关闭，Redis 命令重试也显式设为 0。仅支持一个 Redis/rediss/redis+socket URL，不配置备用 Broker 自动切换。实现同时核对了锁定的 Celery 5.6.3/Kombu 5.6.2/redis 6.4.0 源码；参考 [Celery 消息发布/重试](https://docs.celeryq.dev/en/stable/userguide/calling.html#message-sending-retry)、[Kombu 连接接口](https://docs.celeryq.dev/projects/kombu/en/stable/reference/kombu.connection.html)。
+
+建连/发送前失败才为 not_sent；进入 send_task 后任何异常保守为 unknown，即使可能发生在实际写入前。accepted 仅证明本次调用确认成功，不承诺 Redis 崩溃后的消息持久性。清理失败不会抹去已确认的发布。Socket 超时按操作计算，SQLite 锁等待和操作系统 DNS 耗时另计；这不是整个 HTTP 请求必定在 1 秒内结束的承诺，正常本机约 2 秒仍为性能目标。
+
+accepted 后仅条件更新仍 PENDING 为 QUEUED，再重读真实 TaskDetail；若快 Worker 已 RUNNING/终态，直接保留。not_sent 仅在本次确实把仍 PENDING 改为 FAILED 后返回 DISPATCH_FAILED；若已有领取/终态等矛盾结果，保守返回 DISPATCH_UNCERTAIN。unknown 或发布确认后的状态写入/查询失败返回带原 ID 的 503，暂态诊断写入失败也不丢弃 ID，不覆盖 RUNNING/终态。
+
+数据库在创建完成确认前失败时可能没有可用任务 ID，返回通用 DATABASE_UNAVAILABLE，且不发布消息。同一去重键之后可读取已提交记录，但不会自动补发；离线对账/显式处置属于 M3-06。这是无 outbox/自动重投 MVP 的已知边界。
+
+## 运行与验证
+
+服务按根 README 启动；先上传数据取得 dataset_id，再按上述 JSON 提交。无 Worker 时接受发布的任务保持 QUEUED，不能把 HTTP 202 当作训练成功。当前 worker.train 仍占位；真实训练和队列消费应等 M3-04 完成后联调，不能用旧诊断 Worker 冒充可训练 Worker。
+
+```bash
+uv run --locked python scripts/export_task_openapi.py --check
+uv run --locked python scripts/check_task_http.py
+```
+
+check_task_http.py 需要 redis-server，自动启动仅本进程拥有的临时 Redis Unix socket、临时 SQLite/文件和真实 TCP API；不访问业务队列、不开 Worker/GPU。检查真实消息名/两个 ID/仅 task_id 载荷、202/200 重放且队列不增长、筛选/详情、实际 LPUSH 后注入确认丢失并保持同一任务、Broker 停止后可查询失败，以及提前 413。输出明确标注 lost_ack_injected、worker_started=false、gpu_execution_verified=false；确认丢失是受控故障，不谎称自然网络故障。
