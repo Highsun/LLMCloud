@@ -33,8 +33,10 @@ def init_db(bind: Engine = engine) -> None:
     # Import mappings, then reject legacy tables before creating any new tables.
     from backend.app.models import entities  # noqa: F401
     from backend.app.core.dataset_migration import require_dataset_schema
+    from backend.app.core.task_migration import require_task_schema
 
     require_dataset_schema(bind)
+    require_task_schema(bind)
     Base.metadata.create_all(bind=bind)
 
 

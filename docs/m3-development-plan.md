@@ -1,10 +1,10 @@
 # M3 异步任务开发计划
 
-版本：执行计划 1.2；日期：2026-10-24。状态：M3-01 的 A 侧代码/Schema/样例/检查与迁移清单已交付，待 B 核对消费者接口；M3-02～07 尚未实现。共享契约见 [任务契约 1.0.0](contracts/tasks.md)，不把类型交付写成任务 HTTP/Worker 已实现，也不冒充双方已核对。
+版本：执行计划 1.3；更新：2026-11-02。状态：M3-01 的 A 侧代码/Schema/样例/检查与迁移清单已交付，待 B 核对消费者接口；M3-02 SQL 仓储与显式迁移已独立验收；B 已交付 05 列表基础，03/04/06/07 尚未实现。共享契约见 [任务契约 1.0.0](contracts/tasks.md)，不把类型交付写成任务 HTTP/Worker 已实现，也不冒充双方已核对。
 
 成员 A 指当前侧/你，主负责后端；成员 B 指队友，已有前端交付。本文已合并原交接文档的任务入口与交接要求，作为 M3 分工、依赖、验收和交接的完整执行依据。对外字段与待实施 HTTP 行为见 [任务 API](api/tasks.md)。
 
-立即接续：B 可先完成 M3-05 的“列表筛选、分页与请求竞争处理”小交付，并核对 01 已交付的实际类型/Protocol/样例。双方核对同步契约后，A 依次做 02 → 03 → 06，B 做 04 → 补齐 05；最后共同做 07。B 的首个小交付不依赖真实后端，但不代表整个 M3-05 已完成。可直接分配的工作说明见第三节。
+立即接续：02 SQL 仓储/迁移和 B 的 05 列表小交付已完成；A 下一步 03 → 06，B 完整核对实际类型/Protocol 后做 04 → 补齐 05，最后共同 07。SqlTaskRepository(SessionLocal) 已可供 B 装配，真实 Worker/Redis/GPU 仍需合作验收。列表交付不代表整个 M3-05 已完成，具体工作说明见第三节。
 
 ## 一、目标与已有基础
 
@@ -16,11 +16,11 @@ M3 将已经通过本地验收的 Trainer 接入服务：浏览器配置 → API
 | --- | --- |
 | M1 数据 API、不可变存储、共享扫描器已完成 | 用已有 dataset_id 和服务端相对存储键，保持数据契约 |
 | M2-01～06 工程闭环完成，174 项 CPU 检查为历史验收基线 | 复用 TrainRequest、train、TrainingProgress 和 verify_training_artifacts，不复制训练/指标逻辑 |
-| TrainingTask 表只有 M0 占位字段 | 缺 revision/数据快照/领取归属/稳定错误码/请求去重等，需显式迁移，不能假定表为空 |
+| M3-02 任务表/SQL 仓储/显式迁移已交付 | 旧库启动前先检查并显式迁移；真实 Worker 装配等 04，不把 SQL 检查当真实调度验收 |
 | M3-01 输入/响应/错误/Protocol/生成样例已交付，未注册任务路由 | 消费者核对实际类型，不另造字段；不能称任务 API 已存在 |
 | worker.train 仍抛 NotImplementedError，Worker 仅配置/ping 可用 | 必须实现真实领取和执行，Celery ping 不能作为本阶段完成证据 |
 | Vue 已有 TrainingPanel/TasksPanel、配置校验、轮询壳 | 主要做字段收敛、错误处理及真实联调，保留组件和视觉设计 |
-| 当前任务筛选只筛当前页，指标以 step 合并 | M3 改为服务端状态筛选；M4 再改指标游标，不能沿用 step 合并 train/eval |
+| B 已交付服务端状态筛选/分页/旧请求隔离，指标仍以 step 合并 | 列表真实 HTTP 接通等 03；M4 再改指标游标，不能沿用 step 合并 train/eval |
 
 本阶段不实现 Loss/日志 HTTP、下载、在线推理、取消/恢复训练、自动重训、对象存储、混合部署、多 GPU 或 Kubernetes。模型仍为同一固定 revision 的 0.5B；正式语料审核和效果评测继续独立推进。
 
@@ -47,10 +47,10 @@ B 的列表小交付、Worker 和前端收尾由同一个人顺序完成，不�
 | 编号 | 主负责 | 依赖 | 交付与主要文件 | 人时 | 状态 |
 | --- | --- | --- | --- | --- | --- |
 | M3-01 共用契约 | A+B，各 1 | 阅读本计划 | Task Schema、task_protocols、生成样例/契约检查；API 字段/迁移清单确认 | 2 | 待验收：A 侧已交付，B 核对待完成 |
-| M3-02 存储与状态 | A | 01 | entities、task_repository、task_migration/migrate_tasks；CAS、所有权、唯一请求键 | 3 | 待办 |
+| M3-02 存储与状态 | A | 01 | entities、task_repository、task_migration/migrate_tasks；CAS、所有权、唯一请求键 | 3 | 完成：SQL/迁移独立验收，真实装配待 04 |
 | M3-03 API 与派发 | A | 01/02 | api/tasks、services/tasks、task_dispatch、运行时 OpenAPI 导出与 HTTP 检查 | 2.5 | 待办 |
 | M3-04 Worker 适配 | B | 01；真实仓储接入等 02 | worker/execution、tasks、单实例锁、Trainer/路径/产物适配及替身检查 | 4 | 待办 |
-| M3-05 前端接通 | B | 列表基础可先做；完整契约等 01，真实联调等 03 | 先做 TasksPanel/workspace 列表，再补 TrainingPanel/api.js 提交/详情接通 | 3 | 待办 |
+| M3-05 前端接通 | B | 列表基础已交付；真实联调等 03 | 再补 TrainingPanel/api.js 提交/详情接通 | 3 | 部分完成：列表，完整接通待办 |
 | M3-06 离线对账 | A | 02；真实进程失败证据等 04 | reconcile_tasks 只读检查/显式应用、终态修复与隔离检查 | 1.5 | 待办 |
 | M3-07 共同验收 | A+B，各 2 | 02～06 | 真实 Redis/两任务串行/失败/重复消息/浏览器；项目状态与日志归档 | 4 | 待办 |
 
@@ -134,7 +134,7 @@ claim 以单个条件更新事务领取 PENDING/QUEUED；返回 None 表示已�
 
 ### 4.3 持久化与迁移
 
-M3-02 在现有任务字段上增加：model_revision、dataset_key/dataset_sha256/dataset_size_bytes/dataset_row_count 快照、runtime_options、claim_token/worker_id、error_code、idempotency_key/request_sha256、manifest_sha256；output_path 继续保存相对 DATA_DIR 的 outputs/{task_id} 键。具体列类型/空值/索引与旧行处置已在 [迁移清单](contracts/tasks.md) 固定，01 没有增加 ORM 列或执行迁移；02 由 A 一次维护 ORM/迁移/检查。
+M3-02 在现有任务字段上增加：model_revision、dataset_key/dataset_sha256/dataset_size_bytes/dataset_row_count 快照、runtime_options、claim_token/worker_id、error_code、idempotency_key/request_sha256、manifest_sha256；output_path 继续保存相对 DATA_DIR 的 outputs/{task_id} 键。具体列类型/空值/索引与旧行处置已在 [迁移清单](contracts/tasks.md) 固定，01 未改 ORM；02 已实现仓储、列/约束/索引、启动检查和显式迁移，另补 training_summary 存储列与非空 celery_task_id，Worker Protocol/公开响应不变。实际用法见 [任务存储](task-storage.md)。
 
 新增 scripts/migrate_tasks.py --check/--apply：停止 API/Worker、SQLite backup、显式事务迁移、旧行核对。旧记录缺少可信 revision/数据快照时报告阻塞或要求显式映射，不擅自填 main、不删库。不用 create_all 变更既有表；启动检查阻止旧结构继续提供业务服务。新库正常创建当前表。
 
@@ -229,4 +229,4 @@ M3 不要求每个服务任务自动执行文本生成。COMPLETED 表示训练�
 - [ ] 最低限度的离线对账有失败/恢复证据，无自动重训或覆盖。
 - [ ] 本阶段日志、测试证据和共享文档同步，正式效果/后续阶段边界明确。
 
-当前只交付 01 的共享代码与检查，B 核对及后续业务均待完成；M3 服务验收项不能由类型/fixture 测试代替。
+当前 01 共享代码、02 SQL/迁移和 05 列表基础已交付；B 的完整 Worker 契约核对、真实执行/HTTP/对账/联调仍待完成。M3 服务验收项不能由类型、SQL 或 fixture 测试代替。

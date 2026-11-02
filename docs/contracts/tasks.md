@@ -1,6 +1,6 @@
 # M3 任务共享契约 1.0.0
 
-日期：2026-10-24。M3-01 已交付 CPU 类型、Protocol、生成样例与检查；成员 B 的消费者核对待完成。任务 SQL、迁移、HTTP、Publisher、Worker 执行与恢复仍属后续任务，当前没有任务路由。本文件是代码使用和迁移清单，执行分工见 [完整计划](../m3-development-plan.md)，HTTP 语义见 [任务 API](../api/tasks.md)。
+日期：2026-10-24，更新：2026-11-02。M3-01 已交付 CPU 类型、Protocol、生成样例与检查；成员 B 已核对列表字段，Worker 消费者完整核对仍待完成。M3-02 SQL 仓储/迁移已交付，使用与运维见 [任务存储](../task-storage.md)。HTTP、Publisher、Worker 执行与恢复仍待后续任务，当前没有任务路由。执行分工见 [完整计划](../m3-development-plan.md)，HTTP 语义见 [任务 API](../api/tasks.md)。
 
 ## 导入与生成
 
@@ -10,7 +10,7 @@
 | TaskStatus、TaskErrorCode、PublishOutcome、ExecutionOutcome、版本和上限 | backend.app.core.task_contract |
 | TaskExecutionSpec、TaskRepository、Publisher、TaskStoreError、ExecutionSettings、TrainFunction、TaskExecutor | backend.app.core.task_protocols |
 
-旧 backend.app.models.schemas.TaskCreate 和 entities.TaskStatus 导入保留；状态枚举移到 CPU 模块，SQL 枚举值/表结构没有变化。原 TaskCreate 尚未发布为 HTTP 接口，此次 dataset_id 从任意 UUID 收敛为项目使用的 UUIDv4；后续消费者须用真实上传返回的 ID。TrainingConfig 与 M2 契约不变。
+旧 backend.app.models.schemas.TaskCreate 和 entities.TaskStatus 导入保留；M3-01 状态枚举移到 CPU 模块时未改表，M3-02 已扩展任务表并要求显式迁移，枚举值不变。原 TaskCreate 尚未发布为 HTTP 接口，M3-01 dataset_id 从任意 UUID 收敛为项目使用的 UUIDv4；后续消费者须用真实上传返回的 ID。TrainingConfig 与 M2 契约不变。
 
 共享类型模块不导入 FastAPI、Celery、SQLAlchemy、Settings 或训练包。字段类型/一致性验证不读取文件、校验哈希或执行授权；Protocol 本身也不自动执行 CAS。SQL 和 Worker 实现须完成执行检查。
 
@@ -52,7 +52,7 @@ Worker 根据当前主机 Settings.data_dir/log_dir 解析路径，并用既有�
 
 所有协议方法同步调用；领取 token 和 celery_task_id 都由服务端生成 UUIDv4，worker_id 为非空、最长 255 字符的实例标识。后续 SQL 实现负责入口值验证和短事务。三个写入方法 False 表示当前非 RUNNING、归属不符或资源不存在；对于仍持有归属的 eval/重复进度，忽略步数更新但返回 True。非法参数、损坏存量数据或 DB 操作失败不能伪装成 False/None，统一安全 TaskStoreError，底层原因仅写服务诊断且不暴露响应。
 
-get_status 是此次补全的接口：原规划要求完成提交确认丢失后重新读取实际终态，但原四个方法无法实现该读取。有效 TrainResult 已取得后，complete 异常不能继续 fail 覆盖或删除产物；先 get_status，已 COMPLETED 可保留完成，其余保留实际状态供离线对账，读取失败也不强行修改。实际生产装配工厂约定为 SqlTaskRepository(sessions)，由 A 在 M3-02 提供，B 在 worker/tasks.py 装配；本次没有该类的实现。
+get_status 是 M3-01 补全的接口：原规划要求完成提交确认丢失后重新读取实际终态，但原四个方法无法实现该读取。有效 TrainResult 已取得后，complete 异常不能继续 fail 覆盖或删除产物；先 get_status，已 COMPLETED 可保留完成，其余保留实际状态供离线对账，读取失败也不强行修改。SqlTaskRepository(sessions) 已由 M3-02 实现，导入 backend.app.services.task_repository；B 在 M3-04 的 worker/tasks.py 装配，真实 Worker 接入尚未验收。
 
 TaskErrorCode 直接组合 M2 FailureCode 与 DISPATCH_FAILED/DISPATCH_UNCERTAIN/WORKER_INTERRUPTED/TASK_ABANDONED；Trainer 失败直接保留 failure.code，不改 Trainer 枚举。离线恢复原因属于 A 的恢复逻辑，不通过伪造 TrainingFailure 传给 fail。
 
@@ -66,11 +66,11 @@ Settings 新增 default_model_revision（已验收的 7ae557604adf67be50417f59c2
 
 构造 runtime：RuntimeOptions(precision=settings.training_precision, max_steps=settings.training_max_steps, local_files_only=True)。此配置已经可加载，但尚未被任务服务消费，任务创建由 M3-03 实施。
 
-M3-02/03 的请求哈希输入固定为 TaskCreate 补默认后的 model_dump(mode="json")：只包含 dataset_id、base_model、完整 config；JSON 使用 sort_keys=True、ensure_ascii=False、separators=(",", ":")、allow_nan=False，UTF-8 后 SHA-256。UUID 用规范字符串，target_modules 保持请求顺序，不推断语义等价。revision/runtime 不加入请求哈希，同键重放必须读取旧快照。此处是实现要求，01 不提前实现唯一索引/去重业务。
+M3-02/03 的请求哈希输入固定为 TaskCreate 补默认后的 model_dump(mode="json")：只包含 dataset_id、base_model、完整 config；JSON 使用 sort_keys=True、ensure_ascii=False、separators=(",", ":")、allow_nan=False，UTF-8 后 SHA-256。UUID 用规范字符串，target_modules 保持请求顺序，不推断语义等价。revision/runtime 不加入请求哈希，同键重放必须读取旧快照。M3-02 已在 services/task_records.request_sha256 和仓储中实现规范哈希/唯一索引/重放冲突，HTTP 使用与是否派发由 03 接入。
 
-## M3-02 显式迁移清单（未实施）
+## M3-02 显式迁移清单（已实现）
 
-本次只迁出 TaskStatus 定义，未增加 ORM 列、未执行任何任务表迁移，也未新增迁移命令。下面固定后续列名、空值与索引，不可用 create_all 或删库替代。
+以下列/索引已实现于 ORM 与 scripts/migrate_tasks.py。新库创建当前表，旧库在启动时检查并拒绝旧结构；先 --check 再显式 --apply，备份后事务迁移，不可用 create_all 或删库替代。非空旧表映射、旧 RUNNING 显式处置及旧 COMPLETED 审计见 [运维说明](../task-storage.md)。
 
 | 新列 / 类型 | 空值 / 约束 | 可信来源 |
 | --- | --- | --- |
@@ -81,16 +81,17 @@ M3-02/03 的请求哈希输入固定为 TaskCreate 补默认后的 model_dump(mo
 | dataset_row_count / Integer | 非空，>0 | 数据集元数据快照 |
 | runtime_options / JSON | 非空，RuntimeOptions，离线加载 | 创建时服务端配置；旧行须可信映射 |
 | claim_token / String(36) | 可空，UUIDv4 | 领取时生成，和 worker_id 同时为空或同时非空 |
-| worker_id / String(255) | 可空，非空值长度 1–255 | 领取实例标识；终态保留领取信息 |
+| worker_id / String(255) | 可空，非空值长度 1–255 | 领取实例标识；已有归属的终态保留领取信息，旧库迁移不补造归属 |
 | error_code / String(64) | 可空，TaskErrorCode | 业务失败/暂态诊断；有 code 时必须有安全 message |
 | idempotency_key / String(36) | 可空，UUIDv4，唯一索引 | 可选请求头；无键请求允许多行 NULL |
 | request_sha256 / String(64) | 与 idempotency_key 同空/同非空 | 上述规范请求哈希，不对其单独建唯一索引 |
 | manifest_sha256 / String(64) | 可空，COMPLETED 非空 | 对已审计成功清单原始字节取摘要 |
+| training_summary / JSON | 可空，COMPLETED 非空 | 持久化 complete 已有的 TrainingSummary 参数；02 补充存储列，未改变 Protocol |
 
-既有 output_path 保持可空 Text，COMPLETED 必须为 outputs/{task_id}；celery_task_id 创建时生成，保留原列类型，值采用 UUIDv4。既有 status、progress/current_step/total_steps 和时间列保留；SQL 初始 total_steps=0/progress=0 映射到响应 null/null，不能显示成已知总步数。已知真实步数禁止回退；终态错误和时间按上述 DTO 语义处理。新表保留 status/dataset_id 索引，并增加 (created_at,id) 及 (status,created_at,id) 索引支持默认排序/筛选；SQLite 约束与应用验证共同保证快照/去重一致性。
+既有 output_path 保持可空 Text，COMPLETED 必须为 outputs/{task_id}；celery_task_id 创建时生成，保留 String(255) 类型并收敛为非空，值采用 UUIDv4。既有 status、progress/current_step/total_steps 和时间列保留；SQL 初始 total_steps=0/progress=0 映射到响应 null/null，不能显示成已知总步数。已知真实步数禁止回退；终态错误和时间按上述 DTO 语义处理。新表保留 status/dataset_id 索引，并增加 (created_at,id) 及 (status,created_at,id) 索引支持默认排序/筛选；SQLite 约束与应用验证共同保证快照/去重一致性。
 
 迁移前停 API/Worker，用 SQLite backup 备份；先 --check 报告表结构、旧行与阻塞，再显式 --apply。空旧表可重建复制结构；非空旧表逐行核对数据集键/摘要/统计和 revision/runtime 来源，缺少可信资料必须阻塞或要求显式映射，禁止填 main 或用当前默认值冒充旧执行记录。旧 COMPLETED 必须有可信成功产物和清单，否则阻塞；旧 RUNNING 缺领取信息不得凭空伪造活实例，需明确人工处置方案后再迁移。迁移用事务保留主外键与历史，不丢行；应用启动检查拒绝旧任务结构。数据集迁移仍是独立入口。
 
 ## 两人接续核对
 
-A 侧代码和检查可独立交付，不能代表 B 已核对。B 请确认：实际导入位置、五个仓储方法、Spec/runtime 字段、完成确认丢失的读状态流程、提交去重/专用错误及所有 fixture。差异在共享小提交一次同步，不各自复制类型。核对后按 M3-04 做独立 Worker；真实 SQL 装配等 M3-02，完整前端接通等 M3-03，Redis/GPU/浏览器仍在 M3-07 共同验收。
+A 侧代码和检查可独立交付，不能代表 B 已核对。B 请确认：实际导入位置、五个仓储方法、Spec/runtime 字段、完成确认丢失的读状态流程、提交去重/专用错误及所有 fixture。差异在共享小提交一次同步，不各自复制类型。核对后按 M3-04 做独立 Worker；SQL 仓储已由 M3-02 提供，真实 Worker 装配仍须在 04 合作验证；完整前端接通等 M3-03，Redis/GPU/浏览器仍在 M3-07 共同验收。
