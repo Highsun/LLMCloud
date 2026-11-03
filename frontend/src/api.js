@@ -12,6 +12,7 @@ export class ApiError extends Error {
       requestId = "",
       truncated = false,
       uncertain = false,
+      taskId = "",
     } = {},
   ) {
     super(message);
@@ -22,6 +23,7 @@ export class ApiError extends Error {
       requestId,
       truncated,
       uncertain,
+      taskId,
     });
   }
 }
@@ -42,13 +44,14 @@ function responseError(status, data, requestId, mutation = false) {
       requestId: error?.request_id || requestId || "",
       truncated: error?.details_truncated === true,
       uncertain: mutation && status >= 500,
+      taskId: error?.task_id || "",
     },
   );
 }
 
 export async function request(
   path,
-  { method = "GET", body, timeout = 10000, signal, raw = false } = {},
+  { method = "GET", body, headers = {}, timeout = 10000, signal, raw = false } = {},
 ) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
@@ -59,7 +62,7 @@ export async function request(
     const response = await fetch(raw ? path : `${baseUrl}${path}`, {
       method,
       signal: controller.signal,
-      headers: body ? { "Content-Type": "application/json" } : {},
+      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...headers },
       body: body ? JSON.stringify(body) : undefined,
     });
     if (raw === "blob" && response.ok) return response.blob();

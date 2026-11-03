@@ -20,7 +20,8 @@ defineProps({ error: Object });
       <small v-if="error.requestId" class="mono"
         >请求编号：{{ error.requestId }}</small
       >
-      <small v-if="error.uncertain"
+      <small v-if="error.taskId">任务记录已保存，请查询原任务的实际状态。</small>
+      <small v-else-if="error.uncertain"
         >保存结果尚不确定。请先刷新列表核对，避免直接重复提交。</small
       >
     </div>

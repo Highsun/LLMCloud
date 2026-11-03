@@ -1,19 +1,21 @@
 <script setup>
 import { computed, reactive, ref } from "vue";
-import { ApiError, request, saveFile } from "../api";
+import { ApiError, saveFile } from "../api";
 import {
   configFields,
   defaultConfig,
   validateConfig,
 } from "../training-config";
-import { loadDatasets, loadTasks, supports, workspace } from "../workspace";
+import { loadDatasets, loadTasks, submissionState, taskSubmission, supports, workspace } from "../workspace";
 import AppIcon from "./AppIcon.vue";
 import ErrorNotice from "./ErrorNotice.vue";
 
-const config = reactive(structuredClone(defaultConfig));
-const datasetId = ref("");
-const modulesText = ref("q_proj, v_proj");
-const submitting = ref(false);
+const restored = submissionState.intent?.payload;
+const config = reactive({ ...structuredClone(defaultConfig), ...restored?.config });
+const datasetId = ref(restored?.dataset_id || "");
+const modulesText = ref((restored?.config.target_modules || defaultConfig.target_modules).join(", "));
+const submitting = computed(() => submissionState.busy);
+const locked = computed(() => submitting.value || submissionState.intent?.status === "uncertain");
 const error = ref(null);
 const feedback = ref("");
 const modules = computed(() => [
@@ -39,6 +41,7 @@ const canSubmit = computed(
     modelAllowed.value,
 );
 function reset() {
+  if (locked.value) return;
   Object.assign(config, structuredClone(defaultConfig));
   modulesText.value = "q_proj, v_proj";
   error.value = null;
@@ -65,24 +68,8 @@ async function submit() {
   error.value = null;
   feedback.value = "";
   if (!canSubmit.value || submitting.value || !validate()) return;
-  submitting.value = true;
-  try {
-    const data = await request("/tasks", {
-      method: "POST",
-      body: payload.value,
-      timeout: 15000,
-    });
-    if (!data.id && !data.task_id)
-      throw new ApiError("任务提交响应缺少任务编号，请先检查任务列表。", {
-        uncertain: true,
-      });
-    feedback.value = `任务已提交：${data.id || data.task_id}。可到训练任务查看实际状态。`;
-    await loadTasks();
-  } catch (cause) {
-    error.value = cause;
-  } finally {
-    submitting.value = false;
-  }
+  await taskSubmission.submit(payload.value);
+  if (submissionState.intent?.taskId) await loadTasks();
 }
 </script>
 
@@ -118,7 +105,7 @@ async function submit() {
         ><select
           id="training-dataset"
           v-model="datasetId"
-          :disabled="!workspace.datasets || submitting"
+          :disabled="!workspace.datasets || locked"
         >
           <option value="">
             {{
@@ -127,6 +114,7 @@ async function submit() {
                 : "暂无可用数据集，请先上传"
             }}
           </option>
+          <option v-if="datasetId && !workspace.datasets?.items.some((item) => item.id === datasetId)" :value="datasetId">已选数据集 · {{ datasetId.slice(0, 8) }}（不在当前页）</option>
           <option
             v-for="dataset in workspace.datasets?.items || []"
             :key="dataset.id"
@@ -172,7 +160,7 @@ async function submit() {
       <section class="panel">
         <div class="section-heading">
           <h2><span class="step-number">02</span>LoRA 配置</h2>
-          <button class="text-button" type="button" @click="reset">
+          <button class="text-button" type="button" :disabled="locked" @click="reset">
             恢复推荐参数
           </button>
         </div>
@@ -192,7 +180,7 @@ async function submit() {
               :max="field.max"
               :step="field.step"
               required
-              :disabled="submitting"
+              :disabled="locked"
             /><small class="field-help">{{ field.hint }}</small>
           </div>
         </div>
@@ -201,7 +189,7 @@ async function submit() {
           id="target-modules"
           v-model="modulesText"
           placeholder="q_proj, v_proj"
-          :disabled="submitting"
+          :disabled="locked"
           required
         />
         <p class="field-help">
@@ -229,7 +217,7 @@ async function submit() {
               :max="field.max"
               :step="field.step"
               required
-              :disabled="submitting"
+              :disabled="locked"
             /><small class="field-help">{{ field.hint }}</small>
           </div>
         </div>
@@ -265,13 +253,26 @@ async function submit() {
           </div>
         </dl>
         <ErrorNotice :error="error" />
+        <ErrorNotice :error="submissionState.error" />
+        <div v-if="submissionState.intent" class="notice" role="status">
+          <div>
+            <strong>{{ submissionState.intent.status === 'accepted' ? '任务已提交' : submissionState.intent.taskId ? '任务已保存，请查询实际状态' : '提交结果待确认' }}</strong>
+            <p v-if="submissionState.intent.taskId" class="mono">{{ submissionState.intent.taskId }}</p>
+            <p v-else>请保留本次提交。确认原提交会使用相同配置和去重键，不会重新派发已保存的任务。</p>
+            <small class="mono">去重键：{{ submissionState.intent.key }}</small>
+            <a v-if="submissionState.intent.taskId" class="button secondary" href="#tasks">查看原任务</a>
+            <button v-else class="button secondary" type="button" :disabled="submitting || !supports('/tasks', 'post')" @click="taskSubmission.confirm()">确认原提交</button>
+            <button class="text-button" type="button" :disabled="submitting" @click="taskSubmission.newTask()">{{ submissionState.intent.status === 'uncertain' ? '放弃跟踪并准备新任务（可能重复）' : '准备新的训练任务' }}</button>
+          </div>
+        </div>
+        <p v-if="submissionState.storageWarning" class="field-help" role="status">浏览器无法保存提交记录，请在刷新或关闭前记下任务编号和去重键。</p>
         <p v-if="feedback" class="notice success-notice" role="status">
           {{ feedback }}
         </p>
         <button
           class="button primary full-width"
           type="submit"
-          :disabled="!canSubmit || submitting"
+          :disabled="!canSubmit || submitting || Boolean(submissionState.intent)"
         >
           <AppIcon name="plus" />{{
             submitting ? "正在提交…" : "提交训练任务"

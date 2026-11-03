@@ -2336,3 +2336,7 @@ tr:last-child td {
 .table-scroll td small {
   color: #738477;
 }
+.task-progress-label {
+  display: block;
+  margin-top: 6px;
+}

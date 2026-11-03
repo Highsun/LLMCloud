@@ -21,28 +21,26 @@ npm run dev
 - 所有页面可以在后端离线时浏览，不填充虚构数据、任务状态或训练指标。
 - 数据集实现 multipart 上传、真实传输进度、取消等待、错误明细、请求编号、分页、只读详情。上传只发送 file 和可选 name，不在浏览器中另写 JSONL 扫描器，内容以共享服务端校验为准。
 - 上传成功需要收到 201 和资源 ID。成功后重新读取第一页；网络中断、超时、取消或异常响应不自动重传，提示先核对列表。传输 100% 不表示校验或入库完成。
-- LoRA 表单遵循现有 TrainingConfig 范围和默认值，可独立导出配置草稿。没有选择实际数据集时，草稿的 dataset_id 为空，不能直接当作有效任务请求。页面切换保留待上传文件、配置和推理输入，刷新页面会清空；不持久化训练正文或生成记录。
+- LoRA 表单遵循现有 TrainingConfig 范围和默认值，可独立导出配置草稿。没有选择实际数据集时，草稿的 dataset_id 为空，不能直接当作有效任务请求。任务提交发送 UUIDv4 Idempotency-Key，只读取 TaskDetail.id；当前标签页的 sessionStorage 保存最近提交的键、配置快照与任务 ID，刷新可恢复原提交。待上传文件、未提交草稿与推理输入仍不跨刷新保存，不保存训练正文或生成记录。
 - 工作台读取运行时 `/openapi.json` 判断接口是否存在，再启用相应操作。健康检查只表示 API 进程存活，模型目录只表示允许的模型，不展示推测的 GPU/Redis 状态。
-- 任务列表支持 ALL/五状态服务端筛选、分页、刷新与每 2 秒轮询；切状态回第一页，后续查询保留当前状态和页码。使用 AbortController 与请求序号隔离旧成功/错误/finally；切出任务页停止轮询并取消查询，浏览器页面隐藏时暂停。详情、Loss、日志和 Adapter 下载保留原有入口，其真实接通仍待对应阶段；不支持取消训练、重试训练或恢复训练。
+- 任务列表支持 ALL/五状态服务端筛选、分页、刷新与每 2 秒轮询；切状态回第一页，后续查询保留当前状态和页码。使用 AbortController 与请求序号隔离旧成功/错误/finally；切出任务页停止轮询并取消查询，浏览器页面隐藏时暂停。详情只读取正式 config，显示真实步数、null 进度、错误码/说明与时间；COMPLETED/FAILED 停止详情自动查询，仍可手动刷新。Loss、日志、下载和推理按运行时能力继续禁用；不支持取消训练、重训或恢复训练。
 - 推理页面仅选择任务列表当前页中 COMPLETED 的任务，提交 task_id、prompt、max_new_tokens；409 显示 GPU 忙。前端提示词限制 8000 字符、输出限制 1–512 tokens 是当前界面限制，须在 M5 对照正式接口确认。基础模型对照为明确标识的手动记录，不伪造第二次模型调用。
 
-已同步成员 A 的 M1-03 数据集 HTTP 实现。启动 API 后，工作台通过运行时 OpenAPI 发现上传、列表和详情接口；M1-04 已于 2026-10-22 补齐基本浏览器功能验收，M1-05 故障联调与 CPU CI 已完成。M3–M5 接入前，任务与推理入口不可提交。接口公开并不证明真实训练或 GPU 能力已通过验收，本次仅交付前端。
+已同步成员 A 的 M1 数据集 HTTP 与 M3 任务 HTTP 实现。2026-11-03 补齐 M3-05 提交/详情和真实 HTTP 浏览器交互；M3-04 Worker 已由 A 审查合入。接口公开与 CPU 浏览器检查不证明 GPU 训练通过，真实 Redis/GPU 串行及中断恢复仍待 M3-07。
 
 ## M3–M5 联调约定
 
-2026-11-02 后端接续：M3-03 已注册真实任务创建/列表/详情与运行时 OpenAPI，见 [任务 API 契约](../docs/api/tasks.md)。下面首版交付记录中的“任务接口尚未发布”是当时状态；当前可以对接 HTTP。列表代码可消费新接口，完整 M3-05 仍需 B 补 Idempotency-Key、error.task_id 和提交不确定性处理，按正式 TaskDetail/config 收敛读取。Worker/GPU 执行仍待 M3-04/07，API 202 不代表训练完成；Loss/日志/下载和推理能力仍不可用。本次只更新此交接说明，未改前端源代码。
+M3 的分工和验收见 [完整开发计划](../docs/m3-development-plan.md)，正式请求/响应见 [任务 API](../docs/api/tasks.md)。M3-05 在原有列表交付上补齐：有 error.task_id 时只查询原任务；网络中断等没有 ID 的不确定结果不自动重发，用户可点击“确认原提交”，使用冻结的配置与原键调用服务端去重。若原记录存在，服务端返回 200 且不重新派发；若未保存，则此请求才创建任务。只有明确点击准备新任务才清除意图，下一次提交生成新键；放弃未知提交会提示可能重复。
 
-M3 的任务分配、交接与验收统一见 [完整开发计划](../docs/m3-development-plan.md)。2026-11-02 已完成成员 B 的 M3-05 列表基础交付：ALL/五状态服务端筛选、切状态回首页、分页/轮询保留筛选及旧响应隔离。当前任务 HTTP 尚未发布，产品仍按运行时能力探测启用；独立测试使用生成契约样例与隔离网络替身，不代表真实后端接通。测试命令、覆盖范围及未来浏览器验收步骤见 [列表测试说明](testing/m3-task-list.md)。
+提交前先保存意图，响应后保存任务 ID。刷新不会 POST，进入任务页可自动查询最近提交的 ID；存储不可用时显示保存提醒。sessionStorage 仅覆盖当前标签页会话，不提供跨设备或关闭标签页后的恢复。列表保留原有筛选/分页/竞态保护，历史小交付说明见 [列表测试](testing/m3-task-list.md)，本次完整接通证据见 [B 交付日志](../docs/worklogs/2026-11-03-m3-05-b.md)。共享入口/计划由 A 收录该日志，不代改 A 文件。
 
-M3-01 共享契约核对合入后，B 再按 Protocol 做 M3-04 Worker，随后补齐 05 的提交去重键、专用 error.task_id、TaskDetail/config、空进度与真实接通。真实仓储装配及最终 Redis/GPU/浏览器验收须与 A 配合；列表小交付不代表 05 已完成。不要修改后端/SQL 或另写 Trainer；Loss/日志/下载和推理留给 M4/M5，运行时未支持的操作继续禁用，不在 API 出错后回退 mock。
-
-数据集严格按 `../docs/api/datasets.md` 实现。任务/指标/日志/推理目前只有规划，以下是隔离在前端适配层中的暂定读取方式，需等后端正式 Schema 完成后再联调，不构成新增共享契约：
+以下为当前读取方式；M4/M5 尚未发布的字段仍须在其阶段按正式契约调整：
 
 | 接口                   | 当前前端读取                                                                                                         |
 | ---------------------- | -------------------------------------------------------------------------------------------------------------------- |
 | GET tasks              | 分页对象 items、total；发送 page、page_size=20                                                                       |
-| POST tasks             | dataset_id、base_model、config；读取 id 或 task_id                                                                   |
-| GET tasks/{id}         | id、status、current_step、total_steps、created_at、started_at、finished_at、error_message、config 或 training_config |
+| POST tasks             | dataset_id、base_model、config；发送 Idempotency-Key，读取 id；专用提交错误读取 error.task_id                           |
+| GET tasks/{id}         | id、status、current_step、total_steps、progress、created_at、started_at、finished_at、error_code、error_message、config |
 | GET tasks/{id}/metrics | 数组或 items 数组；每项 step、loss，增量查询 after_step                                                              |
 | GET tasks/{id}/logs    | lines 字符串数组、logs 字符串或 JSON 字符串，查询 tail=100                                                           |
 | GET tasks/{id}/adapter | 成功时读取 Blob 并保存 ZIP，错误仍解析统一 ErrorResponse                                                             |
@@ -54,7 +52,7 @@ M3-01 共享契约核对合入后，B 再按 Protocol 做 M3-04 Worker，随后�
 
 `npm test` 检查错误语义、断网/超时与不重复 POST、FormData 字段、上传结果不确定性、参数边界、各页面无后端时的服务端渲染、HTML 转义、能力发现与真实 Loss 绘制。测试中的网络和数据为隔离替身，不出现在产品界面。
 
-这些检查不替代真实浏览器视觉验收、真实 HTTP 联调或 GPU 训练。M1-04 已验证数据集浏览器上传/列表/详情；M1-05 故障验收已完成，任务与推理等待对应后端阶段。
+浏览器检查使用真实 TCP API、运行时 OpenAPI、临时 SQLite 与数据文件；Publisher 是仅测试使用的受控替身，进度/失败事件显式标记为合成事件。确认丢失用真实 POST 保存后丢弃响应，再验证同键找回原任务。不会启动业务 Redis、Worker 或 GPU，也不向产品注入模拟任务。M3-07 仍须用真实 Redis/Worker/GPU 完成服务链路验收。
 
 2026-10-21：前端初次交付时，18 项自动检查与生产构建通过，受保护的后端/调度/训练/共享文档无修改。浏览器工具的访问策略阻止本地页面读取，因此未完成浏览器视觉验收与真实服务联调。同日正常合并成员 A 的 M1-03 更新后，再次通过全部 18 项检查与生产构建；同步记录见 docs/worklogs/2026-10-21-m1-04-frontend.md。
 
@@ -73,7 +71,7 @@ npm run test:e2e
 
 已有浏览器依赖时可只运行 `npx playwright install chromium`。中文截图另需系统中文字体。仅使用 npm test/build 不需要浏览器或新增系统依赖。
 
-浏览器测试自动启动独立 API（18000）及 Vite（15173），API 使用临时 SQLite/文件目录，退出清理；端口被占用时直接报错，不复用业务实例。报告、截图和 trace 输出到被 Git 忽略的 test-results。取消与并发测试仅延迟真实 API 的响应，不向产品添加 mock 数据。需要回归特定场景可运行 `npm run test:e2e -- --grep 移动端`。
+浏览器测试自动启动独立 API（18000）及 Vite（15173），API 使用临时 SQLite/文件目录，退出清理；端口被占用时直接报错，不复用业务实例。API 启动器为 testing/serve_task_api.py，仅这个测试进程安装控制路由，生产 create_app 不变。默认用 uv run --locked python；可用 LLMCLOUD_TEST_PYTHON 指定已同步锁定依赖的 Python 命令，用 PLAYWRIGHT_CHANNEL=chrome 使用本机 Chrome。报告、截图和 trace 输出到被 Git 忽略的 test-results。需要只回归 M3 可运行 `npm run test:e2e -- tasks.spec.mjs`。
 
 
 ## M1-05 故障回归

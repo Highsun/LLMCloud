@@ -7,6 +7,7 @@ import {
   loadTasks,
   pollTasks,
   selectTaskStatus,
+  submissionState,
   supports,
   taskStates,
   workspace,
@@ -16,10 +17,11 @@ import EmptyState from "./EmptyState.vue";
 import ErrorNotice from "./ErrorNotice.vue";
 import LossChart from "./LossChart.vue";
 import { createTaskPolling } from "../task-polling";
+import { progressLabel, validateTaskDetail } from "../task-detail";
 
 const filter = computed(() => workspace.taskStatus);
 const selected = ref(null);
-const tab = ref("metrics");
+const tab = ref("config");
 const metrics = ref([]);
 const logs = ref("");
 const detailError = ref(null);
@@ -38,6 +40,7 @@ const stateOf = (status) =>
   taskStates[status] || { label: status || "未知", tone: "neutral" };
 
 async function readDetail(id, isNew = false) {
+  if (!supports('/tasks/{task_id}')) return;
   if (detailLoading.value && !isNew) return;
   detailController?.abort();
   detailController = new AbortController();
@@ -56,7 +59,7 @@ async function readDetail(id, isNew = false) {
   try {
     const data = await request(`/tasks/${encodeURIComponent(id)}`, { signal });
     if (current !== sequence || !alive) return;
-    selected.value = data;
+    selected.value = validateTaskDetail(data, id);
     detailError.value = null;
     const after = metrics.value.length
       ? Math.max(...metrics.value.map((point) => point.step))
@@ -131,7 +134,12 @@ const taskPolling = createTaskPolling({
 function updatePolling() {
   if (polling.value && !document.hidden) taskPolling.start();
   else taskPolling.stop();
-  if (document.hidden) cancelTaskRequest();
+  if (document.hidden) {
+    cancelTaskRequest();
+    ++sequence;
+    detailController?.abort();
+    detailLoading.value = false;
+  }
 }
 async function download() {
   if (downloading.value || selected.value?.status !== "COMPLETED") return;
@@ -162,6 +170,10 @@ onMounted(() => {
   updatePolling();
 });
 watch(polling, updatePolling);
+watch(() => supports('/tasks/{task_id}'), (available) => {
+  if (available && submissionState.intent?.taskId && !selected.value)
+    readDetail(submissionState.intent.taskId, true);
+}, { immediate: true });
 onBeforeUnmount(() => {
   alive = false;
   sequence++;
@@ -184,6 +196,10 @@ onBeforeUnmount(() => {
     >
   </div>
   <section class="panel">
+    <p v-if="submissionState.intent?.taskId" class="field-help">
+      最近提交：<span class="mono">{{ submissionState.intent.taskId }}</span>
+      <button class="text-button" :disabled="!supports('/tasks/{task_id}')" @click="readDetail(submissionState.intent.taskId, true)">查询原任务</button>
+    </p>
     <div class="task-toolbar">
       <div class="segmented" aria-label="按状态筛选任务">
         <button
@@ -259,11 +275,12 @@ onBeforeUnmount(() => {
               >
             </td>
             <td>
-              {{ task.current_step ?? "—" }} / {{ task.total_steps || "—" }}
+              {{ task.current_step ?? "—" }} / {{ task.total_steps ?? "—" }}
+              <small>{{ progressLabel(task) }}</small>
             </td>
             <td>{{ formatDate(task.created_at) }}</td>
             <td>
-              <button class="text-button" @click="readDetail(task.id, true)">
+              <button class="text-button" :disabled="!supports('/tasks/{task_id}')" @click="readDetail(task.id, true)">
                 查看详情<AppIcon name="chevron" size="14" />
               </button>
             </td>
@@ -350,13 +367,16 @@ onBeforeUnmount(() => {
       </button>
     </div>
     <ErrorNotice :error="detailError" />
+    <p v-if="detailLoading" class="field-help" role="status">正在读取任务详情…</p>
+    <button class="text-button" :disabled="detailLoading || !supports('/tasks/{task_id}')" @click="readDetail(selected.id)">刷新任务详情</button>
     <div v-if="selected.status" class="detail-stats">
       <div>
         <span>训练步数</span
         ><strong
           >{{ selected.current_step ?? "—" }}
-          <small>/ {{ selected.total_steps || "—" }}</small></strong
+          <small>/ {{ selected.total_steps ?? "—" }}</small></strong
         >
+        <small class="task-progress-label">{{ progressLabel(selected) }}</small>
       </div>
       <div>
         <span>最新 Loss</span
@@ -377,8 +397,8 @@ onBeforeUnmount(() => {
         }}</strong>
       </div>
     </div>
-    <p v-if="selected.error_message" class="notice error-notice" role="alert">
-      {{ selected.error_message }}
+    <p v-if="selected.error_code || selected.error_message" class="notice error-notice" role="alert">
+      <strong>{{ selected.error_code }}</strong> {{ selected.error_message }}
     </p>
     <div class="tabs" role="tablist" aria-label="任务详情">
       <button
@@ -392,6 +412,7 @@ onBeforeUnmount(() => {
         role="tab"
         :aria-selected="tab === value"
         :class="{ active: tab === value }"
+        :disabled="value !== 'config' && !supports(`/tasks/{task_id}/${value}`)"
         @click="tab = value"
       >
         {{ label }}
@@ -415,7 +436,7 @@ onBeforeUnmount(() => {
       >
       <pre v-else class="config-snapshot">{{
         JSON.stringify(
-          selected.config || selected.training_config || {},
+          selected.config || {},
           null,
           2,
         )
@@ -424,7 +445,9 @@ onBeforeUnmount(() => {
     <ErrorNotice :error="downloadError" />
     <div class="panel-footer">
       <span>{{
-        selected.status === "COMPLETED"
+        !supports('/tasks/{task_id}/adapter')
+          ? "Adapter 下载将在产物接口就绪后开放。"
+          : selected.status === "COMPLETED"
           ? "训练已完成，可下载服务端校验通过的产物。"
           : "仅完成的任务可下载 Adapter。"
       }}</span

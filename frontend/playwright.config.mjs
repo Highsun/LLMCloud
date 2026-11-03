@@ -10,13 +10,14 @@ export default defineConfig({
   use: {
     baseURL: "http://127.0.0.1:15173",
     browserName: "chromium",
+    channel: process.env.PLAYWRIGHT_CHANNEL || undefined,
     viewport: { width: 1440, height: 1000 },
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   webServer: [
     {
-      command: "uv run --locked python scripts/serve_test_api.py --port 18000 --faults",
+      command: `${process.env.LLMCLOUD_TEST_PYTHON || "uv run --locked python"} frontend/testing/serve_task_api.py --port 18000 --faults`,
       cwd: "..",
       url: "http://127.0.0.1:18000/api/v1/health",
       reuseExistingServer: false,

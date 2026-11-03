@@ -1,5 +1,14 @@
 import { reactive } from "vue";
 import { ApiError, baseUrl, getHealth, request } from "./api";
+import { createTaskSubmission } from "./task-submission";
+
+export const submissionState = reactive({});
+let submissionStorage;
+try { submissionStorage = globalThis.sessionStorage; } catch { /* UI reports unavailable storage. */ }
+export const taskSubmission = createTaskSubmission({
+  state: submissionState, request, storage: submissionStorage,
+  storageKey: `llmcloud:task-submission:${baseUrl}`,
+});
 
 export const workspace = reactive({
   health: null,
