@@ -1,6 +1,6 @@
 # M3 任务 API 契约
 
-更新：2026-11-02；契约 1.0.0。M3-03 已实现任务创建/列表/详情 HTTP、请求去重和真实 Redis/Celery Publisher；[任务 OpenAPI](tasks.openapi.json) 从实际 app.openapi() 导出。类型使用与迁移见 [共享契约](../contracts/tasks.md)，总计划见 [M3 开发计划](../m3-development-plan.md)。Worker 执行/单实例保护尚待 B 的 M3-04；HTTP 已发布不表示 GPU 训练链路已经联调通过。
+更新：2026-11-03；契约 1.0.0。M3-03 已实现任务创建/列表/详情 HTTP、请求去重和真实 Redis/Celery Publisher；[任务 OpenAPI](tasks.openapi.json) 从实际 app.openapi() 导出。M3-04 Worker/公共锁已合入并完成真实 Redis 缺缓存 CPU 消费检查，GPU 和完整页面仍待 05/07。类型与分工见 [共享契约](../contracts/tasks.md)、[完整计划](../m3-development-plan.md) 和 [Worker](../worker.md)。
 
 ## 接口与输入
 
@@ -119,11 +119,11 @@ CeleryPublisher 使用独立客户端，以 worker.train 名称发送 args=[task
 
 accepted 后仅条件更新仍 PENDING 为 QUEUED，再重读真实 TaskDetail；若快 Worker 已 RUNNING/终态，直接保留。not_sent 仅在本次确实把仍 PENDING 改为 FAILED 后返回 DISPATCH_FAILED；若已有领取/终态等矛盾结果，保守返回 DISPATCH_UNCERTAIN。unknown 或发布确认后的状态写入/查询失败返回带原 ID 的 503，暂态诊断写入失败也不丢弃 ID，不覆盖 RUNNING/终态。
 
-数据库在创建完成确认前失败时可能没有可用任务 ID，返回通用 DATABASE_UNAVAILABLE，且不发布消息。同一去重键之后可读取已提交记录，但不会自动补发；M3-06 已提供 [离线对账/显式处置工具](../task-reconciliation.md)，真实 Worker 的共享锁接入/退出验收仍待 04/07。这是无 outbox/自动重投 MVP 的已知边界。
+数据库在创建完成确认前失败时可能没有可用任务 ID，返回通用 DATABASE_UNAVAILABLE，且不发布消息。同一去重键之后可读取已提交记录，但不会自动补发；M3-06 已提供 [离线对账/显式处置工具](../task-reconciliation.md)，共享锁已由实际 Worker 复用并经 CPU 互斥/停止释放检查，GPU 退出恢复仍待 07。这是无 outbox/自动重投 MVP 的已知边界。
 
 ## 运行与验证
 
-服务按根 README 启动；先上传数据取得 dataset_id，再按上述 JSON 提交。无 Worker 时接受发布的任务保持 QUEUED，不能把 HTTP 202 当作训练成功。当前 worker.train 仍占位；真实训练和队列消费应等 M3-04 完成后联调，不能用旧诊断 Worker 冒充可训练 Worker。
+服务按根 README 启动；先上传数据取得 dataset_id，再按上述 JSON 提交。无 Worker 时接受发布的任务保持 QUEUED，不能把 HTTP 202 当作训练成功。worker.train 已由 M3-04 实现，生产 Worker 的真实 Redis 缺缓存 CPU 消费已通过；真实 GPU 训练仍待 07，Celery ping 或该 CPU 路径不能代替训练成功。
 
 ```bash
 uv run --locked python scripts/export_task_openapi.py --check

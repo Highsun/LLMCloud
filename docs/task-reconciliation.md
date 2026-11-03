@@ -1,6 +1,6 @@
 # M3-06 离线任务对账
 
-更新：2026-11-02。A 侧 CLI、SQL 条件更新、CPU 产物审计与共享进程锁原语已独立验收。真实 Celery Worker 的锁接入、直接入口拒绝第二实例及 GPU 退出后的联合验收仍待 B 的 M3-04/M3-07；当前 worker.train 仍占位。相关依据：[完整计划](m3-development-plan.md)、[共享契约](contracts/tasks.md)、[存储与迁移](task-storage.md)。
+更新：2026-11-03。A 侧 CLI、SQL 条件更新、CPU 产物审计及公共锁已交付；M3-04 已接入标准/直接 Celery 入口，真实生产 Worker 的锁互斥/停止释放 CPU 冒烟通过。GPU 中断及成功产物遗留恢复仍待 07。依据：[完整计划](m3-development-plan.md)、[共享契约](contracts/tasks.md)、[Worker](worker.md) 和 [审查日志](worklogs/2026-11-03-m3-04-a-review.md)。
 
 ## 什么时候使用
 
@@ -24,7 +24,7 @@ uv run --locked python scripts/reconcile_tasks.py --apply --services-stopped
 uv run --locked python scripts/reconcile_tasks.py --check
 ```
 
---services-stopped 是操作者对实际停机的声明，不会自动停进程，也不是工具检测到全部服务已停止的证明。还必须取得下述实例锁；若有活进程持锁，工具拒绝应用。当前 B 尚未接入锁，不能仅凭“锁空闲”证明旧诊断 Worker 已停止；真实服务环境应用及联合验收须先完成 B 的锁接入。
+--services-stopped 是操作者对实际停机的声明，不会自动停进程，也不是工具检测到全部服务已停止的证明。还必须取得下述实例锁；若有活进程持锁，工具拒绝应用。04 已接入公共锁，实际生产 Worker 持锁时工具已验证拒绝应用；锁空闲仍不能证明 API 或绕过协议的手工 GPU 程序已经停止，应用前必须实际确认。
 
 默认检查全部任务，只修改非终态。可重复指定 --task-id UUIDv4 缩小范围；任一指定 ID 不存在则阻塞该次应用。--database-url、--data-dir、--log-dir 可覆盖 Settings/.env 默认值，路径按项目现有 Settings 规则解析。多份 checkout 必须指向同一业务数据库、数据根和实际共享锁位置，不能用各自默认目录替代。
 
@@ -45,7 +45,7 @@ uv run --locked python scripts/reconcile_tasks.py --check
 
 ## 锁交接给 B
 
-A 新增唯一公共原语 backend.app.core.worker_lock.WorkerInstanceLock(log_dir)，固定锁文件 LOG_DIR/worker.lock。B 的 worker/instance_lock.py 应复用它，负责标准启动入口和 Celery worker_init/退出钩子的生命周期装配；A 本次没有修改任何 worker 文件。
+A 新增唯一公共原语 backend.app.core.worker_lock.WorkerInstanceLock(log_dir)，固定锁文件 LOG_DIR/worker.lock。B 的 worker/instance_lock.py 已在 Linux 复用它，并接入标准启动及 Celery worker_init/退出钩子。A 正式审查未修改 B 的 Worker 运行代码。
 
 ```python
 from backend.app.core.worker_lock import WorkerInstanceLock
@@ -57,7 +57,7 @@ instance_lock.acquire()  # 非阻塞；WorkerLockBusy 必须终止启动，而�
 
 同一个 handle 的 acquire 可重复调用；同一进程创建第二个 handle 也会竞争。两个启动入口应共用同一 handle，避免自行竞争或只持锁到启动函数返回。禁止删除/替换锁文件；重复进程必须争用同一 inode。原语拒绝链接/硬链接的锁文件，进程退出由 OS 关闭描述符释放锁，锁文件保留。单机/同 LOG_DIR 是前提，锁不探测 API、其他机器、绕过锁的手工训练或全部外部 GPU 程序。
 
-B 交付时需要明确确认路径与原语，分别实测标准脚本和直接 Celery 入口拒绝第二实例。独立替身/子进程锁测试不能当作已经完成这两条真实 Worker 接入。
+M3-04 已确认路径与原语，本机回归实测标准 python -m worker 和直接 Celery 入口拒绝第二实例；实际消费进程与对账 CLI 互斥也已通过。GPU 训练中断后的恢复仍须另验收。
 
 ## 并发、日志和失败语义
 
@@ -84,4 +84,4 @@ B 交付时需要明确确认路径与原语，分别实测标准脚本和直接
 
 25 项新增检查、共 283 项 CPU/HTTP 回归通过。覆盖真实 SQLite、共享 CPU 审计器与明确标记的合成 safetensors bundle、状态保护、快照/文件变化、提交回滚/确认丢失、审计写入失败、CLI 和冷导入。真实子进程持锁并领取 SQL 任务时应用被拒绝，受控 os._exit(17) 后可取锁结束遗留任务；该进程没有运行 Celery/Trainer/GPU。
 
-本机业务库只执行 --check，结果 current/items=[]，未应用任何修复。真实 Celery/GPU Worker 的退出/成功产物遗留与重新启动消费仍须在 M3-04/07 验证。完整记录见 [M3-06 A 侧日志](worklogs/2026-11-02-m3-06-a.md)。
+本机业务库只执行 --check，结果 current/items=[]，未应用任何修复。2026-11-03 已补充生产 Celery Worker 的实际锁互斥/停止释放 CPU 检查；GPU 退出/成功产物遗留与重新启动消费仍须在 07 验证。完整记录见 [M3-06 A 侧日志](worklogs/2026-11-02-m3-06-a.md)。

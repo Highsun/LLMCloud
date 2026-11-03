@@ -8,25 +8,27 @@
 
 ## 一、当前进度
 
-当前完成 **M0 初始化、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3-01 共享代码已交付，待队友核对；M3-02 任务存储已交付，M3-03 任务 HTTP 与真实 Publisher、M3-06 离线对账 A 侧已交付，真实 Worker/共享锁接入待完成。
+当前完成 **M0 初始化、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3-01 契约核对、02 任务存储、03 HTTP/Publisher、04 Worker 独立实现和 06 离线对账已交付。04 已正式审查并合入；05 只有列表基础，真实 GPU/浏览器与完整恢复验收仍待 07。
 
 M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-04 数据管理页面**。成员 B 交付的工作台已接通真实上传、列表与详情，本次补齐局部修复和浏览器验收；M1-05 故障验收与 CPU CI、M1-06 数据方案/划分工具/冻结题也已完成。M1 计划范围已验收，M2 工程闭环也已完成；正式实验语料仍需人工编写和审核。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，项目梳理见 [项目记忆](docs/project-memory.md)，页面接续见 [M1-04 日志](docs/worklogs/2026-10-22-m1-04-integration.md)，故障与 CI 见 [M1-05 日志](docs/worklogs/2026-10-22-m1-05.md)，数据来源/划分/冻结题见 [数据方案](docs/data/README.md) 与 [M1-06 日志](docs/worklogs/2026-10-22-m1-06.md)。
 
-- 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、上传/列表/详情 API 和统一错误、任务创建/查询与 Redis 派发、FastAPI 健康检查与模型目录、Celery Worker 配置及连通性诊断任务、Vue3 工作台与数据集页面。
+- 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、上传/列表/详情 API 和统一错误、任务创建/查询与 Redis 派发、FastAPI 健康检查与模型目录、Celery Worker 编排及实例锁、Vue3 工作台与数据集页面。
 - 已定义：数据集格式、训练参数校验、训练输入/输出及进度回调接口、任务状态、后续 API 契约。
-- 待开发：正式语料编写/审核、真实 Worker 执行及完整任务页面接通、日志与 Loss 页面展示、Adapter 下载、模型推理。
+- 待开发/验收：正式语料编写/审核、完整任务页面接通与异步 GPU 验收、日志与 Loss 页面展示、Adapter 下载、模型推理。
 
-`trainer.train` 已实现真实单 GPU LoRA 与独立 CLI，`worker.train` 仍是明确报错的占位，任务 HTTP/派发已由 M3-03 接通，真实 Worker 执行仍待 M3-04。训练与推理界面依照运行时 OpenAPI 控制操作，尚未实现的服务不可提交。
+`trainer.train` 已实现真实单 GPU LoRA 与独立 CLI；`worker.train` 已接入真实 SQL/原 Trainer，使用同源回调和产物审计。真实 Redis 的缺缓存 CPU 消费已通过，尚未验收异步 GPU 训练。前端按运行时 OpenAPI 控制操作，完整提交/详情/去重处理待 B 补齐 M3-05。
 
 **M2 单机真实 LoRA 工程闭环已验收**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成；任务 HTTP/Celery 接入属于 M3。
 
-**M3 协作开发入口**：[完整开发计划](docs/m3-development-plan.md)（第三节可直接分配任务）、[共享契约 1.0.0](docs/contracts/tasks.md) 和 [任务 API 契约](docs/api/tasks.md)。M3-01 的 CPU 类型/Protocol/生成样例及迁移清单已交付，B 核对待完成；M3-02 [任务存储与迁移](docs/task-storage.md)已交付，M3-05 列表基础已由 B 交付；M3-03 任务 HTTP/Publisher 与 M3-06 [离线对账](docs/task-reconciliation.md) A 侧已独立验收。A 独立主线已交付，B 完整核对 01 及公共锁原语后做 04 → 补齐 05，最后共同做 06 真实 Worker 接入及 07 联调。预计总计 20 人时加 4 人时缓冲。
+**M3 协作开发入口**：[完整开发计划](docs/m3-development-plan.md)、[共享契约 1.0.0](docs/contracts/tasks.md)、[任务 API](docs/api/tasks.md)、[Worker](docs/worker.md) 和 [离线对账](docs/task-reconciliation.md)。M3-01 已完成 A/B 核对，M3-04 的 146d60b 已经正式审查和本机 328 项回归后合入；详情见 [审查日志](docs/worklogs/2026-11-03-m3-04-a-review.md)。下一步 B 补齐 05 的提交/详情/去重及真实接通，双方做 07 的 GPU 串行、故障恢复和浏览器联调。
 
 任务类型/样例只读检查：`uv run --locked python scripts/export_task_contract.py --check`；重新生成时去掉 `--check`。此命令输出 JSON Schema 与明确标记的 [mock 样例](docs/examples/tasks/README.md)。真实任务路由已实现，运行时 OpenAPI 另用 `uv run --locked python scripts/export_task_openapi.py --check` 检查；仅导出类型样例不能代替 HTTP/Worker 验收。
 
-M3-03 真实派发冒烟：`uv run --locked python scripts/check_task_http.py`（需 redis-server）。自动使用临时 Redis/SQL/文件和 TCP API，验证 202/200 去重、真实消息、入队后受控确认丢失及 Broker 停止，不启动 Worker/GPU、不使用业务队列。当前旧 worker.train 仍占位，真实训练应等待 M3-04；API 202/QUEUED 仅表示已接受派发，未表示训练成功。
+M3-03 真实派发冒烟：`uv run --locked python scripts/check_task_http.py`（需 redis-server）。自动使用临时 Redis/SQL/文件和 TCP API，验证 202/200 去重、真实消息、入队后受控确认丢失及 Broker 停止，不启动 Worker/GPU、不使用业务队列。worker.train 已由 M3-04 实现，真实 GPU 链路仍待 M3-07；API 202/QUEUED 仅表示已接受派发，未表示训练成功。
 
-离线对账只读入口：`uv run --locked python scripts/reconcile_tasks.py --check`。显式应用前先停 API/全部 Worker，再使用 `--apply --services-stopped`，必须取得共享实例锁。B 尚需按 [对账说明](docs/task-reconciliation.md) 接入 `LOG_DIR/worker.lock`；当前子进程检查不代表真实 Worker/GPU 已通过，不能只凭旧 Worker 没持锁就断定可以修复。
+M3-04 CPU 消费冒烟：`uv run --locked python scripts/check_worker_dispatch.py`（需 redis-server）。使用临时 API/Redis/SQLite、实际生产 Worker、隔离内存结果后端及空缓存，检查 MODEL_NOT_CACHED、重复消息跳过和真实 Worker/对账锁互斥；禁用 GPU，不接触业务队列/缓存。
+
+离线对账只读入口：`uv run --locked python scripts/reconcile_tasks.py --check`。显式应用前先停 API/全部 Worker，再使用 `--apply --services-stopped`，必须取得共享实例锁。M3-04 已接入 `LOG_DIR/worker.lock`，活 Worker 阻止修复和停止后锁释放已实测；锁不能代替操作者确认全部服务和手工 GPU 程序已停止。
 
 需求与验收标准见 [docs/requirements.md](docs/requirements.md)，模块设计见 [docs/architecture.md](docs/architecture.md)，实验记录模板见 [docs/experiment.md](docs/experiment.md)。两人八周开发安排、分工和阶段验收见 [docs/project-plan.md](docs/project-plan.md)。
 
@@ -80,8 +82,10 @@ LLMCloud/
 │   ├── lora_config.py          # 训练参数契约
 │   └── requirements.txt        # 含训练依赖的兼容导出
 ├── worker/
-│   ├── celery_app.py
-│   └── tasks.py
+│   ├── celery_app.py            # solo/单并发与启动钩子
+│   ├── execution.py             # 仓储/Trainer/审计编排
+│   ├── instance_lock.py         # 公共锁生命周期适配
+│   └── tasks.py                 # task_id → SQL 快照 → 原 Trainer
 ├── frontend/
 │   ├── app.py                  # npm 开发服务器的 Python 辅助启动入口
 │   ├── package.json

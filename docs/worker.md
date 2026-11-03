@@ -2,6 +2,8 @@
 
 本模块按任务共享契约 1.0.0 编排现有 Trainer，不实现 SQL、HTTP、模型下载或第二套指标写入。入口为 `worker.execution.execute_training(task_id, repository, settings, train_fn)`；只依赖可注入的仓储/设置/训练函数。生产 Celery 任务名仍为 `worker.train`，消息 args 仅包含规范 UUIDv4 的 task_id。
 
+2026-11-03 接续：146d60b 已经 A 正式审查、本机 328 项回归后快进合入。实际 Redis/生产 Worker 的缺缓存 CPU 消费、重复消息跳过和对账锁互斥也已通过；完整 GPU/浏览器验收仍待 M3-07。记录见 [审查日志](worklogs/2026-11-03-m3-04-a-review.md)。
+
 ## 执行和状态
 
 1. 生成每次领取独立的 claim_token 和 worker_id，调用 repository.claim。未领取即 skipped，不访问数据/模型/GPU，不创建或清理旧任务目录。存储异常为 reconciliation_required，不冒充重复消息。
@@ -67,4 +69,12 @@ Windows 未开启符号链接权限时，对应两项新检查明确跳过；另
 - 临时 SQLite + 合成 CPU 产物：真正调用 A 提供的 SqlTaskRepository，核对成功、重复、失败保留步数、提交前回滚/提交后确认丢失和 Celery 任务装配。
 - OS 进程与 Celery：锁互斥、进程被杀后释放、标准入口/直接 Celery 拒绝第二实例、真实 Celery 安全配置首次初始化可通过、信号异常不能被吞掉。
 
-测试中的缓存/训练替身和合成 safetensors 不代表真实模型训练或重载成功。所有数据库、数据文件、锁、产物只在临时目录；不触碰业务库。真实 Redis 消费、两个 GPU 任务串行、故障恢复和浏览器端到端仍属于 M3-07。
+测试中的缓存/训练替身和合成 safetensors 不代表真实模型训练或重载成功。所有数据库、数据文件、锁、产物只在临时目录；不触碰业务库。两个 GPU 任务串行、训练中断恢复和浏览器端到端仍属于 M3-07。
+
+## 真实 Redis/生产 Worker 的 CPU 冒烟
+
+```bash
+uv run --locked python scripts/check_worker_dispatch.py
+```
+
+需 redis-server，自动使用私有 Redis、TCP API、临时 SQLite 和生产 Worker，内存结果后端不连接业务结果存储。空的隔离模型缓存和禁用 CUDA 保证在 MODEL_NOT_CACHED 前置检查结束，验证真实消费、重复消息跳过、活 Worker 拒绝离线对账及服务停止后锁释放。报告明确 gpu_execution_verified=false，不将预期缺缓存失败当作成功训练或 GPU 验收。
