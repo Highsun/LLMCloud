@@ -1,0 +1,12 @@
+{
+  "contract_version": "1.0.0",
+  "task_id": "44444444-4444-4444-8444-444444444444",
+  "task_status": "FAILED",
+  "source_state": "ready",
+  "lines": [
+    "{\"recorded_at\":\"2026-11-04T01:00:01Z\",\"stage\":\"failed\",\"failure\":{\"task_id\":\"44444444-4444-4444-8444-444444444444\",\"code\":\"TRAINING_FAILED\",\"stage\":\"training\"}}"
+  ],
+  "truncated": false,
+  "tail_incomplete": true,
+  "filtered_lines": 1
+}

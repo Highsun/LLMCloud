@@ -57,7 +57,15 @@
         "STORAGE_UNAVAILABLE",
         "DATABASE_UNAVAILABLE",
         "INTERNAL_ERROR",
-        "HTTP_ERROR"
+        "HTTP_ERROR",
+        "METRICS_CURSOR_INVALID",
+        "METRICS_CORRUPTED",
+        "METRICS_UNAVAILABLE",
+        "LOGS_UNAVAILABLE",
+        "ARTIFACT_NOT_READY",
+        "INVALID_ARTIFACT",
+        "ARTIFACT_TOO_LARGE",
+        "DOWNLOAD_BUSY"
       ],
       "title": "ApiErrorCode",
       "type": "string"

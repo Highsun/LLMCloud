@@ -1,0 +1,10 @@
+{
+  "contract_version": "1.0.0",
+  "task_id": "44444444-4444-4444-8444-444444444444",
+  "task_status": "FAILED",
+  "source_state": "not_created",
+  "lines": [],
+  "truncated": false,
+  "tail_incomplete": false,
+  "filtered_lines": 0
+}

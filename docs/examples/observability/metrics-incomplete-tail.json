@@ -1,0 +1,34 @@
+{
+  "contract_version": "1.0.0",
+  "task_id": "44444444-4444-4444-8444-444444444444",
+  "task_status": "FAILED",
+  "source_state": "ready",
+  "source_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "items": [
+    {
+      "contract_version": "1.0.0",
+      "kind": "train",
+      "step": 1,
+      "total_steps": 2,
+      "loss": 1.25,
+      "learning_rate": 0.0002,
+      "epoch": 0.5,
+      "recorded_at": "2026-11-04T01:00:01Z",
+      "offset": 0
+    },
+    {
+      "contract_version": "1.0.0",
+      "kind": "eval",
+      "step": 1,
+      "total_steps": 2,
+      "loss": 1.5,
+      "learning_rate": 0.0002,
+      "epoch": 0.5,
+      "recorded_at": "2026-11-04T01:00:02Z",
+      "offset": 153
+    }
+  ],
+  "next_cursor": 304,
+  "has_more": false,
+  "tail_incomplete": true
+}

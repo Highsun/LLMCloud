@@ -111,7 +111,7 @@ M3-05 已为 request 透传去重头、读取 error.task_id，冻结正文并支
 
 ## M4 规划中的观测与交付
 
-M4 的新观测/下载接口另按 [完整计划](../m4-development-plan.md) 推进，目前只有规划、尚未注册。01 将核对新 DTO、游标/日志/下载错误与生成样例；原 TaskCreate/TaskDetail 和本节派发语义不变。实施时扩展 export_task_openapi.py 对真实已注册子路径的选择，不能只导出原两个路径而漏掉新接口，也不能提前登记空路由。前端旧 after_step/Map(step) 仅为待替换的壳，不能据此固定 M4 契约。
+M4 的 [观测契约 1.0.0](task-observability.md) 和 CPU 类型/常量/格式样例已由 01 A 侧交付，B 消费核对待记录；三个真实路由/文件服务/下载仍未实现。原 TaskCreate/TaskDetail 和派发语义不变。02/03 实施时扩展 export_task_openapi.py 对真实已注册子路径的选择，不能只导出原两个路径而漏掉新接口，也不能提前登记空路由。前端旧 after_step/Map(step) 仍由 04 按新契约替换。
 
 ## Publisher 与失败边界
 

@@ -1,0 +1,23 @@
+{
+  "contract_version": "1.0.0",
+  "task_id": "44444444-4444-4444-8444-444444444444",
+  "task_status": "RUNNING",
+  "source_state": "ready",
+  "source_id": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "items": [
+    {
+      "contract_version": "1.0.0",
+      "kind": "train",
+      "step": 1,
+      "total_steps": 1,
+      "loss": 0.0,
+      "learning_rate": 0.0,
+      "epoch": 1.0,
+      "recorded_at": "2026-11-04T01:00:01Z",
+      "offset": 0
+    }
+  ],
+  "next_cursor": 149,
+  "has_more": false,
+  "tail_incomplete": false
+}

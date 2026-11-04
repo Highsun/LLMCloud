@@ -18,9 +18,9 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成，不能把训练保存成功当作完整 M2 验收。
 
-执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4 详细规划已形成、尚未实施。
+执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4-01 A 侧类型/样例已交付，B 核对待记录，02～07 待实施。
 
-执行 M4 前读 [M4 完整计划](docs/m4-development-plan.md)：规划 1.0 已交付，01～07 均待实施。A 先做 01 类型/边界/生成 fixture，B 核对；B 可先做 04a 纯图表展示（kind/step/loss），契约定稿后继续 04/05。本文中的新接口方案不是已发布能力，不能据此注册空路由或启用假数据。M3 剩余同步人工流程可与 M4-07 同场分别记录。
+执行 M4 前读 [完整计划 1.1](docs/m4-development-plan.md)、[观测契约 1.0.0](docs/api/task-observability.md) 和 [M4-01 日志](docs/worklogs/2026-11-04-m4-01.md)。01 A 侧 CPU 类型/常量、内部完成 DTO/Protocol、生成样例/检查已交付，待 B 消费者核对；02～07 待实施。B 可先做 04a 图表，再按实际类型/fixture 核对和实现 04/05。当前没有指标/日志/下载路由或文件服务，不得把 Schema/样例当真实 OpenAPI 能力。M3 剩余同步人工流程可与 M4-07 同场分别记录。
 
 ## 当前事实与任务边界
 
@@ -76,11 +76,11 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 ### M4 实施时延续的约束
 
 - 分工及验收以 [M4 计划](docs/m4-development-plan.md) 为准：A 主改 CPU 类型/只读仓储投影/文件服务/HTTP/共享文档，B 主改现有曲线、观测/下载控制器和前端测试；01 共同核对，06/07 需要实际配合。
-- 指标必须兼容同 step 的 train/eval；拟用 source_id + 字节 cursor 增量读取、offset 标识完整记录，01 定稿后生成样例。HTTP 包装不修改 M2 TrainingProgress 或原 metrics.jsonl；Trainer 唯一写入，不新增重复数据库指标表。
-- 日志只读任务 JSONL 的有限尾部并按安全字段投影，不转发共享 Worker stdout。指标/日志读取不获取 GPU 实例锁，不加载训练库。新常量/类型/错误上限须同笔更新正式文档及生成样例。
+- 指标使用 01 正式 MetricsQuery/MetricsPage/MetricRecord：source_id + 字节 cursor 增量读取、offset 标识完整行，同 step 的 train/eval 不覆盖，终态空页也合法。类型只校验局部结构，真正文件身份/行边界/扫描预算留给 02。HTTP 包装不修改 M2 TrainingProgress 或原 metrics.jsonl；Trainer 唯一写入，不新增重复数据库指标表。
+- 日志使用 LogsQuery/LogsPage，安全字段常量在 core/observability_contract.py；投影/读取器尚未实现。failure 不透传自由文本 message，说明读取 TaskDetail；filtered_lines 按窗口内修改/丢弃的记录逐行计一次。只读任务有限尾部，不转发共享 Worker stdout、不获取 GPU 锁或加载训练库。新常量/类型/错误上限同笔更新正式文档及生成样例。
 - 下载要求 SQL COMPLETED、固定快照/manifest 哈希与原共享 CPU 审计一致；临时 ZIP 位于独立 DATA_DIR/downloads，不污染原输出目录，只复制已审计文件。响应体/取消清理和实际复制哈希必须验证。
 - B 替换现有 after_step/Map(step) 逻辑；终态还需补齐指标尾页和最终日志。下载先捕获任务 ID，blob 读取期间保持 timeout/abort 有效，任务切换不得污染新任务或文件名。
-- 当前仅规划，M4 未注册路由；实施后从真实 app.openapi() 扩展任务 OpenAPI 导出，原 TaskCreate/TrainingConfig/TaskDetail/Worker 五方法不变。工程格式草稿与受控测试不代表质量提升或真实 GPU 验收。
+- 01 类型生成用 scripts/export_observability_contract.py --check，所有示例均标为 mock；Schema types_only/HTTP not_asserted 不代替运行时能力探测。ApiErrorCode 新增八个观测/下载 code，已有代码及原任务/训练契约不变，相关原 Schema 已重导出。CompletedArtifactRepository 为额外只读 Protocol，SQL 方法待 03，不改 Worker 五方法。02/03 实施后扩展真实任务 OpenAPI，并更新 01 阶段“无 M4 路由”的保护测试预期。工程草稿/受控测试不代表质量提升或 GPU 验收。
 
 ### 共同接口规则
 

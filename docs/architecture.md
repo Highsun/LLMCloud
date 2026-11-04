@@ -130,7 +130,7 @@ stateDiagram-v2
 
 ### M4 规划中的读取与交付链路
 
-[M4 详细计划](m4-development-plan.md) 已登记 01～07，尚未实现新端点。API 查询 SQL 任务身份后，由 CPU 文件服务读取 DATA_DIR/outputs/{UUID}/metrics.jsonl 和 LOG_DIR/tasks/{UUID}.log；不持 GPU 锁、不加载训练库，不修改 Worker/Trainer 写入契约。新 source_id/cursor/offset 方案保留同 step 的 train/eval，日志采用有限尾部和安全字段投影；具体类型/错误在 M4-01 核对定稿。
+[M4 计划 1.1](m4-development-plan.md) 的 01 A 侧 [CPU 观测类型/契约 1.0.0](api/task-observability.md) 已交付，B 核对待记录；以下文件服务和端点仍未实现。API 查 SQL 任务身份后，由 CPU 文件服务读 DATA_DIR/outputs/{UUID}/metrics.jsonl 和 LOG_DIR/tasks/{UUID}.log；不持 GPU 锁、不加载训练库，不修改 Worker/Trainer 写入契约。source_id/cursor/offset 保留同 step 的 train/eval，日志有限尾部/安全字段策略及响应结构已固定，读取/投影执行留给 02。
 
 下载另取完成任务的内部只读快照，复用完整 CPU 审计并比对 SQL manifest 哈希/配置/数据摘要；在独立 DATA_DIR/downloads 临时区域打包，只复制已审计文件，实际复制再核对哈希。不能向原输出目录放 ZIP，不能持有 SQL 事务或 GPU 锁等待下载。单 API 进程的在途下载槽位限制资源，清理覆盖成功/失败/断连；不新增持久下载缓存或数据库列。
 

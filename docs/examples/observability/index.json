@@ -1,0 +1,124 @@
+{
+  "mock": true,
+  "contract_version": "1.0.0",
+  "http_evidence": false,
+  "note": "All IDs/values/bytes are format-only fixtures, not GPU evidence.",
+  "fixtures": {
+    "metrics-query-initial.json": {
+      "model": "MetricsQuery",
+      "usage": "query"
+    },
+    "metrics-query-next.json": {
+      "model": "MetricsQuery",
+      "usage": "query"
+    },
+    "logs-query.json": {
+      "model": "LogsQuery",
+      "usage": "query"
+    },
+    "adapter-query.json": {
+      "model": "AdapterQuery",
+      "usage": "query"
+    },
+    "metrics-not-created.json": {
+      "model": "MetricsPage",
+      "usage": "json_body"
+    },
+    "metrics-empty.json": {
+      "model": "MetricsPage",
+      "usage": "json_body"
+    },
+    "metrics-first-page.json": {
+      "model": "MetricsPage",
+      "usage": "json_body"
+    },
+    "metrics-next-page.json": {
+      "model": "MetricsPage",
+      "usage": "json_body"
+    },
+    "metrics-terminal-drained.json": {
+      "model": "MetricsPage",
+      "usage": "json_body"
+    },
+    "metrics-incomplete-tail.json": {
+      "model": "MetricsPage",
+      "usage": "json_body"
+    },
+    "metrics-zero-loss.json": {
+      "model": "MetricsPage",
+      "usage": "json_body"
+    },
+    "logs-not-created.json": {
+      "model": "LogsPage",
+      "usage": "json_body"
+    },
+    "logs-empty.json": {
+      "model": "LogsPage",
+      "usage": "json_body"
+    },
+    "logs-ready.json": {
+      "model": "LogsPage",
+      "usage": "json_body"
+    },
+    "logs-truncated.json": {
+      "model": "LogsPage",
+      "usage": "json_body"
+    },
+    "logs-filtered-tail.json": {
+      "model": "LogsPage",
+      "usage": "json_body"
+    },
+    "adapter-headers.json": {
+      "model": "AdapterDownloadHeaders",
+      "usage": "header_description_not_json_body"
+    },
+    "download-busy-headers.json": {
+      "model": "DownloadBusyHeaders",
+      "usage": "header_description_not_json_body"
+    },
+    "completed-artifact-spec.json": {
+      "model": "CompletedArtifactSpec",
+      "usage": "internal_snapshot"
+    },
+    "error-metrics-cursor-invalid.json": {
+      "model": "ErrorResponse",
+      "usage": "json_body",
+      "http_status": 409
+    },
+    "error-metrics-corrupted.json": {
+      "model": "ErrorResponse",
+      "usage": "json_body",
+      "http_status": 500
+    },
+    "error-metrics-unavailable.json": {
+      "model": "ErrorResponse",
+      "usage": "json_body",
+      "http_status": 500
+    },
+    "error-logs-unavailable.json": {
+      "model": "ErrorResponse",
+      "usage": "json_body",
+      "http_status": 500
+    },
+    "error-artifact-not-ready.json": {
+      "model": "ErrorResponse",
+      "usage": "json_body",
+      "http_status": 409
+    },
+    "error-invalid-artifact.json": {
+      "model": "ErrorResponse",
+      "usage": "json_body",
+      "http_status": 500
+    },
+    "error-artifact-too-large.json": {
+      "model": "ErrorResponse",
+      "usage": "json_body",
+      "http_status": 413
+    },
+    "error-download-busy.json": {
+      "model": "ErrorResponse",
+      "usage": "json_body",
+      "http_status": 429
+    }
+  }
+}
