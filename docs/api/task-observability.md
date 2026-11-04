@@ -1,6 +1,6 @@
 # M4 观测与 Adapter 下载契约 1.0.0
 
-日期：2026-11-04。M4-01 A 侧类型/常量/生成格式样例已交付，B 消费者核对待独立记录。**本次未实现指标/日志/下载路由、文件读取、日志投影、下载或 SQL 完成投影**；运行时 OpenAPI 尚无三个端点。类型校验不能代替文件/授权/审计，正式可调用能力以真实 app.openapi() 为准。
+日期：2026-11-04。M4-01 类型/格式样例已交付，B 消费者核对待独立记录；M4-02 已实现指标/日志读取与 HTTP、安全日志投影及运行时 OpenAPI。**Adapter 下载和 SQL 完成投影仍属 M4-03，尚未实现**。本契约字段/版本未变；类型校验不能代替文件/授权/审计，正式可调用能力以真实 app.openapi() 为准。
 
 实现入口：[CPU Schema](../../backend/app/models/observability_schemas.py)、[常量与日志字段策略](../../backend/app/core/observability_contract.py)、[内部完成 DTO/Protocol](../../backend/app/core/observability_protocols.py)。生成物为 [JSON Schema](../contracts/observability.schema.json)、[mock 样例索引](../examples/observability/index.json) 和 [样例说明](../examples/observability/README.md)。原 TaskCreate/TrainingConfig/TaskDetail、M2 事件与 Worker 五方法不变；观测契约独立版本从 1.0.0 起步。
 
@@ -8,17 +8,17 @@
 
 成功直接返回下述资源，失败沿用 ErrorResponse，包含真实 HTTP 状态和 X-Request-ID；错误没有另加 task_id，调用方已经持有路径中的任务 ID。所有 ID 为 UUIDv4；时间为 RFC 3339 并归一 UTC，输出 Z。同一请求中的 task_status 是读 SQL 时的快照，不能用迟到的观测状态覆盖更新的 TaskDetail。
 
-类型是 frozen、拒绝额外字段并在重新校验实例时验证嵌套值。计数/偏移为严格整数，布尔字段不接受 0/1 或字符串；响应不接受整数的字符串表示。查询整数可接受 ASCII 十进制字符串（允许前导零），拒绝小数/指数/正负号/空白/Unicode 数字/Python bool 或 float。查询不接受 after_step、路径、归属或未知参数。重复原始查询项必须在 M4-02 HTTP 适配层从 multi_items 拒绝；先转 dict 再校验类型无法发现重复，M4-01 不声称已提供该 HTTP 检查。
+类型是 frozen、拒绝额外字段并在重新校验实例时验证嵌套值。计数/偏移为严格整数，布尔字段不接受 0/1 或字符串；响应不接受整数的字符串表示。查询整数可接受 ASCII 十进制字符串（允许前导零），拒绝小数/指数/正负号/空白/Unicode 数字/Python bool 或 float。查询不接受 after_step、路径、归属或未知参数。M4-02 HTTP 适配层从 multi_items 拒绝重复原始查询项，复用原统一错误、CORS 和 X-Request-ID；成功响应设置 Cache-Control: no-store。阻塞 SQL/文件访问在线程池执行。
 
-| 层次 | 本次已经校验 | M4-02/03 还须检查 |
+| 层次 | CPU 类型检查 | 执行层检查 |
 | --- | --- | --- |
-| 查询 | 值/默认值/上限、cursor 与 source_id 配对、额外字段 | 原始重复项、任务存在、游标文件身份/真实换行边界 |
-| 响应 | ID、字段类型、局部记录顺序/计数/游标结构、日志编码/响应字节上限 | 读预算、当前文件缺失是否合理、源内容/JSON/路径安全、跨页关系 |
-| 完成 DTO/下载头 | 输出键和 UUID 一致、固定 max_steps/summary、一致安全文件名 | SQL COMPLETED、数据/配置/清单哈希与实际文件、审计、ZIP 和资源清理 |
+| 查询 | 值/默认值/上限、cursor 与 source_id 配对、额外字段 | 02 已检查原始重复项、任务存在、游标文件身份/真实换行边界 |
+| 响应 | ID、字段类型、局部记录顺序/计数/游标结构、日志编码/响应字节上限 | 02 已检查读预算、文件缺失语义、源内容/JSON/路径安全、直接前驱与本页顺序 |
+| 完成 DTO/下载头 | 输出键和 UUID 一致、固定 max_steps/summary、一致安全文件名 | 03 待检查 SQL COMPLETED、快照/哈希/实际文件、审计、ZIP 和资源清理 |
 
 ## 指标：GET /api/v1/tasks/{task_id}/metrics
 
-查询模型 MetricsQuery，成功体 MetricsPage。接口尚未注册。
+查询模型 MetricsQuery，成功体 MetricsPage。接口已注册并从真实应用导出到 [任务 OpenAPI](tasks.openapi.json)。
 
 | 参数 | 类型/默认值 | 边界 |
 | --- | --- | --- |
@@ -41,13 +41,15 @@ source_id 是不透明的文件版本标识，不是授权令牌；必须使用�
 
 MetricRecord 保留 contract_version/kind/step/total_steps/loss/learning_rate/epoch/recorded_at；新增 offset 是该源文件完整行的起始字节，0 也是有效记录身份。按 (source_id, offset) 合并，不能按 step 合并。记录按 offset 严格递增，同一页按 (step, train 在 eval 前) 排序且 total_steps 一致；页首允许是 eval，因为对应 train 可能已在上一页。next_cursor 必须大于最后一条的 offset；类型并不知道源行字节数，M4-02 负责真正的偏移关系。
 
-M4-02 还须保证 items 数量不超过本次请求 limit、task_id 匹配路径、source_id/next_cursor 与输入关联；这些请求相关条件不能由孤立的响应类型证明。源身份应绑定任务与文件身份，不能将其他任务的游标作为本任务续读凭据。
+M4-02 服务保证 items 数量不超过本次请求 limit、task_id 匹配路径、source_id/next_cursor 与输入关联；这些请求相关条件不能由孤立的响应类型证明。源身份由任务 UUID 与已打开文件的 device/inode 摘要生成，正常追加不改变；不能将其他任务的游标作为本任务续读凭据。
 
-ready 的空文件、等待新行的空页、已取完的 COMPLETED 空页都是合法情况；后两者可有非零 next_cursor。not_created 必须 items=[]、source_id=null、next_cursor=0、has_more=false、tail_incomplete=false，不能用于 COMPLETED。实际服务还须确认请求 cursor=0、数据库 current_step=0 且属于自然未产出；已知产出后丢失不可假装为空。
+ready 的空文件、等待新行的空页、已取完的 COMPLETED 空页都是合法情况；后两者可有非零 next_cursor。not_created 必须 items=[]、source_id=null、next_cursor=0、has_more=false、tail_incomplete=false，不能用于 COMPLETED。服务只在无 source_id、cursor=0、数据库 current_step=0 且非 COMPLETED 时允许自然缺文件；携带旧来源而文件消失返回 409，已有 SQL 步数或完成任务缺文件返回 METRICS_UNAVAILABLE。
 
 COMPLETED 不接受 tail_incomplete；FAILED 可返回之前完整点及半行告警。MetricWriter 先 flush 后更新 SQL，文件的 step 暂时领先 SQL 是正常的，不可据此丢点或改状态。TaskDetail 终态后，前端仍需补拉所有剩余页。0 Loss/0 learning_rate 有效；最后训练 Loss 选末条 train，不将 eval 当训练值。当前服务无验证集入口，不能为了画两线给产品补 eval；样例仅演示通用事件格式。
 
 资源上限：完整行 16 KiB、扫描 512 KiB/次、序列化响应 1 MiB；预算中预留探测后继行的空间，半行不造成相同游标的 has_more 无限循环。类型对局部结构负责，扫描/序列化预算由执行层再检查；解析源行要拒绝重复 JSON 键、非法 UTF-8/非有限数值/坏完整行。
+
+服务以打开时的文件大小为本次快照，只按 LF 分行。总读取预算包含尾字节、续读游标前最多 16 KiB+1 的直接前驱和当前窗口；不从头扫描。跨页比较直接前驱的 total_steps 和 (step, kind) 顺序，不承诺审计游标之前的整个历史。预算截断时保留最后一个完整行作后继证据，has_more=true 必须有真实完整行且游标前进。读取后复核路径仍指向已打开文件、未缩短/多重硬链接；并发正常追加留到下次读取。同 inode 的任意等长改写/截断后重长及已复用 inode 不属于首版完整性保证，最终完整 bundle 仍由产物审计负责。
 
 可参考 [首次查询](../examples/observability/metrics-query-initial.json)、[下一页查询](../examples/observability/metrics-query-next.json)、[第一页](../examples/observability/metrics-first-page.json)、[第二页](../examples/observability/metrics-next-page.json)、[终态取完](../examples/observability/metrics-terminal-drained.json)、[半行](../examples/observability/metrics-incomplete-tail.json)。分页演示显式 limit=2，协议默认仍为 200。first/next 的真实格式字节偏移由生成器计算（本版本第二页 cursor=304），不是 step 或数组长度，也不是训练证据。
 
@@ -62,11 +64,17 @@ LogsQuery 仅 tail，默认 100、范围 1～500。成功体 LogsPage，字段�
 
 ### 安全投影策略（M4-02 实现，01 已提供字段常量）
 
-通用字段仅 recorded_at/stage，阶段专用键见 LOG_FIELDS_BY_STAGE，覆盖当前 Trainer 的 preflight、model_loading、data_preparation、data_verified、parameters、training、metric、parameter_verification、saving、training_and_save_finished、failed。不得读共享 Celery stdout、lock、训练正文或任意异常输入。
+通用字段仅 recorded_at/stage，阶段专用键见 LOG_FIELDS_BY_STAGE，覆盖当前 Trainer 的 preflight、model_loading、data_preparation、data_verified、parameters、training、metric、parameter_verification、saving、training_and_save_finished、failed。target_modules 最多 64 个模块标识符；LRU/diagnostic/frame/module 数量上限集中在原常量模块并导出至 Schema x-limits，不改变已有响应字段。不得读共享 Celery stdout、lock、训练正文或任意异常输入。
 
 数据摘要仅 sha256/size_bytes/row_count/review_status/build_id；failure 仅 task_id/code/stage，**不透传自由文本 message**（说明由 TaskDetail.error_message 提供）。diagnostic 仅 type/frames，frame 仅 basename 文件名、受限函数名、正行号；校验标识符/类型/范围，拒绝目录/盘符/控制字符和任意原始 traceback。
 
-未知阶段/坏 JSON/坏通用字段丢弃整行；已知阶段的额外/不安全字段按白名单删除，安全剩余字段可格式化为一行 JSON 文本；被删除或调整的行计入 filtered_lines，一行仅一次。字符串类标识符不得接受任意路径/凭据，参数模块名按实际模块标识校验；不因字段名在白名单就无条件信任值。原文件不改写；不静默把过滤后空结果称为完整日志。投影器和相应文件读取/安全测试属于 02，不由这些常量代替。
+未知阶段/坏 JSON/坏通用字段丢弃整行；已知阶段的额外/不安全字段按白名单删除，安全剩余字段格式化为一行 JSON 文本；被删除或调整的行计入 filtered_lines，一行仅一次，正常 UTC/JSON 格式化不计过滤。投影器为 [task_log_projection.py](../../backend/app/services/task_log_projection.py)，复用 TrainingProgress 校验 metric；只保留匹配任务的 UUID、受控枚举、有限数值/摘要和受限标识符。diagnostic 最多 16 个异常、每个最后 32 个安全 frame。原文件不改写。
+
+首版对窗口起点保守丢弃首个可能不完整的片段；即使恰好是行边界也不猜测。被字节窗口省略的片段不计 filtered_lines，只置 truncated；完整选中行的坏 UTF-8/JSON/不安全值才逐行计数，不为凑 tail 补读。全窗口都是长半行时返回 truncated/tail_incomplete，不能冒充完整记录。
+
+自然缺日志只允许非 COMPLETED 且 SQL current_step=0，并且本服务尚未观测到该日志。服务用最多 4096 项、线程安全的进程内 LRU 记忆已打开的日志；已观察文件后消失报 LOGS_UNAVAILABLE。重启或 LRU 淘汰后无法持久证明零步任务曾有日志，此时按当前 SQL 判定；不新增数据库列或声称跨重启丢失探测。
+
+两类读取共用 [task_files.py](../../backend/app/services/task_files.py)：Linux/WSL 的目录 fd 逐级 O_NOFOLLOW、固定根/UUID 子路径、O_NONBLOCK 打开并 fstat 校验普通单硬链接文件；拒绝子目录/根祖先链接、FIFO/设备/目录/I/O 失败。打开描述符锁定文件，结束前重走命名路径核对身份，所有成功/失败分支关闭句柄。配置根本身不存在属于不可用，不解释为任务未产出。不使用 GPU 锁，不创建任何训练目录或文件。
 
 示例：[正常尾部](../examples/observability/logs-ready.json)、[截断](../examples/observability/logs-truncated.json)、[过滤与半行](../examples/observability/logs-filtered-tail.json)、[尚未创建](../examples/observability/logs-not-created.json)。
 
@@ -123,7 +131,7 @@ CompletedArtifactRepository.get_completed_artifact(UUID) -> CompletedArtifactSpe
 uv run --locked python scripts/export_observability_contract.py --check
 ```
 
-去掉 --check 生成类型/27 个格式样例、索引及说明。Schema 标记 types_only，HTTP 状态 not_asserted，索引 http_evidence=false；这些标记表示此导出器不提供 HTTP 证据，并非运行时能力探测。02/03 实施后从真实 app.openapi() 扩展任务导出路径，不手写或提前注册空路由。当前无三个端点的 HTTP 检查只是 01 阶段保护，02/03 实施时须以相应真实接口测试替换该预期。
+去掉 --check 生成类型/27 个格式样例、索引及说明。Schema 标记 types_only，HTTP 状态 not_asserted，索引 http_evidence=false；这些标记表示此导出器不提供 HTTP 证据，并非运行时能力探测。02 已扩展 export_task_openapi.py 从真实 app.openapi() 导出全部实际任务子路径，真实测试已替换 01 的旧保护预期；adapter 仍不发布。用 `uv run --locked python scripts/check_task_observability.py` 运行隔离 TCP/HTTP+SQLite+MetricWriter 追加/终态/投影冒烟，明确使用 Publisher 和执行事件替身，不启动 Worker/Redis/GPU，不证明真实训练或 M4-07 已验收。
 
 B 完成 04a 后，用本次实际类型/fixture 核对并在独立日志记录：
 

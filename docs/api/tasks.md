@@ -11,6 +11,8 @@
 | POST /tasks | 保存任务/固定快照并有界派发，不等待训练 | 新任务且确认接受为 202，TaskDetail，Location=/api/v1/tasks/{id} |
 | GET /tasks | 先按 status 筛选再分页，created_at DESC/id DESC | 200，TaskPage |
 | GET /tasks/{task_id} | 数据库业务状态与配置详情 | 200，TaskDetail |
+| GET /tasks/{task_id}/metrics | 有界指标续读，source_id/cursor/limit | 200，MetricsPage；M4-02 已实现 |
+| GET /tasks/{task_id}/logs | 任务安全日志尾部，tail | 200，LogsPage；M4-02 已实现 |
 
 POST 保留 TaskCreate 的 dataset_id/base_model/config 字段：dataset_id 必填且为 UUIDv4；base_model 默认且只允许 Qwen/Qwen2.5-0.5B-Instruct；config 默认 {}，按原 TrainingConfig 补齐默认值。未知字段拒绝。服务器固定 model_revision/runtime，不接收服务器路径、revision、max_steps、状态、哈希或用户归属。请求为未压缩 UTF-8 application/json，允许 UTF-8 charset/identity 编码；不接受重复 JSON 键（含嵌套配置）、非有限数字、无效 JSON 或非对象正文。未知/重复查询和重复去重请求头也拒绝。
 
@@ -111,7 +113,7 @@ M3-05 已为 request 透传去重头、读取 error.task_id，冻结正文并支
 
 ## M4 规划中的观测与交付
 
-M4 的 [观测契约 1.0.0](task-observability.md) 和 CPU 类型/常量/格式样例已由 01 A 侧交付，B 消费核对待记录；三个真实路由/文件服务/下载仍未实现。原 TaskCreate/TaskDetail 和派发语义不变。02/03 实施时扩展 export_task_openapi.py 对真实已注册子路径的选择，不能只导出原两个路径而漏掉新接口，也不能提前登记空路由。前端旧 after_step/Map(step) 仍由 04 按新契约替换。
+M4 的 [观测契约 1.0.0](task-observability.md) 和 CPU 类型/常量/格式样例已由 01 A 侧交付，B 消费核对待记录；02 已实现指标/日志只读服务、安全投影和 HTTP；下载仍待 03。原 TaskCreate/TaskDetail 和派发语义不变。02 已扩展 export_task_openapi.py 导出全部实际任务子路径，不提前登记下载空路由。前端旧 after_step/Map(step) 仍由 04 按新契约替换。
 
 ## Publisher 与失败边界
 
@@ -127,7 +129,7 @@ accepted 后仅条件更新仍 PENDING 为 QUEUED，再重读真实 TaskDetail�
 
 ## 运行与验证
 
-服务按根 README 启动；先上传数据取得 dataset_id，再按上述 JSON 提交。无 Worker 时接受发布的任务保持 QUEUED，不能把 HTTP 202 当作训练成功。worker.train 已由 M3-04 实现，生产 Worker 的真实 Redis 缺缓存 CPU 消费已通过；真实 GPU 训练仍待 07，Celery ping 或该 CPU 路径不能代替训练成功。
+服务按根 README 启动；先上传数据取得 dataset_id，再按上述 JSON 提交。无 Worker 时接受发布的任务保持 QUEUED，不能把 HTTP 202 当作训练成功。worker.train 已由 M3-04 实现，生产 Worker 的真实 Redis 缺缓存 CPU 消费已通过；真实 GPU 训练已在 M3-07 A 自动验收通过，双方同步人工流程仍待执行；Celery ping 或该 CPU 路径不能代替训练成功。
 
 ```bash
 uv run --locked python scripts/export_task_openapi.py --check

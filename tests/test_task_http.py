@@ -280,7 +280,8 @@ class TaskHTTPTests(unittest.TestCase):
         runtime = self.client.get("/openapi.json").json()
         contract = build_contract()
         self.assertEqual(contract["x-implementation-status"], "implemented")
-        self.assertEqual(set(contract["paths"]), {"/tasks", "/tasks/{task_id}"})
+        self.assertEqual(set(contract["paths"]), {"/tasks", "/tasks/{task_id}",
+            "/tasks/{task_id}/metrics", "/tasks/{task_id}/logs"})
         for path, value in contract["paths"].items():
             self.assertEqual(runtime["paths"]["/api/v1" + path], value)
         for name, value in contract["components"]["schemas"].items():

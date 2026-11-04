@@ -511,6 +511,318 @@
           }
         }
       }
+    },
+    "/tasks/{task_id}/metrics": {
+      "get": {
+        "tags": [
+          "task-observability"
+        ],
+        "summary": "Read bounded metrics using source identity and byte cursor",
+        "operationId": "get_task_metrics",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid4",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "cursor",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "maximum": 9007199254740991,
+              "minimum": 0,
+              "title": "Cursor",
+              "type": "integer"
+            }
+          },
+          {
+            "name": "source_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "pattern": "^[0-9a-f]{64}$",
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 200,
+              "maximum": 1000,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MetricsPage"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TASK_NOT_FOUND",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "METRICS_CURSOR_INVALID",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "METRICS_CORRUPTED / METRICS_UNAVAILABLE / INTERNAL_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-observability-contract-version": "1.0.0",
+        "x-duplicate-query-parameters": "rejected"
+      }
+    },
+    "/tasks/{task_id}/logs": {
+      "get": {
+        "tags": [
+          "task-observability"
+        ],
+        "summary": "Read a bounded value-filtered task-local log tail",
+        "operationId": "get_task_logs",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid4",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "tail",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "default": 100,
+              "maximum": 500,
+              "minimum": 1,
+              "title": "Tail",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogsPage"
+                }
+              }
+            },
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TASK_NOT_FOUND",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "LOGS_UNAVAILABLE / INTERNAL_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-observability-contract-version": "1.0.0",
+        "x-duplicate-query-parameters": "rejected"
+      }
     }
   },
   "components": {
@@ -660,6 +972,206 @@
           "error"
         ],
         "title": "ErrorResponse"
+      },
+      "LogsPage": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "1.0.0",
+            "title": "Contract Version",
+            "default": "1.0.0"
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid4",
+            "title": "Task Id"
+          },
+          "task_status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "source_state": {
+            "$ref": "#/components/schemas/SourceState"
+          },
+          "lines": {
+            "items": {
+              "type": "string",
+              "maxLength": 65536
+            },
+            "type": "array",
+            "maxItems": 500,
+            "title": "Lines"
+          },
+          "truncated": {
+            "type": "boolean",
+            "title": "Truncated"
+          },
+          "tail_incomplete": {
+            "type": "boolean",
+            "title": "Tail Incomplete"
+          },
+          "filtered_lines": {
+            "type": "integer",
+            "maximum": 500.0,
+            "minimum": 0.0,
+            "title": "Filtered Lines"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_id",
+          "task_status",
+          "source_state",
+          "lines",
+          "truncated",
+          "tail_incomplete",
+          "filtered_lines"
+        ],
+        "title": "LogsPage"
+      },
+      "MetricRecord": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "1.0.0",
+            "title": "Contract Version",
+            "default": "1.0.0"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "train",
+              "eval"
+            ],
+            "title": "Kind",
+            "default": "train"
+          },
+          "step": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Step"
+          },
+          "total_steps": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Total Steps"
+          },
+          "loss": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Loss"
+          },
+          "learning_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Learning Rate"
+          },
+          "epoch": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Epoch"
+          },
+          "recorded_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Recorded At"
+          },
+          "offset": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Offset"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "step",
+          "total_steps",
+          "loss",
+          "learning_rate",
+          "epoch",
+          "recorded_at",
+          "offset"
+        ],
+        "title": "MetricRecord",
+        "description": "TrainingProgress unchanged, with a response-only physical line identity."
+      },
+      "MetricsPage": {
+        "properties": {
+          "contract_version": {
+            "type": "string",
+            "const": "1.0.0",
+            "title": "Contract Version",
+            "default": "1.0.0"
+          },
+          "task_id": {
+            "type": "string",
+            "format": "uuid4",
+            "title": "Task Id"
+          },
+          "task_status": {
+            "$ref": "#/components/schemas/TaskStatus"
+          },
+          "source_state": {
+            "$ref": "#/components/schemas/SourceState"
+          },
+          "source_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^[0-9a-f]{64}$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/MetricRecord"
+            },
+            "type": "array",
+            "maxItems": 1000,
+            "title": "Items"
+          },
+          "next_cursor": {
+            "type": "integer",
+            "maximum": 9007199254740991.0,
+            "minimum": 0.0,
+            "title": "Next Cursor"
+          },
+          "has_more": {
+            "type": "boolean",
+            "title": "Has More"
+          },
+          "tail_incomplete": {
+            "type": "boolean",
+            "title": "Tail Incomplete"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "task_id",
+          "task_status",
+          "source_state",
+          "source_id",
+          "items",
+          "next_cursor",
+          "has_more",
+          "tail_incomplete"
+        ],
+        "title": "MetricsPage"
+      },
+      "SourceState": {
+        "type": "string",
+        "enum": [
+          "ready",
+          "not_created"
+        ],
+        "title": "SourceState"
       },
       "TaskCreate": {
         "additionalProperties": false,

@@ -14,6 +14,10 @@ DEFAULT_LOG_TAIL = 100
 MAX_LOG_TAIL = 500
 MAX_LOG_READ_BYTES = 64 * 1024
 MAX_LOG_RESPONSE_BYTES = 256 * 1024
+MAX_OBSERVED_LOG_TASKS = 4096
+MAX_LOG_DIAGNOSTICS = 16
+MAX_LOG_FRAMES = 32
+MAX_LOG_TARGET_MODULES = 64
 MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
 MAX_CONCURRENT_DOWNLOADS = 1
 DOWNLOAD_RETRY_AFTER_SECONDS = 2
@@ -92,6 +96,10 @@ def contract_limits() -> dict[str, int]:
         "max_log_tail": MAX_LOG_TAIL,
         "max_log_read_bytes": MAX_LOG_READ_BYTES,
         "max_log_response_bytes": MAX_LOG_RESPONSE_BYTES,
+        "max_observed_log_tasks": MAX_OBSERVED_LOG_TASKS,
+        "max_log_diagnostics": MAX_LOG_DIAGNOSTICS,
+        "max_log_frames": MAX_LOG_FRAMES,
+        "max_log_target_modules": MAX_LOG_TARGET_MODULES,
         "max_download_bytes": MAX_DOWNLOAD_BYTES,
         "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
         "download_retry_after_seconds": DOWNLOAD_RETRY_AFTER_SECONDS,

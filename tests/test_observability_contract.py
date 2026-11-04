@@ -248,7 +248,7 @@ for name in ('fastapi','celery','sqlalchemy','torch','numpy','transformers','dat
         result = subprocess.run([sys.executable, "-c", program], cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stderr)
 
-    def test_runtime_openapi_and_http_do_not_publish_unimplemented_routes(self):
+    def test_runtime_openapi_only_publishes_implemented_observability_routes(self):
         from fastapi.testclient import TestClient
         from backend.app.core.config import Settings
         from backend.app.main import create_app
@@ -260,8 +260,13 @@ for name in ('fastapi','celery','sqlalchemy','torch','numpy','transformers','dat
             with TestClient(app) as client:
                 for suffix in ("metrics", "logs", "adapter"):
                     path = f"/api/v1/tasks/{exporter.TASK_ID}/{suffix}"
-                    self.assertNotIn(f"/api/v1/tasks/{{task_id}}/{suffix}", paths)
+                    if suffix == "adapter":
+                        self.assertNotIn(f"/api/v1/tasks/{{task_id}}/{suffix}", paths)
+                    else:
+                        self.assertIn(f"/api/v1/tasks/{{task_id}}/{suffix}", paths)
                     self.assertEqual(client.get(path).status_code, 404)
+                    self.assertEqual(client.get(path).json()["error"]["code"],
+                                     "NOT_FOUND" if suffix == "adapter" else "TASK_NOT_FOUND")
 
     def test_export_is_deterministic_valid_and_marks_mocks_without_runtime_claims(self):
         first, second = exporter.generate_outputs(), exporter.generate_outputs()

@@ -18,9 +18,9 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成，不能把训练保存成功当作完整 M2 验收。
 
-执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4-01 A 侧类型/样例已交付，B 核对待记录，02～07 待实施。
+执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4-01 A 侧类型/样例已交付，B 核对待记录，02 指标/日志 HTTP 已交付，03～07 待实施。
 
-执行 M4 前读 [完整计划 1.1](docs/m4-development-plan.md)、[观测契约 1.0.0](docs/api/task-observability.md) 和 [M4-01 日志](docs/worklogs/2026-11-04-m4-01.md)。01 A 侧 CPU 类型/常量、内部完成 DTO/Protocol、生成样例/检查已交付，待 B 消费者核对；02～07 待实施。B 可先做 04a 图表，再按实际类型/fixture 核对和实现 04/05。当前没有指标/日志/下载路由或文件服务，不得把 Schema/样例当真实 OpenAPI 能力。M3 剩余同步人工流程可与 M4-07 同场分别记录。
+执行 M4 前读 [完整计划 1.2](docs/m4-development-plan.md)、[观测契约 1.0.0](docs/api/task-observability.md)、[01 日志](docs/worklogs/2026-11-04-m4-01.md) 和 [02 日志](docs/worklogs/2026-11-04-m4-02-a.md)。01 A 侧类型/样例已交付，B 核对待记录；02 指标/日志只读服务与 HTTP 已交付，真实 OpenAPI 含两个端点，下载/SQL 完成投影仍待 03。B 继续 04a/04/05，不得把 mock 样例当运行时数据；M3 剩余同步人工流程可与 M4-07 同场分别记录。
 
 ## 当前事实与任务边界
 
@@ -76,11 +76,11 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 ### M4 实施时延续的约束
 
 - 分工及验收以 [M4 计划](docs/m4-development-plan.md) 为准：A 主改 CPU 类型/只读仓储投影/文件服务/HTTP/共享文档，B 主改现有曲线、观测/下载控制器和前端测试；01 共同核对，06/07 需要实际配合。
-- 指标使用 01 正式 MetricsQuery/MetricsPage/MetricRecord：source_id + 字节 cursor 增量读取、offset 标识完整行，同 step 的 train/eval 不覆盖，终态空页也合法。类型只校验局部结构，真正文件身份/行边界/扫描预算留给 02。HTTP 包装不修改 M2 TrainingProgress 或原 metrics.jsonl；Trainer 唯一写入，不新增重复数据库指标表。
-- 日志使用 LogsQuery/LogsPage，安全字段常量在 core/observability_contract.py；投影/读取器尚未实现。failure 不透传自由文本 message，说明读取 TaskDetail；filtered_lines 按窗口内修改/丢弃的记录逐行计一次。只读任务有限尾部，不转发共享 Worker stdout、不获取 GPU 锁或加载训练库。新常量/类型/错误上限同笔更新正式文档及生成样例。
+- 指标使用 01 MetricsQuery/MetricsPage/MetricRecord；02 services/task_observability.py 已实现 source_id + 字节 cursor/offset、16 KiB 行/512 KiB 总读预算、直接前驱/本页顺序、半行/来源变更语义。HTTP 包装不修改 M2 TrainingProgress 或 metrics.jsonl；Trainer 唯一写入，不新增指标表。
+- 日志使用 LogsQuery/LogsPage，02 task_log_projection.py 按实际 Trainer 阶段/值投影；最多 64 KiB/500 候选行、不因过滤补足旧行。failure 不透传 message，说明读取 TaskDetail；filtered_lines 按选中源行计一次。已观测日志的零步丢失检测为有界进程 LRU，非持久能力。task_files.py 使用 Linux fd/NOFOLLOW/普通单硬链接/后置身份检查；不转发共享 stdout、不取 GPU 锁或加载训练库。字段/上限变化同笔更新类型、正式文档和样例。
 - 下载要求 SQL COMPLETED、固定快照/manifest 哈希与原共享 CPU 审计一致；临时 ZIP 位于独立 DATA_DIR/downloads，不污染原输出目录，只复制已审计文件。响应体/取消清理和实际复制哈希必须验证。
 - B 替换现有 after_step/Map(step) 逻辑；终态还需补齐指标尾页和最终日志。下载先捕获任务 ID，blob 读取期间保持 timeout/abort 有效，任务切换不得污染新任务或文件名。
-- 01 类型生成用 scripts/export_observability_contract.py --check，所有示例均标为 mock；Schema types_only/HTTP not_asserted 不代替运行时能力探测。ApiErrorCode 新增八个观测/下载 code，已有代码及原任务/训练契约不变，相关原 Schema 已重导出。CompletedArtifactRepository 为额外只读 Protocol，SQL 方法待 03，不改 Worker 五方法。02/03 实施后扩展真实任务 OpenAPI，并更新 01 阶段“无 M4 路由”的保护测试预期。工程草稿/受控测试不代表质量提升或 GPU 验收。
+- 01 类型导出 --check 仍标 mock/types_only/not_asserted，不代替运行时探测。02 已扩展真实任务 OpenAPI，更新旧路由保护并新增 TCP 冒烟 scripts/check_task_observability.py；其中 Publisher/执行事件为明确 CPU 替身，不是 GPU 验收。CompletedArtifactRepository 为额外只读 Protocol，SQL 方法和下载待 03，不改 Worker 五方法。原任务/训练公开字段与观测契约 1.0.0 不变。
 
 ### 共同接口规则
 
@@ -104,6 +104,6 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - 默认保留他人的未提交改动，不擅自覆盖；提交仅包含当前任务相关文件。分支/PR 按团队实际工作方式使用，Git 同步沿用用户授权范围。
 - 每次开发开始前、每个独立部分开发完成后，以及最终提交/推送前，都执行 `git fetch origin` 并比较本地与远端，阅读队友新增提交和工作日志。落后时优先在干净工作区 `merge --ff-only`；双方分叉时在保存本次任务提交后正常 merge，逐项解决冲突并重跑受影响检查。不能覆盖队友改动、丢弃未提交文件、强推或改写共享历史。远端暂不可达时明确记录“尚未确认”，不能写成“没有新提交”。
 
-M3-07 的 A 自动验收和 B 独立异步证据/既有页面复核均已通过，61d8703 已经 A 本机 7 项复核器、56 项前端、29 项浏览器及 9 个真实快照任务检查后合入，四份原成功产物独立 CPU 审计也通过。依据：[B 日志](docs/worklogs/2026-11-04-m3-07-b.md)、[A 审查](docs/worklogs/2026-11-04-m3-07-a-review.md)。下一步补原计划的双方同步人工“新上传→实际 GPU 完成”操作；没有此项记录前不将 M3 全阶段标为完成。M4 可先规划，仍未实现 Loss/日志/下载及在线推理。
+M3-07 的 A 自动验收和 B 独立异步证据/既有页面复核均已通过，61d8703 已经 A 本机 7 项复核器、56 项前端、29 项浏览器及 9 个真实快照任务检查后合入，四份原成功产物独立 CPU 审计也通过。依据：[B 日志](docs/worklogs/2026-11-04-m3-07-b.md)、[A 审查](docs/worklogs/2026-11-04-m3-07-a-review.md)。双方同步人工“新上传→实际 GPU 完成”仍待实际记录，不提前完成 M3。M4 已交付 01 A 类型和 02 观测 HTTP，前端适配、下载、联合验收及 M5 在线推理继续按计划实施。
 
 2026-11-04 用户明确授权将 data/acceptance/handoffs/m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip 及同名 .zip.sha256 纳入 Git，作为当前数据/产物忽略规则的两个固定特例；其余原目录、解压内容、数据/权重/数据库/日志继续保持忽略。B 同步 main 后按 [交接说明](docs/m3-acceptance.md#跨机器证据交接) 校验、解压并复核；本次决定见 [Git 交付日志](docs/worklogs/2026-11-04-m3-07-evidence-git.md)。原 report.browser_url 是已停止的历史地址；拉取证据、既有页面复查不等于重跑 GPU 或完成双方人工联调，B 已交独立复核日志，后续同步人工操作另记结果。

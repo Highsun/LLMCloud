@@ -8,7 +8,7 @@
 
 ## 一、当前进度
 
-当前完成 **M0、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4-01 A 侧类型/样例已交付，B 核对待记录，02～07 待实施。
+当前完成 **M0、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4-01 A 侧类型/样例已交付，B 核对待记录，02 指标/日志 HTTP 已交付，03～07 待实施。
 
 M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-04 数据管理页面**。成员 B 交付的工作台已接通真实上传、列表与详情，本次补齐局部修复和浏览器验收；M1-05 故障验收与 CPU CI、M1-06 数据方案/划分工具/冻结题也已完成。M1 计划范围已验收，M2 工程闭环也已完成；正式实验语料仍需人工编写和审核。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，项目梳理见 [项目记忆](docs/project-memory.md)，页面接续见 [M1-04 日志](docs/worklogs/2026-10-22-m1-04-integration.md)，故障与 CI 见 [M1-05 日志](docs/worklogs/2026-10-22-m1-05.md)，数据来源/划分/冻结题见 [数据方案](docs/data/README.md) 与 [M1-06 日志](docs/worklogs/2026-10-22-m1-06.md)。
 
@@ -18,7 +18,7 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 `trainer.train` 已实现真实单 GPU LoRA，`worker.train` 已接入 SQL/原 Trainer/审计。05 前端已接通任务 HTTP/SQL 的提交/详情/去重和刷新恢复；真实 GPU/生产浏览器自动验收已通过，B 复核见 [M3-07 交接](docs/m3-acceptance.md)，M4/M5 操作继续按能力禁用。
 
-**M4 开发入口**：[完整执行计划 1.1](docs/m4-development-plan.md)、[观测契约 1.0.0](docs/api/task-observability.md)、[生成类型/格式样例](docs/examples/observability/README.md)。M4-01 A 侧 CPU 类型、常量、完成快照 Protocol、格式样例/漂移检查已交付，待 B 消费者核对；02～07 尚未实施，真实 OpenAPI 仍无指标/日志/下载端点。B 可先做 04a 图表，再按正式 fixture 实现请求与下载。主线估计 A 10、B 8 人时，另留合计 4 人时缓冲；M3 人工剩余项仍保留。
+**M4 开发入口**：[完整执行计划 1.2](docs/m4-development-plan.md)、[观测契约 1.0.0](docs/api/task-observability.md)、[生成类型/格式样例](docs/examples/observability/README.md)。M4-01 A 侧 CPU 类型、常量、完成快照 Protocol、格式样例/漂移检查已交付，待 B 消费者核对；02 指标/日志 HTTP 已交付并导出实际 OpenAPI；下载及 03～07 尚未实施。B 可先做 04a 图表，再按正式 fixture 实现请求与下载。主线估计 A 10、B 8 人时，另留合计 4 人时缓冲；M3 人工剩余项仍保留。
 
 **M2 单机真实 LoRA 工程闭环已验收**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成；任务 HTTP/Celery 接入属于 M3。
 
@@ -29,6 +29,8 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 任务类型/样例只读检查：`uv run --locked python scripts/export_task_contract.py --check`；重新生成时去掉 `--check`。此命令输出 JSON Schema 与明确标记的 [mock 样例](docs/examples/tasks/README.md)。真实任务路由已实现，运行时 OpenAPI 另用 `uv run --locked python scripts/export_task_openapi.py --check` 检查；仅导出类型样例不能代替 HTTP/Worker 验收。
 
 M4 类型/格式样例检查：`uv run --locked python scripts/export_observability_contract.py --check`。样例中的两页字节游标、同 step train/eval、终态空页、日志过滤告警和下载头均为 mock，下载成功体应为 ZIP；该导出器不是运行时 OpenAPI，也不执行文件读取或训练。消费者核对清单见正式观测契约末节。
+
+M4-02 已发布 `GET /api/v1/tasks/{task_id}/metrics` 和 `/logs`，分别支持 source_id/字节 cursor/limit 和有界 tail 安全快照；参数/失败语义见 [正式契约](docs/api/task-observability.md)，代码与测试记录见 [02 日志](docs/worklogs/2026-11-04-m4-02-a.md)。`uv run --locked python scripts/check_task_observability.py` 运行临时 TCP/SQLite/MetricWriter 冒烟，不启动 Redis/Worker/GPU；完成状态和事件明确为 CPU 测试安排。前端新曲线/日志适配由队友 M4-04 负责，下载路由待 M4-03。
 
 M3-03 真实派发冒烟：`uv run --locked python scripts/check_task_http.py`（需 redis-server）。自动使用临时 Redis/SQL/文件和 TCP API，验证 202/200 去重、真实消息、入队后受控确认丢失及 Broker 停止，不启动 Worker/GPU、不使用业务队列。worker.train 已由 M3-04 实现，真实 GPU 链路已有 [M3-07 独立验收](docs/m3-acceptance.md)；API 202/QUEUED 仅表示已接受派发，未表示训练成功。
 
