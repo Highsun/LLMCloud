@@ -2340,3 +2340,9 @@ tr:last-child td {
   display: block;
   margin-top: 6px;
 }
+.task-failure-notice {
+  display: block;
+}
+.task-failure-notice strong {
+  display: block;
+}

@@ -397,7 +397,7 @@ onBeforeUnmount(() => {
         }}</strong>
       </div>
     </div>
-    <p v-if="selected.error_code || selected.error_message" class="notice error-notice" role="alert">
+    <p v-if="selected.error_code || selected.error_message" class="notice error-notice task-failure-notice" role="alert">
       <strong>{{ selected.error_code }}</strong> {{ selected.error_message }}
     </p>
     <div class="tabs" role="tablist" aria-label="任务详情">
