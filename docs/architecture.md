@@ -15,7 +15,7 @@ flowchart LR
     Worker --> Files
 ```
 
-该图描述 MVP 目标架构。M0 已实现健康检查、模型目录、元数据建表、Worker 配置和诊断任务；M1-02 已实现数据集服务层，M1-03 已接入真实数据集 HTTP API；M1-04 已在成员 B 工作台中验证真实数据集交互；M2-04 已实现独立真实 LoRA，M3-04 已实现 Worker 编排，CPU 实际队列/缺缓存失败路径已验收，GPU 业务训练仍待 M3-07。
+该图描述 MVP 目标架构。M0 已实现健康检查、模型目录、元数据建表、Worker 配置和诊断任务；M1-02 已实现数据集服务层，M1-03 已接入真实数据集 HTTP API；M1-04 已在成员 B 工作台中验证真实数据集交互；M2-04 已实现独立真实 LoRA，M3-04 已实现 Worker 编排，CPU 实际队列/缺缓存失败路径已验收，GPU 业务训练已在 M3-07 A 真实验收通过，B 人工/证据复核待完成，见 [交接](m3-acceptance.md)。
 
 M1-01 已定义 [数据集接口与文件契约](api/datasets.md)，包含只读资源、原始字节 SHA-256 和相对 DATA_DIR 的存储键。M1-02 已落实共享扫描器、数据库迁移、文件服务和只读审计；M1-03 已实现路由和统一异常处理，详见 [HTTP 工作日志](worklogs/2026-10-21-m1-03.md)。
 
@@ -88,9 +88,9 @@ M3 再将训练成功结果映射为数据库 COMPLETED。M4 Adapter 下载打�
 
 ## 三、数据库与任务状态
 
-M3 具体设计及分工统一在 [完整执行计划](m3-development-plan.md) 与 [API 契约](api/tasks.md)；M3-02 SQL/迁移已实现，M3-03 任务 HTTP/真实 Publisher 已实现，M3-04 Worker 编排已合入并通过 CPU/SQL/实际 Redis 消费检查，GPU 仍待 07。A 先主笔共享契约，再负责状态仓储/HTTP/派发/离线对账；B 可先做前端列表筛选/分页/请求竞争，契约合入后经共同 Protocol 接入 Worker，再补齐前端。列表独立测试不代表任务链路已实现，真实仓储装配及最终 Redis/GPU/浏览器联调必须合作。不将 SQL 写进 Trainer；请求去重、领取 token、快照和稳定错误码必须显式迁移。
+M3 具体设计及分工统一在 [完整执行计划](m3-development-plan.md) 与 [API 契约](api/tasks.md)；M3-02 SQL/迁移已实现，M3-03 任务 HTTP/真实 Publisher 已实现，M3-04 Worker 编排已合入并通过 CPU/SQL/实际 Redis 消费检查，GPU 已由 07 A 真实验收通过，B 复核待完成。A 先主笔共享契约，再负责状态仓储/HTTP/派发/离线对账；B 可先做前端列表筛选/分页/请求竞争，契约合入后经共同 Protocol 接入 Worker，再补齐前端。列表独立测试不代表任务链路已实现，真实仓储装配及最终 Redis/GPU/浏览器联调必须合作。不将 SQL 写进 Trainer；请求去重、领取 token、快照和稳定错误码必须显式迁移。
 
-M3-01 已交付 [CPU 共享契约 1.0.0](contracts/tasks.md)、类型和生成样例，A/B 核对已完成；03 的 HTTP/Publisher 与 04 Worker 已实现，实际 GPU 仍待 07。TaskStatus 独立于 ORM，TaskRepository 通过 get_status/claim/record_progress/complete/fail 供 Worker 使用，完成提交确认丢失时读真实状态而不覆盖有效产物。Settings 已有固定模型 revision/精度/内部步数上限；M3-02 已按契约扩展 ORM、状态约束/唯一索引并交付显式迁移，另存 training_summary；用法见 [任务存储](task-storage.md)。新库正常创建，旧任务表在 create_all 前被拒绝，不能自动迁移；真实 Worker/SQL 装配已验收，GPU 训练仍待 07。
+M3-01 已交付 [CPU 共享契约 1.0.0](contracts/tasks.md)、类型和生成样例，A/B 核对已完成；03 的 HTTP/Publisher 与 04 Worker 已实现，实际 GPU 已由 07 A 验收通过，B 复核待完成。TaskStatus 独立于 ORM，TaskRepository 通过 get_status/claim/record_progress/complete/fail 供 Worker 使用，完成提交确认丢失时读真实状态而不覆盖有效产物。Settings 已有固定模型 revision/精度/内部步数上限；M3-02 已按契约扩展 ORM、状态约束/唯一索引并交付显式迁移，另存 training_summary；用法见 [任务存储](task-storage.md)。新库正常创建，旧任务表在 create_all 前被拒绝，不能自动迁移；真实 Worker/SQL 装配已验收，GPU 训练已由 07 A 验收通过，B 复核待完成。
 
 
 初始表：
@@ -117,7 +117,7 @@ stateDiagram-v2
 
 数据库是业务状态的唯一来源，不能将 Celery 的 `SUCCESS` 直接作为训练完成。使用条件更新领取任务，重复消息不会重复运行；API 更新 QUEUED 时只允许从 PENDING 转换，不能覆盖 RUNNING。SQL 状态逻辑已由 02 实现，03 的派发入口已使用；04 Worker 已使用同一仓储，并通过本机 SQL 和真实 Redis 缺缓存 CPU 检查。
 
-数据库提交与 Redis 派发不是同一事务。M3-03 已区分 not_sent 与 unknown：确认未知时保留当前业务状态和 task_id，不能覆盖已 RUNNING/终态。M3-06 已实现停 API/Worker、显式 --services-stopped 并取得实例锁后的离线对账；成功产物核验并比对快照后恢复 RUNNING 为 COMPLETED，否则 WORKER_INTERRUPTED，排队遗留 TASK_ABANDONED，终态不动。公共原语 core/worker_lock 固定 LOG_DIR/worker.lock，04 已完成生命周期接入，活生产 Worker 阻止应用/停止后释放已实测；GPU 中断和成功遗留产物恢复仍待 07。使用见 [对账说明](task-reconciliation.md)。不按加载阶段无 Loss 超时将活任务误判失联。保留早确认、不自动重训；outbox、在线租约/heartbeat 和自动补发暂不实现。详情以 M3 计划为准。
+数据库提交与 Redis 派发不是同一事务。M3-03 已区分 not_sent 与 unknown：确认未知时保留当前业务状态和 task_id，不能覆盖已 RUNNING/终态。M3-06 已实现停 API/Worker、显式 --services-stopped 并取得实例锁后的离线对账；成功产物核验并比对快照后恢复 RUNNING 为 COMPLETED，否则 WORKER_INTERRUPTED，排队遗留 TASK_ABANDONED，终态不动。公共原语 core/worker_lock 固定 LOG_DIR/worker.lock，04 已完成生命周期接入，活生产 Worker 阻止应用/停止后释放已实测；GPU 中断和成功遗留产物恢复已在 07 A 的真实运行通过，B 复核待完成。使用见 [对账说明](task-reconciliation.md)。不按加载阶段无 Loss 超时将活任务误判失联。保留早确认、不自动重训；outbox、在线租约/heartbeat 和自动补发暂不实现。详情以 M3 计划为准。
 
 ## 四、GPU 资源与可观测性
 

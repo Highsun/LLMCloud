@@ -1,6 +1,6 @@
 # M3 任务共享契约 1.0.0
 
-日期：2026-10-24，更新：2026-11-04。契约 1.0.0 不变。M3-01 A/B 消费者核对完成，02 SQL/迁移、03 HTTP/Publisher、04 Worker 和 06 独立对账已交付。Worker 的 146d60b 已正式审查并合入，本机 328 项回归与真实 Redis/生产 Worker 缺缓存 CPU 消费通过；05 HTTP/SQL 前端已审查接通，GPU/生产浏览器/中断恢复仍待 07。见 [Worker](../worker.md)、[审查日志](../worklogs/2026-11-03-m3-04-a-review.md) 和 [完整计划](../m3-development-plan.md)。
+日期：2026-10-24，更新：2026-11-04。契约 1.0.0 不变。M3-01 A/B 消费者核对完成，02 SQL/迁移、03 HTTP/Publisher、04 Worker 和 06 独立对账已交付。Worker 的 146d60b 已正式审查并合入，本机 328 项回归与真实 Redis/生产 Worker 缺缓存 CPU 消费通过；05 HTTP/SQL 前端已审查接通，GPU/生产浏览器/中断恢复已在 [07 A 真实运行](../worklogs/2026-11-04-m3-07-a.md) 通过，B 人工/证据复核待完成。见 [Worker](../worker.md)、[审查日志](../worklogs/2026-11-03-m3-04-a-review.md) 和 [完整计划](../m3-development-plan.md)。
 
 ## 导入与生成
 
@@ -52,7 +52,7 @@ Worker 根据当前主机 Settings.data_dir/log_dir 解析路径，并用既有�
 
 所有协议方法同步调用；领取 token 和 celery_task_id 都由服务端生成 UUIDv4，worker_id 为非空、最长 255 字符的实例标识。后续 SQL 实现负责入口值验证和短事务。三个写入方法 False 表示当前非 RUNNING、归属不符或资源不存在；对于仍持有归属的 eval/重复进度，忽略步数更新但返回 True。非法参数、损坏存量数据或 DB 操作失败不能伪装成 False/None，统一安全 TaskStoreError，底层原因仅写服务诊断且不暴露响应。
 
-get_status 是 M3-01 补全的接口：原规划要求完成提交确认丢失后重新读取实际终态，但原四个方法无法实现该读取。有效 TrainResult 已取得后，complete 异常不能继续 fail 覆盖或删除产物；先 get_status，已 COMPLETED 可保留完成，其余保留实际状态供离线对账，读取失败也不强行修改。SqlTaskRepository(sessions) 已由 M3-02 实现，导入 backend.app.services.task_repository；B 在 M3-04 的 worker/tasks.py 装配，真实 Worker/SQL 装配已验收，GPU 任务仍待 07。
+get_status 是 M3-01 补全的接口：原规划要求完成提交确认丢失后重新读取实际终态，但原四个方法无法实现该读取。有效 TrainResult 已取得后，complete 异常不能继续 fail 覆盖或删除产物；先 get_status，已 COMPLETED 可保留完成，其余保留实际状态供离线对账，读取失败也不强行修改。SqlTaskRepository(sessions) 已由 M3-02 实现，导入 backend.app.services.task_repository；B 在 M3-04 的 worker/tasks.py 装配，真实 Worker/SQL 装配已验收，GPU 任务已在 07 A 真实运行通过，B 复核待完成。
 
 TaskErrorCode 直接组合 M2 FailureCode 与 DISPATCH_FAILED/DISPATCH_UNCERTAIN/WORKER_INTERRUPTED/TASK_ABANDONED；Trainer 失败直接保留 failure.code，不改 Trainer 枚举。离线恢复原因属于 A 的恢复逻辑，不通过伪造 TrainingFailure 传给 fail。
 
@@ -94,10 +94,10 @@ M3-02/03 的请求哈希输入固定为 TaskCreate 补默认后的 model_dump(mo
 
 ## M3-06 共享实例锁与离线对账
 
-离线工具/SQL 条件更新已交付，见 [操作说明](../task-reconciliation.md)。新增 CPU 原语 backend.app.core.worker_lock.WorkerInstanceLock(log_dir)，固定 LOG_DIR/worker.lock，非阻塞 acquire/release，禁止删除锁文件。B 的 worker/instance_lock.py 必须复用该原语，在标准/直接 Celery 入口共用同一 handle 并持有整个 Worker 生命周期，重复启动需真正退出。M3-04 已接入上述钩子并通过本机双入口拒绝及真实 Worker/对账互斥检查，GPU 退出恢复仍需 07。
+离线工具/SQL 条件更新已交付，见 [操作说明](../task-reconciliation.md)。新增 CPU 原语 backend.app.core.worker_lock.WorkerInstanceLock(log_dir)，固定 LOG_DIR/worker.lock，非阻塞 acquire/release，禁止删除锁文件。B 的 worker/instance_lock.py 必须复用该原语，在标准/直接 Celery 入口共用同一 handle 并持有整个 Worker 生命周期，重复启动需真正退出。M3-04 已接入上述钩子并通过本机双入口拒绝及真实 Worker/对账互斥检查，GPU 退出恢复已在 07 A 真实运行通过，B 复核待完成。
 
 本次没有改变五个 TaskRepository 方法、Spec、HTTP Schema、Settings 字段或契约 1.0.0。对账只在显式停机声明/取锁后修复非终态；有效产物完成确认丢失时仍不继续 fail。不能把公共锁类存在或子进程检查当作 Worker 已使用此锁。
 
 ## 两人接续核对
 
-A/B 的任务契约核对已完成，B 核对日志及 A 审查均已归档，接口没有差异。后续仍从公共类型导入，不能各自复制类型。SQL/Worker/公共锁装配和真实 Redis 缺缓存 CPU 消费已验收；05 已接通去重头、error.task_id、config/null 进度和刷新恢复，本机 56 项前端/29 项 Chromium 通过；GPU 串行/中断恢复/生产浏览器在 07 共同验收。
+A/B 的任务契约核对已完成，B 核对日志及 A 审查均已归档，接口没有差异。后续仍从公共类型导入，不能各自复制类型。SQL/Worker/公共锁装配和真实 Redis 缺缓存 CPU 消费已验收；05 已接通去重头、error.task_id、config/null 进度和刷新恢复，本机 56 项前端/29 项 Chromium 通过；GPU 串行/中断恢复/生产浏览器在 07 A 自动验收通过，B 仍须按 [交接](../m3-acceptance.md) 完成人工/证据复核，再共同收口。

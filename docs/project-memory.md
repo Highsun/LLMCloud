@@ -23,10 +23,10 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 | M2-04 | [真实训练](training.md)、CLI、同源指标/回调、基础保存已完成；本机真实 Qwen LoRA 更新及冻结权重哈希验证通过 |
 | M2-05 | [共享 CPU 产物审计](training-artifacts.md)、排他原子提交与保存故障验收已完成；已校验 M2-04 真实产物和新训练结果 |
 | M2-06 | [新进程重载](adapter-reload.md) 已实际加载并生成，M2 工程闭环完成 |
-| M3 | [计划 1.7](m3-development-plan.md)；01～06 独立交付齐备，04/05 已审查合入；05 本机 56 项前端/29 项 Chromium、构建/四项契约通过，准备 07 的真实 GPU/恢复/生产浏览器验收；见 [日志](worklogs/2026-11-04-m3-05-a-review.md) |
+| M3 | [计划 1.8](m3-development-plan.md)；01～06 独立交付齐备，04/05 已审查合入；07 A 真实 GPU/Redis/SQL/生产浏览器 9 项场景通过，B 人工/证据复核待完成；见 [结果与交接](m3-acceptance.md)、[日志](worklogs/2026-11-04-m3-07-a.md) |
 | M4–M5 | 页面观测/下载和在线推理待完成 |
 
-`trainer.train` 已执行真实 Qwen LoRA，`worker.train` 已接入原 Trainer，实际 Redis 缺缓存 CPU 消费通过，异步 GPU 链路仍待 07。已有产物的新进程重载已通过；未来各任务仍须分别验收，不表示正式效果提升。
+`trainer.train` 已执行真实 Qwen LoRA，`worker.train` 已接入原 Trainer，实际 Redis 缺缓存 CPU 消费通过，异步 GPU 链路已在 07 A 实测通过，B 复核待完成。已有产物的新进程重载已通过；未来各任务仍须分别验收，不表示正式效果提升。
 
 ## 必须延续的接口与实现决定
 
@@ -58,18 +58,20 @@ M2-01 已交付类型和格式约定，生成 Schema/样例使用 scripts/export
 
 入口：[项目规划](project-plan.md)、[M2 执行计划](m2-development-plan.md)、[数据集契约](api/datasets.md)、[成员 B 日志](worklogs/2026-10-21-m1-04-frontend.md)、[日志索引](worklogs/README.md)。
 
-## M3 接续决定（01～06 独立交付齐备，准备 07）
+## M3 接续决定（07 A 真实验收通过，B 复核待完成）
+
+2026-11-04：A 新增独立真实验收脚本，未改 B 的 frontend/Worker 或原 Trainer。实际 API/Vite/Redis/Worker/GPU 共 9 项场景通过：4 个任务成功（含 SQL 确认丢失及完成前回滚恢复），5 个预期失败。两个正常任务 2 步串行，训练区间无重叠；SIGKILL 在真实第 1/64 步后发生，停机对账保留进度/文件。成功清单 code_commit=fe5c87e、working_tree_dirty=false，工程草稿不代表效果提升。本机 report/可读 browser-*-cjk 截图位于忽略的 data/acceptance/m3-07/dbdffce3-e453-46bf-b962-d66a424d7199；Git 只保存安全摘要。下一步 B 按 [交接](m3-acceptance.md) 复核并独立写日志，双方确认后再标记 M3 全阶段完成。
 
 A 负责 SQL 仓储/条件状态更新、显式迁移、HTTP/派发与离线对账；B 负责 Worker/单实例保护及现有前端接通。启动顺序已细化：A 先做 M3-01，B 先做 M3-05 列表筛选/分页/请求竞争小交付；01 代码契约双方核对合入后，A 做 02 → 03 → 06，B 做 04 → 补齐 05，最后共同做 07。列表小交付可先合入，但不算整个 05 完成；Worker 不能在 01 前另猜类型。真实仓储装配及 Redis/GPU/浏览器验收仍须合作，替身不代替真实链路。预算约 20 人时加 4 缓冲，不能沿用一周必然完成的假设。
 
-[完整计划](m3-development-plan.md) 已合并交接，第三节列明每笔任务的主改文件、验收与反馈。B 已交付的数据集页面接通了真实 API，05 已接通任务 HTTP/SQL，实际 GPU 浏览器链路/推理仍待后续验收，不能将全部前端描述为与后端剥离；也不能假定 B 已实际完成 M2 训练代码。各自小提交/日志记录已测、未测和真实联调依赖，具体截止时间由双方约定，不由 AI 虚构。
+[完整计划](m3-development-plan.md) 已合并交接，第三节列明每笔任务的主改文件、验收与反馈。B 已交付的数据集页面接通了真实 API，05 已接通任务 HTTP/SQL，实际 GPU 浏览器链路已由 07 A 自动验收通过，B 人工复核及后续在线推理仍待完成，不能将全部前端描述为与后端剥离；也不能假定 B 已实际完成 M2 训练代码。各自小提交/日志记录已测、未测和真实联调依赖，具体截止时间由双方约定，不由 AI 虚构。
 
 M3-03 已发布 POST/GET tasks 和 GET tasks/{id}、CORS/重复字段/64 KiB 保护/专用派发错误及真实 CeleryPublisher；运行时契约用 export_task_openapi.py 生成。独立 Redis+TCP 冒烟已验证真实消息、同键不重发、LPUSH 后受控丢确认和 Broker 停止，未启动 Worker/GPU；前端未改，05 已在 5ec660f 接去重头/error.task_id 并通过 A 本机回归。用户已明确要求删除 m3-handoff.md，本次一并提交删除，历史日志保留当时事实。
 
-M3-02 已交付 SqlTaskRepository(SessionLocal)，包含五个 Worker 方法及内部创建/查询/派发状态入口；新表增加快照/领取/去重/清单与 training_summary，显式迁移自动备份，旧非空行须可信映射，不补造正在运行归属。并发同键/领取、终态保护、进度、完成提交确认丢失和迁移回滚已验证，新增 37 项、总计 231 项 CPU/HTTP 通过，真实 TCP 数据集冒烟通过。本机 0 行旧任务表已备份升级；其他机器显式 check/apply。B 的 cacb198 列表交付已同步；日志见 [M3-05 B 列表](worklogs/2026-11-02-m3-05-b-list.md)，不能算 05 全部完成。A 的 06 独立主线已交付，B 的 04/契约核对也已合入；实际 SQL/公共锁装配已验收，05 也已审查合入，下一步双方准备 07。
+M3-02 已交付 SqlTaskRepository(SessionLocal)，包含五个 Worker 方法及内部创建/查询/派发状态入口；新表增加快照/领取/去重/清单与 training_summary，显式迁移自动备份，旧非空行须可信映射，不补造正在运行归属。并发同键/领取、终态保护、进度、完成提交确认丢失和迁移回滚已验证，新增 37 项、总计 231 项 CPU/HTTP 通过，真实 TCP 数据集冒烟通过。本机 0 行旧任务表已备份升级；其他机器显式 check/apply。B 的 cacb198 列表交付已同步；日志见 [M3-05 B 列表](worklogs/2026-11-02-m3-05-b-list.md)，不能算 05 全部完成。A 的 06 独立主线已交付，B 的 04/契约核对也已合入；实际 SQL/公共锁装配已验收，05 也已审查合入，下一步 B 复核 07 的真实结果并共同收口。
 
-M3-01 A 侧代码已交付：models/task_schemas、core/task_contract/task_protocols，旧 TaskCreate/TaskStatus 导入保留；TaskRepository 有 get_status/claim/record_progress/complete/fail 五个方法，get_status 补齐完成写入确认丢失后的状态读取。Spec 使用 dataset_key/dataset_sha256/dataset_size_bytes/dataset_row_count、config/runtime，构造时重校验并深拷贝 config。Settings 增加固定 revision、精度和内部可选步数上限，迁移清单已由 M3-02 实现，真实 Worker 已由 04 装配，GPU 验收仍待 07。共享错误枚举扩展后已重导出数据集契约，任务 Schema/fixture 用 scripts/export_task_contract.py 生成/检查。20 项新增、总计 194 项 CPU/HTTP 通过；B 核对已于 146d60b 交付并经 A 审查接受；上述 194 项是当时历史基线，不是当前总数。
+M3-01 A 侧代码已交付：models/task_schemas、core/task_contract/task_protocols，旧 TaskCreate/TaskStatus 导入保留；TaskRepository 有 get_status/claim/record_progress/complete/fail 五个方法，get_status 补齐完成写入确认丢失后的状态读取。Spec 使用 dataset_key/dataset_sha256/dataset_size_bytes/dataset_row_count、config/runtime，构造时重校验并深拷贝 config。Settings 增加固定 revision、精度和内部可选步数上限，迁移清单已由 M3-02 实现，真实 Worker 已由 04 装配，GPU 验收已在 07 A 实测通过，B 复核待完成。共享错误枚举扩展后已重导出数据集契约，任务 Schema/fixture 用 scripts/export_task_contract.py 生成/检查。20 项新增、总计 194 项 CPU/HTTP 通过；B 核对已于 146d60b 交付并经 A 审查接受；上述 194 项是当时历史基线，不是当前总数。
 
-M3-06 A 侧已独立交付 [离线对账](task-reconciliation.md)：scripts/reconcile_tasks.py 默认只读；--apply --services-stopped 持共享实例锁，完整产物/固定快照匹配后恢复 RUNNING 为 COMPLETED，其余中断/放弃，终态不变；逐项短事务检查全行指纹/token，保留文件和审计日志，提交未知不再 fail。公共 core/worker_lock.WorkerInstanceLock(log_dir) 固定 LOG_DIR/worker.lock，B 的实例锁/生命周期入口已复用；2026-11-03 的生产 Worker 锁互斥/停止释放 CPU 冒烟已通过。25 项新增、共 283 项回归通过，合成 CPU bundle 与真实子进程锁/SQL 异常退出仅为独立证据，该历史子进程验收未覆盖 Celery/GPU；当前已补真实 Celery CPU 消费，GPU 仍待 07。本机业务库只读 current/items=[]，没有应用修复。
+M3-06 A 侧已独立交付 [离线对账](task-reconciliation.md)：scripts/reconcile_tasks.py 默认只读；--apply --services-stopped 持共享实例锁，完整产物/固定快照匹配后恢复 RUNNING 为 COMPLETED，其余中断/放弃，终态不变；逐项短事务检查全行指纹/token，保留文件和审计日志，提交未知不再 fail。公共 core/worker_lock.WorkerInstanceLock(log_dir) 固定 LOG_DIR/worker.lock，B 的实例锁/生命周期入口已复用；2026-11-03 的生产 Worker 锁互斥/停止释放 CPU 冒烟已通过。25 项新增、共 283 项回归通过，合成 CPU bundle 与真实子进程锁/SQL 异常退出仅为独立证据，该历史子进程验收未覆盖 Celery/GPU；当前已补真实 Celery CPU 消费，GPU 中断/恢复已在 07 A 实测通过，B 复核待完成。本机业务库只读 current/items=[]，没有应用修复。
 
-派发 not_sent 与 unknown 分开；unknown 可留 PENDING 或已被领取状态，返回可查询 task_id。03 已实现可选 Idempotency-Key，同键不重发；消息领取仍需 claim_token CAS。早确认不承诺崩溃自动恢复；最低限度对账离线应用，先停 API/Worker，不擅自重训。上述均须在 M3-01～07 实现并验收，任务路由和真实 Publisher 已实现，worker.train 已实现，实际 GPU/生产浏览器验收仍待 07。
+派发 not_sent 与 unknown 分开；unknown 可留 PENDING 或已被领取状态，返回可查询 task_id。03 已实现可选 Idempotency-Key，同键不重发；消息领取仍需 claim_token CAS。早确认不承诺崩溃自动恢复；最低限度对账离线应用，先停 API/Worker，不擅自重训。上述均须在 M3-01～07 实现并验收，任务路由和真实 Publisher 已实现，worker.train 已实现，实际 GPU/生产浏览器自动验收已在 07 A 通过，B 人工/证据复核待完成。

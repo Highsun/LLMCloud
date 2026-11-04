@@ -93,6 +93,9 @@ try {
   await expect(detail.getByRole("button", { name: "下载 Adapter" })).toBeDisabled();
   await page.screenshot({ path: path.join(args.output, "desktop.png"), fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
+  // Wait for the existing responsive drawer transition before judging/capturing layout.
+  await expect.poll(() => page.locator(".sidebar").evaluate(node => node.getBoundingClientRect().right))
+    .toBeLessThanOrEqual(0);
   assert(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), "Mobile overflow");
   await page.screenshot({ path: path.join(args.output, "mobile.png"), fullPage: true });
   assert.deepEqual(errors, []);

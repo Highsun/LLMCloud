@@ -112,6 +112,34 @@ class Acceptance:
             self.api = None
             self.listener.close()
 
+    async def start_frontend(self):
+        vite_port = port()
+        self.front_url = f"http://127.0.0.1:{vite_port}"
+        self.vite = subprocess.Popen(["npm", "run", "dev", "--", "--port", str(vite_port)], cwd=ROOT / "frontend",
+            env={**os.environ, "VITE_BACKEND_URL": self.api_url, "VITE_API_BASE_URL": "/api/v1", "VITE_OPENAPI_URL": "/openapi.json"},
+            stdout=self.log("vite.log"), stderr=subprocess.STDOUT, start_new_session=True)
+        async with httpx.AsyncClient(trust_env=False) as probe:
+            for _ in range(200):
+                try:
+                    if (await probe.get(self.front_url)).status_code == 200: return
+                except httpx.HTTPError: pass
+                await asyncio.sleep(0.05)
+        raise RuntimeError("Vite readiness failed")
+
+    async def cleanup(self):
+        await self.stop_worker()
+        await self.stop_api()
+        if self.vite is not None:
+            import signal
+            try:
+                os.killpg(self.vite.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
+            await asyncio.to_thread(stop, self.vite)
+        if hasattr(self, "broker"): self.broker.close()
+        await asyncio.to_thread(stop, self.redis_process)
+        for stream in self.open_files: stream.close()
+
     async def start_worker(self, *, fault=None, task_id=None, missing_cache=False):
         assert self.worker is None
         command = [sys.executable, "-m", "worker"] if fault is None else [sys.executable,
@@ -172,6 +200,9 @@ class Acceptance:
         libraries = "/tmp/llmcloud-browser-libs/root/usr/lib/x86_64-linux-gnu"
         if Path(libraries).is_dir():
             environment["LD_LIBRARY_PATH"] = libraries + ":" + environment.get("LD_LIBRARY_PATH", "")
+        fonts = Path("/tmp/llmcloud-browser-fonts/fonts.conf")
+        if fonts.is_file():
+            environment.setdefault("FONTCONFIG_FILE", str(fonts))
         return environment
 
     async def browser(self, name, *, task_id=None, status=None, code=None):
@@ -199,6 +230,28 @@ class Acceptance:
         assert result.returncode == 0, report
         return report
 
+    async def review_records(self):
+        """Reopen actual persisted records for readable screenshots; no training or Redis."""
+        assert self.report["status"] == "passed" and self.report["gpu_execution_verified"]
+        self.settings.redis_url = "redis://127.0.0.1:1/0"  # No business broker, even on an unintended mutation.
+        cases = self.report["cases"]
+        targets = [
+            ("browser-success", cases["two_serial_gpu_tasks_and_browser"]["task_ids"][1], "COMPLETED", None),
+            ("browser-recovered", cases["before_commit"]["task_id"], "COMPLETED", None),
+            ("browser-saving-failed", cases["saving"]["task_id"], "FAILED", "ARTIFACT_WRITE_FAILED"),
+            ("browser-interrupted", cases["gpu_interruption_and_queued_abandonment"]["interrupted"]["id"], "FAILED", "WORKER_INTERRUPTED"),
+            ("browser-invalid-dataset", cases["controlled_dataset_tamper"]["id"], "FAILED", "INVALID_DATASET"),
+        ]
+        try:
+            await self.start_api()
+            await self.start_frontend()
+            for name, task_id, status, code in targets:
+                await self.browser(name + "-cjk", task_id=task_id, status=status, code=code)
+            self.report["browser_visual_review"] = {"status": "passed", "mode": "persisted_real_records_no_gpu_rerun",
+                "directories": [name + "-cjk" for name, *_ in targets], "finished_at": datetime.now(timezone.utc).isoformat()}
+        finally:
+            await self.cleanup()
+
     async def run(self, socket_dir):
         socket_path = socket_dir / "redis.sock"
         self.settings.redis_url = f"redis+socket://{socket_path}?virtual_host=0"
@@ -214,18 +267,7 @@ class Acceptance:
                     await asyncio.sleep(0.02)
             else: raise RuntimeError("Redis readiness failed")
             await self.start_api()
-            vite_port = port()
-            self.front_url = f"http://127.0.0.1:{vite_port}"
-            self.vite = subprocess.Popen(["npm", "run", "dev", "--", "--port", str(vite_port)], cwd=ROOT / "frontend",
-                env={**os.environ, "VITE_BACKEND_URL": self.api_url, "VITE_API_BASE_URL": "/api/v1", "VITE_OPENAPI_URL": "/openapi.json"},
-                stdout=self.log("vite.log"), stderr=subprocess.STDOUT, start_new_session=True)
-            async with httpx.AsyncClient(trust_env=False) as probe:
-                for _ in range(200):
-                    try:
-                        if (await probe.get(self.front_url)).status_code == 200: break
-                    except httpx.HTTPError: pass
-                    await asyncio.sleep(0.05)
-                else: raise RuntimeError("Vite readiness failed")
+            await self.start_frontend()
             await self.start_worker()
             browser = await self.browser("browser-success")
             self.dataset_id = browser["dataset_id"]
@@ -337,25 +379,24 @@ class Acceptance:
             self.report.update(status="passed", gpu_execution_verified=True, finished_at=datetime.now(timezone.utc).isoformat(),
                 teammate_evidence_review="pending", browser_url=self.front_url)
         finally:
-            await self.stop_worker()
-            await self.stop_api()
-            if self.vite is not None:
-                import signal
-                try:
-                    os.killpg(self.vite.pid, signal.SIGTERM)
-                except ProcessLookupError:
-                    pass
-                await asyncio.to_thread(stop, self.vite)
-            if hasattr(self, "broker"): self.broker.close()
-            await asyncio.to_thread(stop, self.redis_process)
-            for stream in self.open_files: stream.close()
+            await self.cleanup()
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--gpu", action="store_true", help="Explicitly run real LoRA on the local GPU")
     parser.add_argument("--run-dir", type=Path, help="New evidence directory; must not already exist")
+    parser.add_argument("--review-run", type=Path, help="Reopen a passed run's actual records for screenshots; no GPU")
     args = parser.parse_args()
+    if args.review_run:
+        if args.gpu or args.run_dir: parser.error("--review-run cannot be combined with --gpu/--run-dir")
+        root = args.review_run.absolute()
+        runner = Acceptance(root, Settings(), resolve_model_paths())
+        runner.report = json.loads((root / "report.json").read_text())
+        asyncio.run(runner.review_records())
+        write(root / "report.json", runner.report)
+        print(json.dumps({"status": "passed", "mode": "persisted_real_records_no_gpu_rerun"}))
+        return
     if not args.gpu: parser.error("--gpu is required; coordinate exclusive GPU use first")
     if not shutil.which("redis-server") or not shutil.which("npm"): parser.error("redis-server/npm required")
     shared, paths = Settings(), resolve_model_paths()

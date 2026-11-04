@@ -1,6 +1,6 @@
 # M3-02 任务存储、状态与迁移
 
-日期：2026-11-02，更新：2026-11-03。SQL 仓储/任务表/显式迁移、03 HTTP/Publisher、04 Worker 独立实现与 06 对账均已交付；本机 328 项回归和真实 Redis/生产 Worker 缺缓存 CPU 冒烟通过。GPU 串行/中断恢复仍待 07，不把 SQL/CPU 消费当成完整 GPU 验收。[共享契约](contracts/tasks.md) 的五个 Worker 方法保持不变。
+日期：2026-11-02，更新：2026-11-04。SQL 仓储/任务表/显式迁移、03 HTTP/Publisher、04 Worker 独立实现与 06 对账均已交付；本机 328 项回归和真实 Redis/生产 Worker 缺缓存 CPU 冒烟通过。GPU 串行/中断及成功产物恢复已在 [M3-07 A 真实运行](worklogs/2026-11-04-m3-07-a.md) 另行通过，B 复核待完成，不把 SQL/CPU 消费当成 GPU 证据。[共享契约](contracts/tasks.md) 的五个 Worker 方法保持不变。
 
 ## 使用仓储
 

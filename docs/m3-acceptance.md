@@ -1,6 +1,6 @@
 # M3-07 真实服务验收与两人交接
 
-更新：2026-11-04。当前在实施真实 GPU/Redis/SQL/生产浏览器自动验收，结果以独立运行 report.json 和 [A 工作日志](worklogs/2026-11-04-m3-07-a.md) 为准。队友的人工/异步证据复核另行记录，不以受控测试事件代替真实训练。
+更新：2026-11-04。A 侧真实 GPU/Redis/SQL/生产浏览器自动验收已通过，9 项场景、9 个任务（4 个成功、5 个预期失败），详见 [A 工作日志](worklogs/2026-11-04-m3-07-a.md)。B 的人工页面检查/异步证据复核待完成，M3 全阶段暂未共同收口。
 
 ## A 的执行入口
 
@@ -43,4 +43,18 @@ scripts/m3_acceptance_worker.py 仅供受控故障：在指定任务的真实 SQ
 4. 发现页面问题后，先反馈实际 task_id、request_id、操作步骤和预期/实际；只改 frontend，新增独立测试及 YYYY-MM-DD-m3-07-b.md 日志，附检查结果和未验收项。涉及共享 HTTP/Worker 语义先与 A 核对，不复制 SQL/Trainer 或扩大 M4/M5 范围。
 5. 在独立日志中写明已复核哪些真实证据、人工操作是否完成、剩余问题；共同核对后才将 M3 全阶段完成项收口。GPU/共用服务测试安排一次中途同步，阻塞约 30 分钟时反馈具体问题。
 
-当前不能将“入口已实现”当作上表全部通过，最终状态随真实运行结果更新。
+## 本次真实结果与复核入口
+
+本机运行目录为 `data/acceptance/m3-07/dbdffce3-e453-46bf-b962-d66a424d7199/`，不随 Git 同步。`report.json` 的 status=passed、gpu_execution_verified=true，teammate_evidence_review=pending。训练代码提交 fe5c87e，四份有效成功清单均记录 working_tree_dirty=false。实际执行为 UTC 09:55:32–09:57:06，两项正常任务分别在 09:55:34.823265–09:55:58.927595、09:55:58.937114–09:56:03.969387 训练，彼此不重叠。
+
+四份有效 Adapter 都完成 2 个优化器更新步，独立 CPU 审计通过；另有一次真实训练后的受控保存失败。实际 GPU 中断发生在第 1/64 步，停机对账后保留该进度和文件，排队任务标记放弃；实际 SQL 完成前回滚留下的完整成功产物已恢复为 COMPLETED。保存/SQL 异常是明确注入的受控故障，不是自然故障或 OOM。
+
+WSL 无头浏览器最初缺少中文字体，原始截图显示方框。已在 /tmp 临时补齐 Noto CJK 字体，并重开实际持久化任务生成可读证据；此操作不重跑 GPU、不改变原训练时间/产物。B 优先查看 `browser-success-cjk/`、`browser-recovered-cjk/`、`browser-saving-failed-cjk/`、`browser-interrupted-cjk/`、`browser-invalid-dataset-cjk/` 中的 desktop.png、mobile.png 和 trace.zip；原 browser-success/result.json 仍保存最初页面上传、连续提交及真实训练轮询证据。上述目录共保留 20 张截图和 10 份 trace，半数为补字体后的只读复查。
+
+需要重新查看已通过运行时，可以使用已同步好依赖的 Python 环境执行（--no-sync 避免重整训练环境的 extras）：
+
+```bash
+uv run --locked --no-sync python scripts/check_m3_acceptance.py --review-run data/acceptance/m3-07/dbdffce3-e453-46bf-b962-d66a424d7199
+```
+
+该入口只启动实际 API/Vite 读取本机既有隔离库，不启动 Redis/Worker/GPU，不能当作新一轮训练验收。仍需 Node/Chromium 和中文字体；如使用临时字体配置，通过 FONTCONFIG_FILE 指定。另一台机器没有此目录时，应先与 A 约定同机查看或安全交接最小证据，不能因 Git 中没有原始文件就声称已复核。B 完成独立日志后再共同更新阶段完成状态。
