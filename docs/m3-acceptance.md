@@ -61,12 +61,12 @@ uv run --locked --no-sync python scripts/check_m3_acceptance.py --review-run dat
 
 ## 跨机器证据交接
 
-2026-11-04 补齐：此前只给出 A 的本机路径，B 的 checkout 没有证据目录是正常的，交接材料确实需要另传。data/ 被 Git 忽略，拉取代码不会取得报告、截图或数据库。原运行服务已关闭，report.browser_url 是历史临时地址，当前没有可提供给 B 的在线验收地址。
+2026-11-04 更新：最初材料只在 A 的本机且被 Git 忽略；用户随后明确要求将下列 ZIP 和校验文件提交 GitHub，方便 B 直接拉取。本次授权仅覆盖这两个固定文件，原完整运行目录及解压内容继续保持忽略。原运行服务已关闭，report.browser_url 是历史临时地址，当前没有在线验收地址。
 
-A 本机已准备好私下交接文件（均位于 Git 忽略目录）：
+同步最新 main 后，仓库内文件路径为：
 
 ```text
-/home/highsun/code/LLMCloud/data/acceptance/handoffs/
+data/acceptance/handoffs/
   m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip
   m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip.sha256
 ```
@@ -77,23 +77,24 @@ ZIP 大小 6,672,377 字节，约 6.4 MiB；SHA-256：
 dba657710cbc2f0d92207c6ce8cb2593efe0474815146bd5d51b2de0e6bae62a
 ```
 
-请由用户将 ZIP 和 .sha256 两个文件通过团队已有文件传输方式交给 B。准备好文件不等于 B 已收到；不要强制添加到 Git，也不要为此公开发布原始证据。
+按本次用户授权，仅对上述两个文件执行精确 git add -f，未扩大 .gitignore 规则。ZIP 保持原字节和原校验值；包内说明保留打包时的交接背景，当前 Git 交付方式以本节为准。拉取材料不等于 B 已完成复核。
 
 包内有 63 个文件：原 report.json、20 张截图、10 份 trace、浏览器 result/submitted、SQLite 一致性快照、原训练清单/指标/配置/失败诊断副本，以及 README/handoff.json/SHA256SUMS。快照有 9 个真实任务（4 成功、5 预期失败），无用户记录。源报告和浏览器/训练元数据逐字节复制；SQLite 使用只读源库 backup 得到快照，打包未修改原验收目录。
 
 包内不含数据集正文、模型缓存、Adapter/tokenizer 权重、checkpoint 或原始服务日志。trace 包含实际公开工程格式样例的请求内容。B 可以用本包核对记录和既有任务页面；若要独立重做权重完整性审计，仍需另行交接原完整成功产物目录，不能把本包的 metadata/outputs 当作完整训练 bundle。
 
-B 收到后，在 ZIP 和 .sha256 所在目录运行校验：
+B 保留自己的未提交改动并按协作规则同步；以下适用于工作区干净且可快进的 checkout。从仓库根目录运行：
 
 ```bash
-sha256sum -c m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip.sha256
+git pull --ff-only origin main
+(cd data/acceptance/handoffs && sha256sum -c m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip.sha256)
 ```
 
-再从仓库根目录解压到被忽略的目录（将占位路径换成实际收到的 ZIP 路径）：
+再从仓库根目录解压到被忽略的目录：
 
 ```bash
 mkdir -p data/acceptance/imported
-python3 -m zipfile -e <收到的ZIP绝对路径> data/acceptance/imported
+python3 -m zipfile -e data/acceptance/handoffs/m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip data/acceptance/imported
 cd data/acceptance/imported/m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review
 sha256sum -c SHA256SUMS
 ```

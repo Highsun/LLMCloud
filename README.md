@@ -22,7 +22,7 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 **M3 协作开发入口**：[完整计划](docs/m3-development-plan.md)、[共享契约](docs/contracts/tasks.md)、[任务 API](docs/api/tasks.md)、[Worker](docs/worker.md) 与 [对账](docs/task-reconciliation.md)。04 的 146d60b 和 05 的 5ec660f 已审查合入，见 [M3-05 审查日志](docs/worklogs/2026-11-04-m3-05-a-review.md)。07 的 [真实结果与队友工作](docs/m3-acceptance.md)、[A 日志](docs/worklogs/2026-11-04-m3-07-a.md) 已交付；下一步 B 复核并共同收口。
 
-跨机器复核需另外传递 [M3-07 证据包](docs/m3-acceptance.md#跨机器证据交接)：A 已准备约 6.4 MiB 的报告/截图/trace/隔离数据库快照，B 收到后按说明校验、解压。证据文件不随 Git 同步，原临时服务地址已失效；目前不代表 B 已收到或完成复核。
+按用户明确要求，[M3-07 证据包及校验文件](docs/m3-acceptance.md#跨机器证据交接) 作为两个固定特例纳入 Git，B 同步 main 即可取得约 6.4 MiB 的报告/截图/trace/隔离数据库快照并按说明校验、解压。原完整运行目录和解压内容仍被忽略，原临时服务地址已失效；B 复核仍待完成。
 
 任务类型/样例只读检查：`uv run --locked python scripts/export_task_contract.py --check`；重新生成时去掉 `--check`。此命令输出 JSON Schema 与明确标记的 [mock 样例](docs/examples/tasks/README.md)。真实任务路由已实现，运行时 OpenAPI 另用 `uv run --locked python scripts/export_task_openapi.py --check` 检查；仅导出类型样例不能代替 HTTP/Worker 验收。
 

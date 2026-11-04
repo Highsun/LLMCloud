@@ -93,4 +93,4 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 M3-07 实施入口与队友分工见 [真实服务验收](docs/m3-acceptance.md) 和 [A 工作日志](docs/worklogs/2026-11-04-m3-07-a.md)。A 的真实 GPU/故障/生产浏览器自动验收已通过并记录；B 尚需阅读本机 report/可读截图并另写人工操作或异步复核日志，再共同收口。
 
-跨机器证据须私下传递，不随 Git 同步。A 已准备约 6.4 MiB 的报告/截图/trace/隔离 SQLite 快照包，路径/哈希/解压步骤见 [交接说明](docs/m3-acceptance.md#跨机器证据交接) 和 [交接日志](docs/worklogs/2026-11-04-m3-07-evidence-handoff.md)。B 的机器没有原运行目录时先记录“尚未收到证据”，可继续代码/CPU 检查；收到并校验后再复核，不声称本地 Git 拉取已带来真实证据。原 report.browser_url 是已经停止的历史地址；包内已有任务页面复查不等于重跑 GPU 或完成双方人工联调。
+2026-11-04 用户明确授权将 data/acceptance/handoffs/m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip 及同名 .zip.sha256 纳入 Git，作为当前数据/产物忽略规则的两个固定特例；其余原目录、解压内容、数据/权重/数据库/日志继续保持忽略。B 同步 main 后按 [交接说明](docs/m3-acceptance.md#跨机器证据交接) 校验、解压并复核；本次决定见 [Git 交付日志](docs/worklogs/2026-11-04-m3-07-evidence-git.md)。原 report.browser_url 是已停止的历史地址；拉取证据、既有页面复查不等于重跑 GPU 或完成双方人工联调，B 仍须独立写日志。
