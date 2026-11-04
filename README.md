@@ -22,6 +22,8 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 **M3 协作开发入口**：[完整计划](docs/m3-development-plan.md)、[共享契约](docs/contracts/tasks.md)、[任务 API](docs/api/tasks.md)、[Worker](docs/worker.md) 与 [对账](docs/task-reconciliation.md)。04 的 146d60b 和 05 的 5ec660f 已审查合入，见 [M3-05 审查日志](docs/worklogs/2026-11-04-m3-05-a-review.md)。07 的 [真实结果与队友工作](docs/m3-acceptance.md)、[A 日志](docs/worklogs/2026-11-04-m3-07-a.md) 已交付；下一步 B 复核并共同收口。
 
+跨机器复核需另外传递 [M3-07 证据包](docs/m3-acceptance.md#跨机器证据交接)：A 已准备约 6.4 MiB 的报告/截图/trace/隔离数据库快照，B 收到后按说明校验、解压。证据文件不随 Git 同步，原临时服务地址已失效；目前不代表 B 已收到或完成复核。
+
 任务类型/样例只读检查：`uv run --locked python scripts/export_task_contract.py --check`；重新生成时去掉 `--check`。此命令输出 JSON Schema 与明确标记的 [mock 样例](docs/examples/tasks/README.md)。真实任务路由已实现，运行时 OpenAPI 另用 `uv run --locked python scripts/export_task_openapi.py --check` 检查；仅导出类型样例不能代替 HTTP/Worker 验收。
 
 M3-03 真实派发冒烟：`uv run --locked python scripts/check_task_http.py`（需 redis-server）。自动使用临时 Redis/SQL/文件和 TCP API，验证 202/200 去重、真实消息、入队后受控确认丢失及 Broker 停止，不启动 Worker/GPU、不使用业务队列。worker.train 已由 M3-04 实现，真实 GPU 链路已有 [M3-07 独立验收](docs/m3-acceptance.md)；API 202/QUEUED 仅表示已接受派发，未表示训练成功。

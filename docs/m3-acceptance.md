@@ -57,4 +57,49 @@ WSL 无头浏览器最初缺少中文字体，原始截图显示方框。已在 
 uv run --locked --no-sync python scripts/check_m3_acceptance.py --review-run data/acceptance/m3-07/dbdffce3-e453-46bf-b962-d66a424d7199
 ```
 
-该入口只启动实际 API/Vite 读取本机既有隔离库，不启动 Redis/Worker/GPU，不能当作新一轮训练验收。仍需 Node/Chromium 和中文字体；如使用临时字体配置，通过 FONTCONFIG_FILE 指定。另一台机器没有此目录时，应先与 A 约定同机查看或安全交接最小证据，不能因 Git 中没有原始文件就声称已复核。B 完成独立日志后再共同更新阶段完成状态。
+该入口只启动实际 API/Vite 读取本机既有隔离库，不启动 Redis/Worker/GPU，不能当作新一轮训练验收。仍需 Node/Chromium 和中文字体；如使用临时字体配置，通过 FONTCONFIG_FILE 指定。另一台机器先按下节接收证据包，再复核；B 完成独立日志后再共同更新阶段完成状态。
+
+## 跨机器证据交接
+
+2026-11-04 补齐：此前只给出 A 的本机路径，B 的 checkout 没有证据目录是正常的，交接材料确实需要另传。data/ 被 Git 忽略，拉取代码不会取得报告、截图或数据库。原运行服务已关闭，report.browser_url 是历史临时地址，当前没有可提供给 B 的在线验收地址。
+
+A 本机已准备好私下交接文件（均位于 Git 忽略目录）：
+
+```text
+/home/highsun/code/LLMCloud/data/acceptance/handoffs/
+  m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip
+  m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip.sha256
+```
+
+ZIP 大小 6,672,377 字节，约 6.4 MiB；SHA-256：
+
+```text
+dba657710cbc2f0d92207c6ce8cb2593efe0474815146bd5d51b2de0e6bae62a
+```
+
+请由用户将 ZIP 和 .sha256 两个文件通过团队已有文件传输方式交给 B。准备好文件不等于 B 已收到；不要强制添加到 Git，也不要为此公开发布原始证据。
+
+包内有 63 个文件：原 report.json、20 张截图、10 份 trace、浏览器 result/submitted、SQLite 一致性快照、原训练清单/指标/配置/失败诊断副本，以及 README/handoff.json/SHA256SUMS。快照有 9 个真实任务（4 成功、5 预期失败），无用户记录。源报告和浏览器/训练元数据逐字节复制；SQLite 使用只读源库 backup 得到快照，打包未修改原验收目录。
+
+包内不含数据集正文、模型缓存、Adapter/tokenizer 权重、checkpoint 或原始服务日志。trace 包含实际公开工程格式样例的请求内容。B 可以用本包核对记录和既有任务页面；若要独立重做权重完整性审计，仍需另行交接原完整成功产物目录，不能把本包的 metadata/outputs 当作完整训练 bundle。
+
+B 收到后，在 ZIP 和 .sha256 所在目录运行校验：
+
+```bash
+sha256sum -c m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip.sha256
+```
+
+再从仓库根目录解压到被忽略的目录（将占位路径换成实际收到的 ZIP 路径）：
+
+```bash
+mkdir -p data/acceptance/imported
+python3 -m zipfile -e <收到的ZIP绝对路径> data/acceptance/imported
+cd data/acceptance/imported/m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review
+sha256sum -c SHA256SUMS
+```
+
+先阅读包内 README、report.json、handoff.json；截图优先看 browser-*-cjk，真实上传/连续提交/轮询过程看原 browser-success 的 result 和 trace。在已有前端依赖的 frontend 目录可以运行 `npx --no-install playwright show-trace <解压目录绝对路径>/browser-success/trace.zip` 查看本地 trace；没有依赖时先按项目入口安装，离线阅读 JSON/截图本身不依赖前端环境。
+
+如要运行 --review-run，请先复制解压目录为工作副本，再按上节入口传入该副本路径。此命令会更新报告/截图并自动关闭服务，不提供持续在线服务。A 已用本包全新解压的副本、CPU 环境和空模型缓存实际跑通五类任务页面复查，未使用 Redis/Worker/GPU、数据集正文或模型权重。原 ZIP 和原验收目录保持不变。
+
+B 现在可先完成代码/CPU 检查及收到材料后的异步证据复核，在独立日志中分别记录；从新上传到真实 GPU 完成的人工操作仍需双方约定服务/GPU 时段。材料到达前明确写“尚未收到证据”，不把它记为代码缺陷或阶段验收通过。详情见 [交接日志](worklogs/2026-11-04-m3-07-evidence-handoff.md)。
