@@ -8,19 +8,19 @@
 
 ## 一、当前进度
 
-当前完成 **M0 初始化、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3-01 契约核对、02 任务存储、03 HTTP/Publisher、04 Worker 独立实现和 06 离线对账已交付。04 已正式审查并合入；05 只有列表基础，真实 GPU/浏览器与完整恢复验收仍待 07。
+当前完成 **M0、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3-01～06 独立交付齐备；04 已有 328 项 CPU/实际 Redis 缺缓存路径验收；05 的 5ec660f 已于 2026-11-04 经 A 审查、本机 56 项前端/29 项 Chromium、构建及四项契约检查后快进合入。当前准备 07 的真实 GPU 串行、中断/有效产物遗留恢复及生产浏览器验收，测试 Publisher/事件替身不能代替 GPU 证据。
 
 M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-04 数据管理页面**。成员 B 交付的工作台已接通真实上传、列表与详情，本次补齐局部修复和浏览器验收；M1-05 故障验收与 CPU CI、M1-06 数据方案/划分工具/冻结题也已完成。M1 计划范围已验收，M2 工程闭环也已完成；正式实验语料仍需人工编写和审核。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，项目梳理见 [项目记忆](docs/project-memory.md)，页面接续见 [M1-04 日志](docs/worklogs/2026-10-22-m1-04-integration.md)，故障与 CI 见 [M1-05 日志](docs/worklogs/2026-10-22-m1-05.md)，数据来源/划分/冻结题见 [数据方案](docs/data/README.md) 与 [M1-06 日志](docs/worklogs/2026-10-22-m1-06.md)。
 
 - 已建立：项目结构、环境配置、SQLite 元数据表、数据集服务及共享校验、上传/列表/详情 API 和统一错误、任务创建/查询与 Redis 派发、FastAPI 健康检查与模型目录、Celery Worker 编排及实例锁、Vue3 工作台与数据集页面。
 - 已定义：数据集格式、训练参数校验、训练输入/输出及进度回调接口、任务状态、后续 API 契约。
-- 待开发/验收：正式语料编写/审核、完整任务页面接通与异步 GPU 验收、日志与 Loss 页面展示、Adapter 下载、模型推理。
+- 待开发/验收：正式语料编写/审核、异步 GPU/生产浏览器全链路、Loss/日志展示、Adapter 下载和在线推理。
 
-`trainer.train` 已实现真实单 GPU LoRA 与独立 CLI；`worker.train` 已接入真实 SQL/原 Trainer，使用同源回调和产物审计。真实 Redis 的缺缓存 CPU 消费已通过，尚未验收异步 GPU 训练。前端按运行时 OpenAPI 控制操作，完整提交/详情/去重处理待 B 补齐 M3-05。
+`trainer.train` 已实现真实单 GPU LoRA，`worker.train` 已接入 SQL/原 Trainer/审计。05 前端已接通任务 HTTP/SQL 的提交/详情/去重和刷新恢复；GPU/生产浏览器仍待 07，M4/M5 操作继续按能力禁用。
 
 **M2 单机真实 LoRA 工程闭环已验收**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成；任务 HTTP/Celery 接入属于 M3。
 
-**M3 协作开发入口**：[完整开发计划](docs/m3-development-plan.md)、[共享契约 1.0.0](docs/contracts/tasks.md)、[任务 API](docs/api/tasks.md)、[Worker](docs/worker.md) 和 [离线对账](docs/task-reconciliation.md)。M3-01 已完成 A/B 核对，M3-04 的 146d60b 已经正式审查和本机 328 项回归后合入；详情见 [审查日志](docs/worklogs/2026-11-03-m3-04-a-review.md)。下一步 B 补齐 05 的提交/详情/去重及真实接通，双方做 07 的 GPU 串行、故障恢复和浏览器联调。
+**M3 协作开发入口**：[完整计划](docs/m3-development-plan.md)、[共享契约](docs/contracts/tasks.md)、[任务 API](docs/api/tasks.md)、[Worker](docs/worker.md) 与 [对账](docs/task-reconciliation.md)。04 的 146d60b 和 05 的 5ec660f 已审查合入，见 [M3-05 审查日志](docs/worklogs/2026-11-04-m3-05-a-review.md)。下一步按计划第 3.6 节准备并执行 07。
 
 任务类型/样例只读检查：`uv run --locked python scripts/export_task_contract.py --check`；重新生成时去掉 `--check`。此命令输出 JSON Schema 与明确标记的 [mock 样例](docs/examples/tasks/README.md)。真实任务路由已实现，运行时 OpenAPI 另用 `uv run --locked python scripts/export_task_openapi.py --check` 检查；仅导出类型样例不能代替 HTTP/Worker 验收。
 

@@ -1,6 +1,6 @@
 # M3 任务 API 契约
 
-更新：2026-11-03；契约 1.0.0。M3-03 已实现任务创建/列表/详情 HTTP、请求去重和真实 Redis/Celery Publisher；[任务 OpenAPI](tasks.openapi.json) 从实际 app.openapi() 导出。M3-04 Worker/公共锁已合入并完成真实 Redis 缺缓存 CPU 消费检查，GPU 和完整页面仍待 05/07。类型与分工见 [共享契约](../contracts/tasks.md)、[完整计划](../m3-development-plan.md) 和 [Worker](../worker.md)。
+更新：2026-11-04；契约 1.0.0。M3-03 已实现任务创建/列表/详情 HTTP、请求去重和真实 Redis/Celery Publisher；[任务 OpenAPI](tasks.openapi.json) 从实际 app.openapi() 导出。M3-04 Worker/公共锁已合入并完成真实 Redis 缺缓存 CPU 消费检查，05 已接通 HTTP/SQL 并审查合入，GPU 和生产浏览器链路仍待 07。类型与分工见 [共享契约](../contracts/tasks.md)、[完整计划](../m3-development-plan.md) 和 [Worker](../worker.md)。
 
 ## 接口与输入
 
@@ -103,11 +103,11 @@ TaskDetail.error_code 是业务诊断，和 HTTP error.code 不必相同：训�
 
 ## 交付和前端接入
 
-B 已交付列表筛选/分页/请求竞争小交付，范围与验收见 [完整计划第三节](../m3-development-plan.md)。ALL 不发送 status，其余发送五状态之一；切状态回第一页，翻页/刷新/轮询保留筛选；旧成功、失败及 finally 不能覆盖最新状态。该小交付只计为 05 部分完成，Worker 仍需核对共享类型后接入。
+B 已交付列表筛选/分页/请求竞争小交付，范围与验收见 [完整计划第三节](../m3-development-plan.md)。ALL 不发送 status，其余发送五状态之一；切状态回第一页，翻页/刷新/轮询保留筛选；旧成功、失败及 finally 不能覆盖最新状态。该小交付是当时的部分交付；目前 Worker 核对/实现及完整 05 已合入，生产 GPU 留给 07。
 
 01 的 [fixture](../examples/tasks/README.md)继续用于隔离测试，scripts/export_task_contract.py --check 检查类型样例漂移。03 已实现原始重复字段解析，并用 scripts/export_task_openapi.py 从实际路由生成任务 OpenAPI：/api/v1 server + 相对 paths，运行时 /openapi.json 使用完整 paths，操作/Schema 一致。此输出表示 HTTP 已实现，不证明 Worker/GPU 就绪。
 
-B 在 M3-05 剩余部分为通用 request 增加可选 headers 携带去重键、读取专用 error.task_id；后端 CORS 已允许 Content-Type/Idempotency-Key，并暴露 X-Request-ID/Location，不启用凭据。列表筛选/分页可对接真实 HTTP，仍须浏览器联调。M3 不接通 Loss/日志/下载：这些能力继续禁用，不能在 API 出错后回退 mock；本次没有修改 B 的前端代码。
+M3-05 已为 request 透传去重头、读取 error.task_id，冻结正文并支持 sessionStorage 刷新恢复；后端 CORS 已允许 Content-Type/Idempotency-Key，并暴露 X-Request-ID/Location，不启用凭据。列表/提交/详情已完成真实 HTTP/SQL 浏览器检查，Publisher/执行事件为明确替身，生产 GPU 链路仍待 07。M3 不接通 Loss/日志/下载：这些能力继续禁用，不能在 API 出错后回退 mock；本次没有修改 B 的前端代码。
 
 ## Publisher 与失败边界
 

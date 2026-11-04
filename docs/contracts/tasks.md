@@ -1,6 +1,6 @@
 # M3 任务共享契约 1.0.0
 
-日期：2026-10-24，更新：2026-11-03。契约 1.0.0 不变。M3-01 A/B 消费者核对完成，02 SQL/迁移、03 HTTP/Publisher、04 Worker 和 06 独立对账已交付。Worker 的 146d60b 已正式审查并合入，本机 328 项回归与真实 Redis/生产 Worker 缺缓存 CPU 消费通过；GPU/完整前端/中断恢复仍待 05/07。见 [Worker](../worker.md)、[审查日志](../worklogs/2026-11-03-m3-04-a-review.md) 和 [完整计划](../m3-development-plan.md)。
+日期：2026-10-24，更新：2026-11-04。契约 1.0.0 不变。M3-01 A/B 消费者核对完成，02 SQL/迁移、03 HTTP/Publisher、04 Worker 和 06 独立对账已交付。Worker 的 146d60b 已正式审查并合入，本机 328 项回归与真实 Redis/生产 Worker 缺缓存 CPU 消费通过；05 HTTP/SQL 前端已审查接通，GPU/生产浏览器/中断恢复仍待 07。见 [Worker](../worker.md)、[审查日志](../worklogs/2026-11-03-m3-04-a-review.md) 和 [完整计划](../m3-development-plan.md)。
 
 ## 导入与生成
 
@@ -100,4 +100,4 @@ M3-02/03 的请求哈希输入固定为 TaskCreate 补默认后的 model_dump(mo
 
 ## 两人接续核对
 
-A/B 的任务契约核对已完成，B 核对日志及 A 审查均已归档，接口没有差异。后续仍从公共类型导入，不能各自复制类型。SQL/Worker/公共锁装配和真实 Redis 缺缓存 CPU 消费已验收；完整前端仍待 B 补齐 05，GPU 串行/中断恢复/浏览器在 07 共同验收。
+A/B 的任务契约核对已完成，B 核对日志及 A 审查均已归档，接口没有差异。后续仍从公共类型导入，不能各自复制类型。SQL/Worker/公共锁装配和真实 Redis 缺缓存 CPU 消费已验收；05 已接通去重头、error.task_id、config/null 进度和刷新恢复，本机 56 项前端/29 项 Chromium 通过；GPU 串行/中断恢复/生产浏览器在 07 共同验收。

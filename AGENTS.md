@@ -18,7 +18,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成，不能把训练保存成功当作完整 M2 验收。
 
-执行 M3 前继续读 [M3 完整开发计划](docs/m3-development-plan.md)、[任务 API 契约](docs/api/tasks.md) 和 [共享契约 1.0.0](docs/contracts/tasks.md)。原两人交接内容已合并到完整计划。M3-01 A/B 消费者契约核对已完成；02 SQL/迁移、03 HTTP/Publisher、04 Worker 独立实现及 06 离线对账已交付，05 仅列表基础完成。146d60b 的 M3-04 已经 A 正式审查、本机 328 项回归与真实 Redis/生产 Worker 缺缓存 CPU 冒烟后快进合入。继续读 [Worker](docs/worker.md)、[任务存储](docs/task-storage.md)、[离线对账](docs/task-reconciliation.md) 和 [审查日志](docs/worklogs/2026-11-03-m3-04-a-review.md)。下一步 B 补齐 05，双方安排 07 的真实 GPU 串行/中断恢复/浏览器联调；不能把列表小交付、CPU 消费或合成产物写成 M3 全阶段/GPU 已验收。
+执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 独立交付齐备；04 已有 328 项 CPU/实际 Redis 缺缓存路径验收；05 的 5ec660f 已于 2026-11-04 经 A 审查、本机 56 项前端/29 项 Chromium、构建及四项契约检查后快进合入。当前准备 07 的真实 GPU 串行、中断/有效产物遗留恢复及生产浏览器验收，测试 Publisher/事件替身不能代替 GPU 证据。
 
 ## 当前事实与任务边界
 
@@ -63,7 +63,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - TaskStatus 在 core/task_contract.py（entities 原导入保留），TaskCreate 在 models/task_schemas.py（schemas 原导入保留）。TaskRepository 固定 get_status/claim/record_progress/complete/fail 五个方法，新增只读 get_status 用于完成写入确认丢失时读真实状态。Spec 固定 dataset_key/sha256/size/rows 和 config/runtime 快照，不能传 SQL 对象；有效产物已存在但完成提交失败时不得继续 fail 覆盖，应读状态并留待对账。详见共享契约。
 - M3-03 TaskService/CeleryPublisher 已接入：先提交 DB，再按 worker.train 发布 task_id；同键重放 200 不重发，新建确认接受 202。连接/发送/Redis 命令均禁用重试；TASK_PUBLISH_TIMEOUT_SECONDS 默认每操作 1 秒。not_sent 与 unknown 分开，已持久化的派发 503 必须保留 error.task_id/Location，不覆盖 RUNNING/终态。POST 64 KiB、重复 JSON/查询/头、统一错误/CORS 已实现；真实 Redis 冒烟不启动 Worker/GPU。
 - A 主改 SQL 仓储/状态/迁移/任务 HTTP/Publisher/离线对账；B 主改 Worker 执行/进程实例锁和 frontend。B 按 TaskRepository Protocol 用替身独立检查，不写 SQL、不复制 Trainer；A 不为了联调改 B 页面。共享 config/类型/入口文档由 A 汇总，双方各写独立任务日志。
-- B 已交付 M3-05 列表基础：ALL/五状态服务端筛选、切状态回首页、分页/轮询保留筛选、旧响应不覆盖最新数据/错误/加载状态；先用隔离测试验证，保留真实 OpenAPI 能力探测。01 合入前不猜 Worker 类型。该小交付独立提交/写日志后，再按 01 开发 04 并补齐 05。具体截止时间由双方约定，中途同步提交/检查，阻塞约 30 分钟反馈。
+- B 已交付完整 M3-05：服务端筛选/分页/请求竞争、冻结正文/Idempotency-Key、error.task_id 查询、sessionStorage 刷新恢复、正式 config/null 进度和终态轮询。5ec660f 已经 A 本机回归合入；本次浏览器测试使用实际 HTTP/SQL 和明确的 Publisher/执行事件替身，生产 GPU 联调留给 07。
 - 派发明确未发送与确认未知要区分；未知时保留可查询的原 task_id，不覆盖 RUNNING/终态、不自动重投。POST 去重键与消息重复领取是两层不同保护，设计见 tasks.md。
 - 数据库状态为业务来源；用 claim_token 条件更新；Trainer 唯一写 metrics。M3-06 已交付 scripts/reconcile_tasks.py：默认只读 --check；--apply 必须 --services-stopped 且取得实例锁。核对成功产物/固定快照后恢复 RUNNING 为 COMPLETED，否则 WORKER_INTERRUPTED；等待任务 TASK_ABANDONED，终态不动，不重投、不改文件。短事务重读全行指纹和 token，未知提交不继续 fail。真实 Worker 锁互斥/停止释放已验收，GPU 中断/成功产物遗留恢复仍待 07。
 - M3-06 的公共锁原语为 core/worker_lock.WorkerInstanceLock(log_dir)，固定 LOG_DIR/worker.lock，禁止删除/替换锁文件。B 的 worker/instance_lock.py 和启动/worker_init 生命周期必须复用同一原语/handle，不能另建一把锁；M3-04 已接入标准及直接 Celery 入口。本机实际生产 Worker 与对账 CLI 互斥已验证；25 项独立检查、328 项总回归与 CPU 消费仍不能代替真实 GPU 退出验收。
