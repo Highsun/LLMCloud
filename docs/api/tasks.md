@@ -109,6 +109,10 @@ B 已交付列表筛选/分页/请求竞争小交付，范围与验收见 [完�
 
 M3-05 已为 request 透传去重头、读取 error.task_id，冻结正文并支持 sessionStorage 刷新恢复；后端 CORS 已允许 Content-Type/Idempotency-Key，并暴露 X-Request-ID/Location，不启用凭据。05 的列表/提交/详情 HTTP/SQL 浏览器检查使用明确的 Publisher/执行事件替身；07 A 已另行通过实际 Redis/Worker/GPU/生产浏览器自动验收，B 异步复核已通过，待同步人工联调。M3 不接通 Loss/日志/下载：这些能力继续禁用，不能在 API 出错后回退 mock；本次没有修改 B 的前端代码。
 
+## M4 规划中的观测与交付
+
+M4 的新观测/下载接口另按 [完整计划](../m4-development-plan.md) 推进，目前只有规划、尚未注册。01 将核对新 DTO、游标/日志/下载错误与生成样例；原 TaskCreate/TaskDetail 和本节派发语义不变。实施时扩展 export_task_openapi.py 对真实已注册子路径的选择，不能只导出原两个路径而漏掉新接口，也不能提前登记空路由。前端旧 after_step/Map(step) 仅为待替换的壳，不能据此固定 M4 契约。
+
 ## Publisher 与失败边界
 
 API 的 TaskService 先通过 SqlTaskRepository 保存任务/快照，再调用 Publisher，一次提交只有一次发布尝试。重放 created=False 直接返回原任务，不补发；即使原记录停在 PENDING 或已有失败，也不自动创建/发布第二项任务。Broker 状态不作为查询任务的来源。

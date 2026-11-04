@@ -60,10 +60,12 @@ MVP 的训练与推理使用同一 GPU 时需要互斥；训练期间推理返�
 | `POST /tasks` | dataset_id、base_model、config；可选 Idempotency-Key | 202；同键重放 200；派发异常保留可查询任务 ID | M3-03/04 已实现，07 A 异步 GPU 验收通过，B 异步复核已通过，待同步人工联调 |
 | `GET /tasks` | 状态、分页参数 | 任务列表 | M3-03 已实现 |
 | `GET /tasks/{id}` | 任务 ID | 状态、步数、进度、时间与错误 | M3-03 已实现 |
-| `GET /tasks/{id}/metrics` | 游标 after_step | step/loss/learning_rate/epoch 数据点 | M4 |
-| `GET /tasks/{id}/logs` | 有上限的 tail 参数 | 日志尾部 | M4 |
+| `GET /tasks/{id}/metrics` | 拟用 cursor/source_id/limit，M4-01 定稿 | 按 offset 标识的完整 TrainingProgress 记录，保留 kind | M4 待实施 |
+| `GET /tasks/{id}/logs` | 有上限的 tail 参数，M4-01 定稿 | 安全日志尾部及截断/过滤说明 | M4 待实施 |
 | `GET /tasks/{id}/adapter` | 任务 ID | ZIP 下载；未完成返回 409 | M4 |
 | `POST /inference` | task_id、prompt、max_new_tokens | 生成结果；GPU 忙返回 409 | M5 |
+
+M4 的 [详细规划与接口基线](m4-development-plan.md) 已形成，尚未注册这些端点。先前 after_step 仅为未发布草案，因 train/eval 可在同 step 出现而拟改为文件游标，不修改既有 M3 客户端接口。M4-01 定稿类型/错误/上限并生成样例，02/03 实施后才从真实应用导出 OpenAPI；此表不作为另一套已实现契约。
 
 任务配置 JSON 示例：
 

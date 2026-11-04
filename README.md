@@ -8,7 +8,7 @@
 
 ## 一、当前进度
 
-当前完成 **M0、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4 可开始规划。
+当前完成 **M0、M1 数据管理和 M2 单机 LoRA 工程闭环**；M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4 详细规划已形成、尚未实施。
 
 M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-04 数据管理页面**。成员 B 交付的工作台已接通真实上传、列表与详情，本次补齐局部修复和浏览器验收；M1-05 故障验收与 CPU CI、M1-06 数据方案/划分工具/冻结题也已完成。M1 计划范围已验收，M2 工程闭环也已完成；正式实验语料仍需人工编写和审核。协作前阅读 [AGENTS.md](AGENTS.md) 和 [近期工作日志](docs/worklogs/README.md)；字段与错误见 [M1 接口契约](docs/api/datasets.md)，项目梳理见 [项目记忆](docs/project-memory.md)，页面接续见 [M1-04 日志](docs/worklogs/2026-10-22-m1-04-integration.md)，故障与 CI 见 [M1-05 日志](docs/worklogs/2026-10-22-m1-05.md)，数据来源/划分/冻结题见 [数据方案](docs/data/README.md) 与 [M1-06 日志](docs/worklogs/2026-10-22-m1-06.md)。
 
@@ -17,6 +17,8 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 - 待开发/验收：正式语料编写/审核、M3-07 双方同步人工端到端操作、Loss/日志展示、Adapter 下载和在线推理。
 
 `trainer.train` 已实现真实单 GPU LoRA，`worker.train` 已接入 SQL/原 Trainer/审计。05 前端已接通任务 HTTP/SQL 的提交/详情/去重和刷新恢复；真实 GPU/生产浏览器自动验收已通过，B 复核见 [M3-07 交接](docs/m3-acceptance.md)，M4/M5 操作继续按能力禁用。
+
+**M4 规划入口**：[可观测性与 Adapter 交付计划](docs/m4-development-plan.md)。已拆为 01～07，尚未实施：A 主笔共享契约、指标/日志读取与下载 API；B 可先做 04a 的 train/eval 图表展示，再依定稿 fixture 完成观测和下载交互；双方最后做实际 HTTP/真实 GPU 验收。主线估计 A 10、B 8 人时，另留合计 4 人时缓冲，约 1.5–2 周。M3 剩余人工流程可同场单独记录，不提前标为完成。
 
 **M2 单机真实 LoRA 工程闭环已验收**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成；任务 HTTP/Celery 接入属于 M3。
 
@@ -104,6 +106,7 @@ LLMCloud/
     ├── project-plan.md
     ├── m2-development-plan.md  # M2 任务、分工、依赖与验收
     ├── m3-development-plan.md  # M3 完整执行计划，含两人任务与交接
+    ├── m4-development-plan.md  # M4 指标/日志/下载规划、接口基线和并行分工
     ├── model-cache.md          # 模型缓存命令与后续 Trainer 接入
     ├── training-data.md        # 数据转换、标签及诊断命令
     ├── contracts/training.md  # 内部训练协议，配套生成 JSON Schema

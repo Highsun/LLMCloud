@@ -18,7 +18,9 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成，不能把训练保存成功当作完整 M2 验收。
 
-执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4 可开始规划。
+执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4 详细规划已形成、尚未实施。
+
+执行 M4 前读 [M4 完整计划](docs/m4-development-plan.md)：规划 1.0 已交付，01～07 均待实施。A 先做 01 类型/边界/生成 fixture，B 核对；B 可先做 04a 纯图表展示（kind/step/loss），契约定稿后继续 04/05。本文中的新接口方案不是已发布能力，不能据此注册空路由或启用假数据。M3 剩余同步人工流程可与 M4-07 同场分别记录。
 
 ## 当前事实与任务边界
 
@@ -70,6 +72,17 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - 两人使用不同 checkout/worktree 和临时 DB/队列，GPU 验收不重叠。共同主线预算约 20 人时，另 4 人时缓冲，按每人每周 6–8 小时安排约 1.25–2 周；保留必要共同确认和真实联调。
 
 ## 接口与数据边界
+
+### M4 实施时延续的约束
+
+- 分工及验收以 [M4 计划](docs/m4-development-plan.md) 为准：A 主改 CPU 类型/只读仓储投影/文件服务/HTTP/共享文档，B 主改现有曲线、观测/下载控制器和前端测试；01 共同核对，06/07 需要实际配合。
+- 指标必须兼容同 step 的 train/eval；拟用 source_id + 字节 cursor 增量读取、offset 标识完整记录，01 定稿后生成样例。HTTP 包装不修改 M2 TrainingProgress 或原 metrics.jsonl；Trainer 唯一写入，不新增重复数据库指标表。
+- 日志只读任务 JSONL 的有限尾部并按安全字段投影，不转发共享 Worker stdout。指标/日志读取不获取 GPU 实例锁，不加载训练库。新常量/类型/错误上限须同笔更新正式文档及生成样例。
+- 下载要求 SQL COMPLETED、固定快照/manifest 哈希与原共享 CPU 审计一致；临时 ZIP 位于独立 DATA_DIR/downloads，不污染原输出目录，只复制已审计文件。响应体/取消清理和实际复制哈希必须验证。
+- B 替换现有 after_step/Map(step) 逻辑；终态还需补齐指标尾页和最终日志。下载先捕获任务 ID，blob 读取期间保持 timeout/abort 有效，任务切换不得污染新任务或文件名。
+- 当前仅规划，M4 未注册路由；实施后从真实 app.openapi() 扩展任务 OpenAPI 导出，原 TaskCreate/TrainingConfig/TaskDetail/Worker 五方法不变。工程格式草稿与受控测试不代表质量提升或真实 GPU 验收。
+
+### 共同接口规则
 
 - 对外字段使用 snake_case，资源 ID 是服务端生成的 UUID，时间输出为 UTC/RFC 3339。
 - 成功响应直接返回资源或分页对象，错误返回统一 ErrorResponse，保持真实 HTTP 状态码。

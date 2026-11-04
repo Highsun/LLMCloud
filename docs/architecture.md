@@ -128,6 +128,14 @@ stateDiagram-v2
 - 前端先每 2 秒轮询任务和增量指标；日志只读取有上限的尾部，暂不引入 WebSocket。
 - 训练异常保存可读原因与任务日志，处理完成后释放模型引用与显存；无法安全恢复时重启 Worker。
 
+### M4 规划中的读取与交付链路
+
+[M4 详细计划](m4-development-plan.md) 已登记 01～07，尚未实现新端点。API 查询 SQL 任务身份后，由 CPU 文件服务读取 DATA_DIR/outputs/{UUID}/metrics.jsonl 和 LOG_DIR/tasks/{UUID}.log；不持 GPU 锁、不加载训练库，不修改 Worker/Trainer 写入契约。新 source_id/cursor/offset 方案保留同 step 的 train/eval，日志采用有限尾部和安全字段投影；具体类型/错误在 M4-01 核对定稿。
+
+下载另取完成任务的内部只读快照，复用完整 CPU 审计并比对 SQL manifest 哈希/配置/数据摘要；在独立 DATA_DIR/downloads 临时区域打包，只复制已审计文件，实际复制再核对哈希。不能向原输出目录放 ZIP，不能持有 SQL 事务或 GPU 锁等待下载。单 API 进程的在途下载槽位限制资源，清理覆盖成功/失败/断连；不新增持久下载缓存或数据库列。
+
+B 保留现有 Vue 组件，将观测控制器从任务详情状态隔离，按记录身份合并、终态补拉，日志替换快照。下载固定点击时任务 ID，超时/取消覆盖 blob 读取全程；生产能力仍以真实运行时 OpenAPI 为准。共享类型短时核对后前后端可依 fixture 并行，最终真实 HTTP/服务/GPU 联调仍需共同进行；可同场补 M3 的人工剩余项并分别记证据。
+
 ## 五、部署演进
 
 1. **本地 WSL2**：Vue 开发服务 + FastAPI + Redis + SQLite + 单 GPU Worker，全部共享仓库数据目录。

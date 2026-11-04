@@ -26,7 +26,8 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 | M2-05 | [共享 CPU 产物审计](training-artifacts.md)、排他原子提交与保存故障验收已完成；已校验 M2-04 真实产物和新训练结果 |
 | M2-06 | [新进程重载](adapter-reload.md) 已实际加载并生成，M2 工程闭环完成 |
 | M3 | [计划 1.9](m3-development-plan.md)；01～06 独立交付齐备，04/05 已审查合入；07 A 真实 GPU/Redis/SQL/生产浏览器 9 项场景通过，B 异步复核已通过，待同步人工联调；见 [结果与交接](m3-acceptance.md)、[日志](worklogs/2026-11-04-m3-07-a.md) |
-| M4–M5 | 页面观测/下载和在线推理待完成 |
+| M4 | [规划 1.0](m4-development-plan.md) 已登记 01～07，均待实施；A 契约/文件读取/下载，B 先 04a 图表再观测/下载交互，最后实际联合验收 |
+| M5 | 在线推理、稳定/正式实验、部署与课程交付待完成 |
 
 `trainer.train` 已执行真实 Qwen LoRA，`worker.train` 已接入原 Trainer，实际 Redis 缺缓存 CPU 消费通过，异步 GPU 链路已在 07 A 实测通过，B 异步复核已通过，待同步人工联调。已有产物的新进程重载已通过；未来各任务仍须分别验收，不表示正式效果提升。
 
@@ -47,6 +48,8 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 - 可选数据清单与实际 train/validation 的哈希/统计、provenance/族/审核状态核对，不读取 test 正文；无清单 review_status=unknown，草稿不升级 reviewed。check_training_data.py 默认只读统计，显式 --show-sample 才显示样本。
 
 ## 协作与下一步
+
+2026-11-04 M4 接续：详细计划已形成，尚未实现新 API/Schema/前端能力。A 当前任务为 M4-01，B 可先做 M4-04a 的 train/eval 图表与组件测试；约定字段后 B 用生成 fixture 独立接请求，A 按 02→03 做指标/日志与下载。已有前端按 step 合并会覆盖 eval，下载 await 后读取 selected.id 和 blob 超时生命周期也需在各自任务修正。拟用 source_id/cursor/offset、有限安全日志、独立临时 ZIP 与原产物审计，不扩展 SQL 列或 Worker Protocol。主线 A 10/B 8 人时、另 4 人时缓冲；具体协作与验收见 [M4 计划](m4-development-plan.md)。M3 人工剩余项继续保留，可与 M4-07 同场分别验证。
 
 成员 A 主负责后端/存储/调度，成员 B 已交付 frontend。原 M2 分工计划中 A 负责契约、缓存和产物校验辅助模块，B 负责 trainer/train.py、数据转换和重载入口；实际 M2-03/04/06 按用户要求由当前侧交付，不能将计划分工当成 B 已完成的工作。共享类型先核对，不并行改同一训练入口。保留成员 B 的组件、样式和页面结构；必要修复以最小变更配合回归验证，并在新日志说明原因。不要覆写历史交付记录。
 
