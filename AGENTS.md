@@ -18,7 +18,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 执行 M2 前继续读 [docs/m2-development-plan.md](docs/m2-development-plan.md)：六项任务、依赖、主改文件与验收；再读 [内部训练契约 1.0.0](docs/contracts/training.md)、[模型缓存](docs/model-cache.md) 和 [训练数据](docs/training-data.md)。类型/缓存/数据处理及 M2-04 真实 LoRA 已交付；继续读 [训练入口](docs/training.md)。M2-05 [独立产物审计与故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成，不能把训练保存成功当作完整 M2 验收。
 
-执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 独立交付齐备；04 已有 328 项 CPU/实际 Redis 缺缓存路径验收；05 的 5ec660f 已于 2026-11-04 经 A 审查、本机 56 项前端/29 项 Chromium、构建及四项契约检查后快进合入。当前准备 07 的真实 GPU 串行、中断/有效产物遗留恢复及生产浏览器验收，测试 Publisher/事件替身不能代替 GPU 证据。
+执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 独立交付齐备；04 已有 328 项 CPU/实际 Redis 缺缓存路径验收；05 的 5ec660f 已于 2026-11-04 经 A 审查、本机 56 项前端/29 项 Chromium、构建及四项契约检查后快进合入。当前实施 07 的真实 GPU 串行、中断/有效产物遗留恢复及生产浏览器验收，测试 Publisher/事件替身不能代替 GPU 证据。
 
 ## 当前事实与任务边界
 
@@ -90,3 +90,5 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 - 每个任务交付包含改动、验证、未完成项。验证聚焦行为、失败处理和接口一致性；文档或契约任务不要求执行完整 GPU 训练。
 - 默认保留他人的未提交改动，不擅自覆盖；提交仅包含当前任务相关文件。分支/PR 按团队实际工作方式使用，Git 同步沿用用户授权范围。
 - 每次开发开始前、每个独立部分开发完成后，以及最终提交/推送前，都执行 `git fetch origin` 并比较本地与远端，阅读队友新增提交和工作日志。落后时优先在干净工作区 `merge --ff-only`；双方分叉时在保存本次任务提交后正常 merge，逐项解决冲突并重跑受影响检查。不能覆盖队友改动、丢弃未提交文件、强推或改写共享历史。远端暂不可达时明确记录“尚未确认”，不能写成“没有新提交”。
+
+M3-07 实施入口与队友分工见 [真实服务验收](docs/m3-acceptance.md) 和 [A 工作日志](docs/worklogs/2026-11-04-m3-07-a.md)。GPU/故障/生产浏览器结果与 B 复核待记录，不能提前标记完成。
