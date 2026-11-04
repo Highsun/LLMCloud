@@ -1,6 +1,6 @@
 # M3 任务 API 契约
 
-更新：2026-11-04；契约 1.0.0。M3-03 已实现任务创建/列表/详情 HTTP、请求去重和真实 Redis/Celery Publisher；[任务 OpenAPI](tasks.openapi.json) 从实际 app.openapi() 导出。M3-04 Worker/公共锁已合入并完成真实 Redis 缺缓存 CPU 消费检查，05 已接通 HTTP/SQL 并审查合入，GPU 和生产浏览器链路已在 [07 A 真实运行](../worklogs/2026-11-04-m3-07-a.md) 通过，B 人工/证据复核待完成。类型与分工见 [共享契约](../contracts/tasks.md)、[完整计划](../m3-development-plan.md) 和 [Worker](../worker.md)。
+更新：2026-11-04；契约 1.0.0。M3-03 已实现任务创建/列表/详情 HTTP、请求去重和真实 Redis/Celery Publisher；[任务 OpenAPI](tasks.openapi.json) 从实际 app.openapi() 导出。M3-04 Worker/公共锁已合入并完成真实 Redis 缺缓存 CPU 消费检查，05 已接通 HTTP/SQL 并审查合入，GPU 和生产浏览器链路已在 [07 A 真实运行](../worklogs/2026-11-04-m3-07-a.md) 通过，B 异步复核已通过，待同步人工联调。类型与分工见 [共享契约](../contracts/tasks.md)、[完整计划](../m3-development-plan.md) 和 [Worker](../worker.md)。
 
 ## 接口与输入
 
@@ -103,11 +103,11 @@ TaskDetail.error_code 是业务诊断，和 HTTP error.code 不必相同：训�
 
 ## 交付和前端接入
 
-B 已交付列表筛选/分页/请求竞争小交付，范围与验收见 [完整计划第三节](../m3-development-plan.md)。ALL 不发送 status，其余发送五状态之一；切状态回第一页，翻页/刷新/轮询保留筛选；旧成功、失败及 finally 不能覆盖最新状态。该小交付是当时的部分交付；目前 Worker 核对/实现及完整 05 已合入，生产 GPU 已由 07 A 实测，B 人工/证据复核待完成。
+B 已交付列表筛选/分页/请求竞争小交付，范围与验收见 [完整计划第三节](../m3-development-plan.md)。ALL 不发送 status，其余发送五状态之一；切状态回第一页，翻页/刷新/轮询保留筛选；旧成功、失败及 finally 不能覆盖最新状态。该小交付是当时的部分交付；目前 Worker 核对/实现及完整 05 已合入，生产 GPU 已由 07 A 实测，B 异步复核已通过，待同步人工联调。
 
 01 的 [fixture](../examples/tasks/README.md)继续用于隔离测试，scripts/export_task_contract.py --check 检查类型样例漂移。03 已实现原始重复字段解析，并用 scripts/export_task_openapi.py 从实际路由生成任务 OpenAPI：/api/v1 server + 相对 paths，运行时 /openapi.json 使用完整 paths，操作/Schema 一致。此输出表示 HTTP 已实现，不证明 Worker/GPU 就绪。
 
-M3-05 已为 request 透传去重头、读取 error.task_id，冻结正文并支持 sessionStorage 刷新恢复；后端 CORS 已允许 Content-Type/Idempotency-Key，并暴露 X-Request-ID/Location，不启用凭据。05 的列表/提交/详情 HTTP/SQL 浏览器检查使用明确的 Publisher/执行事件替身；07 A 已另行通过实际 Redis/Worker/GPU/生产浏览器自动验收，B 人工/证据复核待完成。M3 不接通 Loss/日志/下载：这些能力继续禁用，不能在 API 出错后回退 mock；本次没有修改 B 的前端代码。
+M3-05 已为 request 透传去重头、读取 error.task_id，冻结正文并支持 sessionStorage 刷新恢复；后端 CORS 已允许 Content-Type/Idempotency-Key，并暴露 X-Request-ID/Location，不启用凭据。05 的列表/提交/详情 HTTP/SQL 浏览器检查使用明确的 Publisher/执行事件替身；07 A 已另行通过实际 Redis/Worker/GPU/生产浏览器自动验收，B 异步复核已通过，待同步人工联调。M3 不接通 Loss/日志/下载：这些能力继续禁用，不能在 API 出错后回退 mock；本次没有修改 B 的前端代码。
 
 ## Publisher 与失败边界
 
@@ -119,7 +119,7 @@ CeleryPublisher 使用独立客户端，以 worker.train 名称发送 args=[task
 
 accepted 后仅条件更新仍 PENDING 为 QUEUED，再重读真实 TaskDetail；若快 Worker 已 RUNNING/终态，直接保留。not_sent 仅在本次确实把仍 PENDING 改为 FAILED 后返回 DISPATCH_FAILED；若已有领取/终态等矛盾结果，保守返回 DISPATCH_UNCERTAIN。unknown 或发布确认后的状态写入/查询失败返回带原 ID 的 503，暂态诊断写入失败也不丢弃 ID，不覆盖 RUNNING/终态。
 
-数据库在创建完成确认前失败时可能没有可用任务 ID，返回通用 DATABASE_UNAVAILABLE，且不发布消息。同一去重键之后可读取已提交记录，但不会自动补发；M3-06 已提供 [离线对账/显式处置工具](../task-reconciliation.md)，共享锁已由实际 Worker 复用并经 CPU 互斥/停止释放检查，GPU 退出恢复仍待 07。这是无 outbox/自动重投 MVP 的已知边界。
+数据库在创建完成确认前失败时可能没有可用任务 ID，返回通用 DATABASE_UNAVAILABLE，且不发布消息。同一去重键之后可读取已提交记录，但不会自动补发；M3-06 已提供 [离线对账/显式处置工具](../task-reconciliation.md)，共享锁已由实际 Worker 复用并经 CPU 互斥/停止释放检查，GPU 退出恢复已在 07 A 实测并经 B 异步复核，双方同步人工端到端操作仍待完成。这是无 outbox/自动重投 MVP 的已知边界。
 
 ## 运行与验证
 

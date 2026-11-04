@@ -1,6 +1,6 @@
 # M3-06 离线任务对账
 
-更新：2026-11-04。A 侧 CLI、SQL 条件更新、CPU 产物审计及公共锁已交付；M3-04 已接入标准/直接 Celery 入口，真实生产 Worker 的锁互斥/停止释放 CPU 冒烟通过。GPU 中断及成功产物遗留恢复已在 [M3-07 A 真实运行](worklogs/2026-11-04-m3-07-a.md) 通过，B 人工/证据复核待完成。依据：[完整计划](m3-development-plan.md)、[共享契约](contracts/tasks.md)、[Worker](worker.md) 和 [审查日志](worklogs/2026-11-03-m3-04-a-review.md)。
+更新：2026-11-04。A 侧 CLI、SQL 条件更新、CPU 产物审计及公共锁已交付；M3-04 已接入标准/直接 Celery 入口，真实生产 Worker 的锁互斥/停止释放 CPU 冒烟通过。GPU 中断及成功产物遗留恢复已在 [M3-07 A 真实运行](worklogs/2026-11-04-m3-07-a.md) 通过，B 异步复核已通过，待同步人工联调。依据：[完整计划](m3-development-plan.md)、[共享契约](contracts/tasks.md)、[Worker](worker.md) 和 [审查日志](worklogs/2026-11-03-m3-04-a-review.md)。
 
 ## 什么时候使用
 

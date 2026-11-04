@@ -1,10 +1,10 @@
 # M3 异步任务开发计划
 
-版本：执行计划 1.8；更新：2026-11-04。M3-01～06 已交付，04/05 已审查合入；2026-11-04 的 M3-07 A 侧真实 GPU/Redis/SQL/生产浏览器自动验收通过，覆盖 9 项场景（9 个任务，4 成功、5 个预期失败），含两任务串行、幂等、真实中断和有效产物遗留恢复。B 的人工页面检查/异步证据复核待完成，M3 全阶段暂未共同收口。
+版本：执行计划 1.9；更新：2026-11-04。M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4 可开始规划。
 
 成员 A 指当前侧/你，主负责后端；成员 B 指队友，已有前端交付。本文已合并原交接文档的任务入口与交接要求，作为 M3 分工、依赖、验收和交接的完整执行依据。对外字段与已实现 HTTP 行为见 [任务 API](api/tasks.md)。
 
-立即接续：A 已完成 07 的隔离服务/API/队列/GPU/对账与生产浏览器自动验收，见 [结果与交接](m3-acceptance.md)。B 现在同步主线、复核真实记录/可读截图并完成人工页面检查，新增独立日志；发现问题再做前端小提交。再次使用共用服务或 GPU 时双方协调时段。
+立即接续：B 的 61d8703 已经 A 正式审查/本机回归合入，依据见 [B 日志](worklogs/2026-11-04-m3-07-b.md) 和 [A 审查](worklogs/2026-11-04-m3-07-a-review.md)。双方约定一次从新上传到实际 GPU 完成的同步人工端到端操作并记录；M4 可先规划接口/分工。
 
 ## 一、目标与已有基础
 
@@ -17,10 +17,10 @@ M3 将已经通过本地验收的 Trainer 接入服务：浏览器配置 → API
 | M1 数据 API、不可变存储、共享扫描器已完成 | 用已有 dataset_id 和服务端相对存储键，保持数据契约 |
 | M2-01～06 工程闭环完成，174 项 CPU 检查为历史验收基线 | 复用 TrainRequest、train、TrainingProgress 和 verify_training_artifacts，不复制训练/指标逻辑 |
 | M3-02 任务表/SQL 仓储/显式迁移已交付 | 旧库启动前先检查并显式迁移；真实 Worker 装配等 04，不把 SQL 检查当真实调度验收 |
-| M3-03 任务创建/列表/详情与真实 Redis Publisher 已交付 | Worker CPU 装配/消费、05 HTTP/SQL 及 07 A 真实 GPU/生产浏览器自动验收已通过；B 人工/证据复核待完成 |
-| worker.train 已实现领取/原 Trainer 适配/审计，标准和直接入口接入公共锁 | CPU 装配/真实 Redis 缺缓存消费已通过；真实 GPU 串行/故障已由 07 A 实测，B 复核待完成 |
+| M3-03 任务创建/列表/详情与真实 Redis Publisher 已交付 | Worker CPU 装配/消费、05 HTTP/SQL 及 07 A 真实 GPU/生产浏览器自动验收已通过；B 异步复核已通过，待同步人工联调 |
+| worker.train 已实现领取/原 Trainer 适配/审计，标准和直接入口接入公共锁 | CPU 装配/真实 Redis 缺缓存消费已通过；真实 GPU 串行/故障已由 07 A 实测，B 异步复核已通过，待同步人工联调 |
 | Vue 已有 TrainingPanel/TasksPanel、配置校验、轮询壳 | 主要做字段收敛、错误处理及真实联调，保留组件和视觉设计 |
-| B 已交付服务端状态筛选/分页/旧请求隔离，指标仍以 step 合并 | 05 HTTP/SQL 浏览器已接通，生产 GPU 链路已由 07 A 自动验收通过，B 复核待完成；M4 再改指标游标，不能沿用 step 合并 train/eval |
+| B 已交付服务端状态筛选/分页/旧请求隔离，指标仍以 step 合并 | 05 HTTP/SQL 浏览器已接通，生产 GPU 链路已由 07 A 自动验收通过，B 异步复核已通过，待同步人工联调；M4 再改指标游标，不能沿用 step 合并 train/eval |
 
 本阶段不实现 Loss/日志 HTTP、下载、在线推理、取消/恢复训练、自动重训、对象存储、混合部署、多 GPU 或 Kubernetes。模型仍为同一固定 revision 的 0.5B；正式语料审核和效果评测继续独立推进。
 
@@ -48,11 +48,11 @@ B 的列表小交付、Worker 和前端收尾由同一个人顺序完成，不�
 | --- | --- | --- | --- | --- | --- |
 | M3-01 共用契约 | A+B，各 1 | 阅读本计划 | Task Schema、task_protocols、生成样例/契约检查；API 字段/迁移清单确认 | 2 | 完成：A/B 核对、代码审查及本机回归 |
 | M3-02 存储与状态 | A | 01 | entities、task_repository、task_migration/migrate_tasks；CAS、所有权、唯一请求键 | 3 | 完成：SQL/迁移及 Worker 临时真实 SQL 装配 |
-| M3-03 API 与派发 | A | 01/02 | api/tasks、services/tasks、task_dispatch、运行时 OpenAPI 导出与 HTTP 检查 | 2.5 | 完成：HTTP/独立 Redis/生产 Worker 缺缓存 CPU 消费；GPU 已由 07 A 实测，B 复核待完成 |
-| M3-04 Worker 适配 | B，A 审查 | 01/02 | worker/execution、tasks、单实例锁、Trainer/路径/产物适配及独立检查 | 4 | 完成：146d60b 合入、本机 328 项回归及实际 Redis CPU 消费；GPU 已由 07 A 实测，B 复核待完成 |
-| M3-05 前端接通 | B，A 审查 | 01/03/列表基础 | 提交/详情/去重/刷新恢复及浏览器检查 | 3 | 完成：5ec660f 合入，本机 56 项前端/29 项 Chromium、构建/四项契约通过；生产 GPU 链路已由 07 A 实测，B 复核待完成 |
-| M3-06 离线对账 | A | 02；真实 Worker 失败/锁接入等 04 | reconcile_tasks、task_reconciliation、公共 worker_lock 与隔离检查 | 1.5 | CLI/SQL 和真实 Worker 锁互斥/停止释放已验收；GPU 遗留恢复已由 07 A 实测，B 复核待完成 |
-| M3-07 共同验收 | A+B，各 2 | 02～06 | 真实 Redis/GPU 两任务串行/故障/重复消息/浏览器与证据 | 4 | A 自动验收通过：真实 GPU/恢复/生产浏览器 9 项场景；B 人工/证据复核待完成 |
+| M3-03 API 与派发 | A | 01/02 | api/tasks、services/tasks、task_dispatch、运行时 OpenAPI 导出与 HTTP 检查 | 2.5 | 完成：HTTP/独立 Redis/生产 Worker 缺缓存 CPU 消费；GPU 已由 07 A 实测，B 异步复核已通过，待同步人工联调 |
+| M3-04 Worker 适配 | B，A 审查 | 01/02 | worker/execution、tasks、单实例锁、Trainer/路径/产物适配及独立检查 | 4 | 完成：146d60b 合入、本机 328 项回归及实际 Redis CPU 消费；GPU 已由 07 A 实测，B 异步复核已通过，待同步人工联调 |
+| M3-05 前端接通 | B，A 审查 | 01/03/列表基础 | 提交/详情/去重/刷新恢复及浏览器检查 | 3 | 完成：5ec660f 合入，本机 56 项前端/29 项 Chromium、构建/四项契约通过；生产 GPU 链路已由 07 A 实测，B 异步复核已通过，待同步人工联调 |
+| M3-06 离线对账 | A | 02；真实 Worker 失败/锁接入等 04 | reconcile_tasks、task_reconciliation、公共 worker_lock 与隔离检查 | 1.5 | CLI/SQL 和真实 Worker 锁互斥/停止释放已验收；GPU 遗留恢复已由 07 A 实测，B 异步复核已通过，待同步人工联调 |
+| M3-07 共同验收 | A+B，各 2 | 02～06 | 真实 Redis/GPU 两任务串行/故障/重复消息/浏览器与证据 | 4 | A 自动、B 异步/既有页面、A 审查通过；待双方同步人工端到端操作 |
 
 实际启动顺序：A 做 01，同时 B 做 05 的列表基础；01 合入后，A：02 → 03 → 06，B：04 → 05 剩余部分。03 不依赖 04，04 的替身测试不依赖 SQL 实现，05 的 fixture 测试不依赖 03。真实仓储装配要等 02/04，真实页面接通要等 03，07 汇合全部能力。若迁移/异常排查超时，先使用缓冲，不削掉正确状态、去重或真实联调来追赶表格。
 
@@ -103,7 +103,7 @@ B 的列表小交付、Worker 和前端收尾由同一个人顺序完成，不�
 
 ### 3.6 M3-07 开始前与执行顺序
 
-2026-11-04：04/05 已审查合入，01～06 独立交付齐备；本节流程已由 A 的独立真实运行执行通过，结果与 B 剩余工作见 [验收交接](m3-acceptance.md) 和 [A 日志](worklogs/2026-11-04-m3-07-a.md)。B 尚需完成人工页面检查/异步复核。A 主组织本机 GPU/服务/状态与产物证据，B 配合生产页面操作、证据复核和前端修复；涉及同一 GPU 与共用服务时需协调时段。
+2026-11-04：01～06 已交付，07 A 自动运行、B 异步证据/既有页面复查及 A 正式回归已通过，61d8703 已合入；步骤 1～6 的自动/异步证据齐备，同步人工从新上传到 GPU 完成的操作仍待双方约定。结果与剩余项见 [交接](m3-acceptance.md)、[B 日志](worklogs/2026-11-04-m3-07-b.md)、[A 审查](worklogs/2026-11-04-m3-07-a-review.md)。再次使用服务/GPU 时协调时段，不需仅为人工操作重复全套故障注入。
 
 1. **确认隔离环境。** 核对训练 uv 环境、GPU 可用性及固定 revision 的离线缓存完整性；采用独立 DATA_DIR/SQLite、私有 Redis/训练队列。同一物理 GPU 的实例共用 LOG_DIR/worker.lock，期间不并行手工训练/重载。A 本轮实际 CUDA 前向/反向及固定缓存核验均已通过。
 2. **单任务成功。** 用实际 HTTP 上传小数据，按原 Settings 固定内部步数上限，通过真实 Redis/生产 Worker/原 Trainer 执行 LoRA；检查 SQL COMPLETED、真实指标和独立产物审计。max_steps 属内部 RuntimeOptions，不增加到公开创建请求。格式草稿只能作为工程验收，不能当作正式效果提升。
@@ -123,7 +123,7 @@ B 的列表小交付、Worker 和前端收尾由同一个人顺序完成，不�
 
 ### 4.2 Worker 与 SQL 的内部接口
 
-已新增 backend/app/core/task_protocols.py，A 在 01 主改、B 待核对；只放 CPU 可导入的 DTO/Protocol，不放 SQL、Celery、Settings 或 GPU 执行代码。以下已落实为契约 1.0.0，完整参数类型、返回/失败含义见 [共享契约](contracts/tasks.md)，后续双方不得各自改一套：
+已新增 backend/app/core/task_protocols.py，01 由 A 主改，B 消费者核对已完成；只放 CPU 可导入的 DTO/Protocol，不放 SQL、Celery、Settings 或 GPU 执行代码。以下已落实为契约 1.0.0，完整参数类型、返回/失败含义见 [共享契约](contracts/tasks.md)，后续双方不得各自改一套：
 
 ```text
 TaskRepository.get_status(task_id) -> TaskStatus | None
@@ -150,7 +150,7 @@ M3-02 在现有任务字段上增加：model_revision、dataset_key/dataset_sha2
 
 新增 scripts/migrate_tasks.py --check/--apply：停止 API/Worker、SQLite backup、显式事务迁移、旧行核对。旧记录缺少可信 revision/数据快照时报告阻塞或要求显式映射，不擅自填 main、不删库。不用 create_all 变更既有表；启动检查阻止旧结构继续提供业务服务。新库正常创建当前表。
 
-01 已新增 Settings/.env.example 的 DEFAULT_MODEL_REVISION、TRAINING_PRECISION、可选 TRAINING_MAX_STEPS（默认已验收的 40 位 revision、BF16、max_steps=null）；尚无任务服务消费。HTTP 创建只读数据库数据集元数据，不校验大模型权重；Worker 才核验实际文件和缓存。跨机器不传本机绝对路径，缓存解析显式结合当前 Settings/既有模型路径工具。
+01 已新增 Settings/.env.example 的 DEFAULT_MODEL_REVISION、TRAINING_PRECISION、可选 TRAINING_MAX_STEPS（默认已验收的 40 位 revision、BF16、max_steps=null）；03/04 已由任务服务和 Worker 消费。HTTP 创建只读数据库数据集元数据，不校验大模型权重；Worker 才核验实际文件和缓存。跨机器不传本机绝对路径，缓存解析显式结合当前 Settings/既有模型路径工具。
 
 ## 五、状态、派发和故障原则
 
@@ -192,7 +192,7 @@ API/Worker 不预先创建 outputs/{task_id} 或 tasks/{task_id}.log；这两处
 
 ### 5.4 最低限度恢复范围
 
-M3-06 A 侧已提供只读 reconcile_tasks --check 与显式 --apply --services-stopped，详见 [对账使用说明](task-reconciliation.md)。先停止 API/全部 Worker，并能取得实例锁再应用；公共原语已由真实 Worker 复用，活 Worker 拒绝应用及停止释放已实测；GPU 中断/成功产物遗留恢复已在 07 A 的真实运行通过，B 复核待完成。只凭长时间无 Loss 不能判正常训练失联；不在 API 启动时按时间粗暴标 FAILED。
+M3-06 A 侧已提供只读 reconcile_tasks --check 与显式 --apply --services-stopped，详见 [对账使用说明](task-reconciliation.md)。先停止 API/全部 Worker，并能取得实例锁再应用；公共原语已由真实 Worker 复用，活 Worker 拒绝应用及停止释放已实测；GPU 中断/成功产物遗留恢复已在 07 A 的真实运行通过，B 异步复核已通过，待同步人工联调。只凭长时间无 Loss 不能判正常训练失联；不在 API 启动时按时间粗暴标 FAILED。
 
 对账在短事务条件更新中处理：遗留 RUNNING 且完整产物与任务快照完全相符 → COMPLETED；否则结束为 FAILED/WORKER_INTERRUPTED，保留部分文件。遗留 PENDING/QUEUED 没有成功产物时标 FAILED/TASK_ABANDONED；若出现可审计的完整成功 bundle 则阻塞人工调查，不伪造领取身份。终态不修改，非法路径/记录/未知 Schema 阻塞。不自动重投或覆盖旧目录。队列残留消息之后到达也只会跳过终态。检查报告和应用结果写日志，不能自动重训。在线 heartbeat/租约接管/outbox/自动补发留给后续扩展。
 
@@ -237,9 +237,10 @@ M3 不要求每个服务任务自动执行文本生成。COMPLETED 表示训练�
 - [x] 任务 API、SQLite 显式迁移、派发结果语义符合运行时 OpenAPI。
 - [x] Worker 只接任务 ID，原子领取、持有归属、单实例、复用 Trainer/审计（CPU/SQL/实际入口验证，GPU 见下一项）。
 - [x] 两个真实任务串行完成，重复投递/不确定提交不会重复训练。
-- [x] 前端已使用实际 HTTP/SQL，状态/分页/错误符合契约；Publisher/执行事件替身只在测试中使用，生产 GPU 浏览器链路已在 07 A 自动验收通过，B 人工检查待完成。
+- [x] 前端已使用实际 HTTP/SQL，状态/分页/错误符合契约；Publisher/执行事件替身只在测试中使用，生产 GPU 浏览器链路已在 07 A 自动验收通过，B 异步复核已通过，待同步人工联调。
 - [x] 最低限度的离线对账有失败/恢复证据，无自动重训或覆盖。
 - [x] A 的本阶段日志、真实测试证据和共享文档同步，正式效果/后续阶段边界明确。
-- [ ] B 完成人工页面检查/异步真实证据复核，新增独立日志；双方核对遗留问题后共同收口。
+- [x] B 完成异步真实证据/既有任务页面复核及独立日志，61d8703 经 A 本机回归合入。
+- [ ] 双方完成新上传/提交至实际 GPU 完成的同步人工端到端操作，记录实际任务 ID/UTC 时间/结果并共同收口。
 
-当前 01～06 已交付，07 A 已通过真实 GPU 串行、训练中断/成功产物遗留恢复与生产浏览器自动验收；证据不依赖旧的 CPU/Publisher/训练事件替身。下一步 B 按验收交接复核本机记录并完成独立日志，再共同确认 M3 结束；M4/M5 仍待开发。
+当前实现、真实自动运行及独立异步复核已齐，尚未完成同步人工端到端操作，故 M3 保持待共同验收。M4 的详细接口/任务规划可以先进行；M4/M5 功能仍未开发。
