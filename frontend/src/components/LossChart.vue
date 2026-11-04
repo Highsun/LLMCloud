@@ -4,30 +4,55 @@ import EmptyState from "./EmptyState.vue";
 const props = defineProps({ points: { type: Array, default: () => [] } });
 const valid = computed(() =>
   props.points
-    .filter((p) => Number.isFinite(p.step) && Number.isFinite(p.loss))
+    .filter(
+      (p) =>
+        p &&
+        (p.kind === "train" || p.kind === "eval") &&
+        Number.isSafeInteger(p.step) && p.step > 0 &&
+        Number.isFinite(p.loss) && p.loss >= 0,
+    )
+    .map((point, index) => ({ ...point, key: index }))
     .toSorted((a, b) => a.step - b.step),
 );
+const series = computed(() =>
+  [
+    { kind: "train", label: "训练 Loss", color: "#138d79" },
+    { kind: "eval", label: "验证 Loss", color: "#7862b3" },
+  ]
+    .map((entry) => ({
+      ...entry,
+      points: valid.value.filter((point) => point.kind === entry.kind),
+    }))
+    .filter((entry) => entry.points.length),
+);
+const chartLabel = computed(() =>
+  `Loss 曲线，共 ${valid.value.length} 个指标点；` +
+  series.value.map((entry) =>
+    `${entry.label}：${entry.points.length} 个点，最新 ${entry.points.at(-1).loss}`,
+  ).join("；"),
+);
 const bounds = computed(() => {
-  const xs = valid.value.map((p) => p.step),
-    ys = valid.value.map((p) => p.loss);
-  const low = Math.min(...ys),
-    high = Math.max(...ys);
+  if (!valid.value.length) return { x0: 0, x1: 0, y0: 0, y1: 1 };
+  let low = Infinity, high = -Infinity;
+  for (const point of valid.value) {
+    low = Math.min(low, point.loss);
+    high = Math.max(high, point.loss);
+  }
   const pad = Math.max((high - low) * 0.15, Math.abs(high) * 0.05, 0.01);
   return {
-    x0: Math.min(...xs),
-    x1: Math.max(...xs),
-    y0: low - pad,
+    x0: valid.value[0].step,
+    x1: valid.value.at(-1).step,
+    y0: Math.max(0, low - pad),
     y1: high + pad,
   };
 });
 const x = (step) =>
-  56 +
-  ((step - bounds.value.x0) / (bounds.value.x1 - bounds.value.x0 || 1)) * 614;
+  bounds.value.x0 === bounds.value.x1
+    ? 363
+    : 56 + ((step - bounds.value.x0) / (bounds.value.x1 - bounds.value.x0)) * 614;
 const y = (loss) =>
   224 - ((loss - bounds.value.y0) / (bounds.value.y1 - bounds.value.y0)) * 194;
-const line = computed(() =>
-  valid.value.map((p) => `${x(p.step)},${y(p.loss)}`).join(" "),
-);
+const line = (points) => points.map((p) => `${x(p.step)},${y(p.loss)}`).join(" ");
 const ticks = computed(() =>
   Array.from(
     { length: 5 },
@@ -38,15 +63,18 @@ const ticks = computed(() =>
 <template>
   <div v-if="valid.length" class="loss-chart">
     <div class="chart-legend">
-      <span><i />Training Loss</span
-      ><strong
-        >{{ valid.at(-1).loss.toFixed(4) }} <small>最新记录</small></strong
-      >
+      <div v-for="entry in series" :key="entry.kind" class="chart-series-summary"
+        :data-kind="entry.kind" :style="{ '--series-color': entry.color }">
+        <span><i :class="{ 'eval-swatch': entry.kind === 'eval' }" />{{ entry.label }}</span>
+        <strong>{{ entry.points.at(-1).loss.toFixed(4) }} <small>最新{{ entry.kind === 'train' ? '训练' : '验证' }}记录</small></strong>
+      </div>
     </div>
+    <div class="chart-plot" :class="{ 'single-step': bounds.x0 === bounds.x1 }"
+      role="region" aria-label="Loss 曲线绘图区，可横向滚动" tabindex="0">
     <svg
       viewBox="0 0 700 260"
       role="img"
-      :aria-label="`训练 Loss 曲线，共 ${valid.length} 个真实数据点，最新 Loss ${valid.at(-1).loss}`"
+      :aria-label="chartLabel"
     >
       <g v-for="tick in ticks" :key="tick">
         <line
@@ -61,31 +89,78 @@ const ticks = computed(() =>
           {{ tick.toFixed(3) }}
         </text>
       </g>
-      <polyline
-        :points="line"
-        fill="none"
-        stroke="#138d79"
-        stroke-width="2.5"
-        stroke-linejoin="round"
-      />
-      <circle
-        v-for="point in valid"
-        :key="point.step"
-        :cx="x(point.step)"
-        :cy="y(point.loss)"
-        r="3.5"
-        fill="#138d79"
-      >
-        <title>Step {{ point.step }} · Loss {{ point.loss }}</title>
-      </circle>
-      <text x="56" y="250">{{ bounds.x0 }}</text>
-      <text x="670" y="250" text-anchor="end">{{ bounds.x1 }} Step</text>
+      <g v-for="entry in series" :key="entry.kind" :data-kind="entry.kind">
+        <polyline
+          v-if="entry.points.length > 1"
+          :points="line(entry.points)"
+          fill="none"
+          :stroke="entry.color"
+          :stroke-dasharray="entry.kind === 'eval' ? '6 4' : undefined"
+          stroke-width="2.5"
+          stroke-linejoin="round"
+        />
+        <circle
+          v-for="point in entry.points"
+          :key="point.key"
+          :cx="x(point.step)"
+          :cy="y(point.loss)"
+          :r="entry.kind === 'eval' ? 5 : 3.5"
+          :fill="entry.kind === 'eval' ? 'none' : entry.color"
+          :stroke="entry.color"
+          stroke-width="2"
+        >
+          <title>{{ entry.label }} · Step {{ point.step }} · Loss {{ point.loss }}</title>
+        </circle>
+      </g>
+      <text v-if="bounds.x0 === bounds.x1" x="363" y="250" text-anchor="middle">{{ bounds.x0 }} Step</text>
+      <template v-else>
+        <text x="56" y="250">{{ bounds.x0 }}</text>
+        <text x="670" y="250" text-anchor="end">{{ bounds.x1 }} Step</text>
+      </template>
     </svg>
+    </div>
   </div>
   <EmptyState
     v-else
     icon="activity"
-    title="等待第一条训练指标"
-    description="模型加载期间可能暂无 Loss，开始训练后将在这里呈现真实记录。"
+    title="暂无 Loss 记录"
+    description="当前没有可展示的指标记录。"
   />
 </template>
+
+<style scoped>
+.chart-legend {
+  flex-wrap: wrap;
+  gap: 12px 24px;
+}
+.chart-plot {
+  overflow-x: auto;
+}
+.chart-plot svg {
+  display: block;
+  min-width: 640px;
+}
+.chart-plot.single-step svg {
+  min-width: 0;
+}
+.chart-series-summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 12px;
+}
+.chart-series-summary span,
+.chart-series-summary strong {
+  color: var(--series-color);
+}
+.chart-series-summary i {
+  background: var(--series-color);
+}
+.chart-series-summary .eval-swatch {
+  width: 18px;
+  height: 0;
+  border-top: 2px dashed var(--series-color);
+  border-radius: 0;
+  background: none;
+}
+</style>

@@ -30,6 +30,22 @@ npm run dev
 
 ## M3–M5 联调约定
 
+### M4-04a 图表展示准备
+
+`LossChart.vue` 已支持显式 `kind: "train" | "eval"`、正整数 `step`、非负有限数 `loss` 的记录数组。训练/验证分别显示图例、最新值和曲线，共用坐标轴；同 step 两类点都保留，验证线使用虚线和空心点。只有实际存在的系列才显示；单点仅画点，零 Loss 有效，空记录显示中性提示。组件不修改输入、不平滑或补点，窄容器内可用触摸或键盘左右滚动绘图区。
+
+本项只完成纯展示。生产页面仍按运行时 OpenAPI 探测能力，没有添加测试数据或启用新接口；下表中的旧指标/日志读取草案和 `TasksPanel` 的 after_step/Map(step) 尚待 M4-01 定稿后在 M4-04 替换。source_id/cursor/offset 合并、终态补拉、日志及下载不属于 04a。
+
+检查命令（在 frontend 目录）：
+
+```bash
+npm test
+npm run build
+node testing/check_loss_chart.mjs
+```
+
+浏览器检查只启动隔离组件页，不启动 API、Redis、Worker 或 GPU；测试数据明确标注为合成数据，不进入产品页。默认使用 Playwright Chromium，也可通过 `PLAYWRIGHT_CHANNEL=chrome` 使用已安装的 Chrome（PowerShell：`$env:PLAYWRIGHT_CHANNEL='chrome'`）。覆盖桌面/390px、窄屏滚动、同 step 双系列、记录替换/追加、零值及空态切换；截图保存在被忽略的 `frontend/test-results/loss-chart-*`。交接范围见 [M4-04a B 日志](../docs/worklogs/2026-11-04-m4-04a-b.md)。
+
 M3 的分工和验收见 [完整开发计划](../docs/m3-development-plan.md)，正式请求/响应见 [任务 API](../docs/api/tasks.md)。M3-05 在原有列表交付上补齐：有 error.task_id 时只查询原任务；网络中断等没有 ID 的不确定结果不自动重发，用户可点击“确认原提交”，使用冻结的配置与原键调用服务端去重。若原记录存在，服务端返回 200 且不重新派发；若未保存，则此请求才创建任务。只有明确点击准备新任务才清除意图，下一次提交生成新键；放弃未知提交会提示可能重复。
 
 提交前先保存意图，响应后保存任务 ID。刷新不会 POST，进入任务页可自动查询最近提交的 ID；存储不可用时显示保存提醒。sessionStorage 仅覆盖当前标签页会话，不提供跨设备或关闭标签页后的恢复。列表保留原有筛选/分页/竞态保护，历史小交付说明见 [列表测试](testing/m3-task-list.md)，本次完整接通证据见 [B 交付日志](../docs/worklogs/2026-11-03-m3-05-b.md)。共享入口/计划由 A 收录该日志，不代改 A 文件。

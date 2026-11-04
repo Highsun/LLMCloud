@@ -84,16 +84,16 @@ test("数据列表保留服务端排序并对名称做 HTML 转义", async () =>
 
 test("Loss 图只使用有限的真实指标，空数据不画虚构曲线", async () => {
   const empty = await render("LossChart", { points: [] });
-  assert.ok(empty.includes("等待第一条训练指标"));
+  assert.ok(empty.includes("暂无 Loss 记录"));
   assert.ok(!empty.includes("<polyline"));
   const real = await render("LossChart", {
     points: [
-      { step: 3, loss: 0.8 },
-      { step: 1, loss: 1.4 },
-      { step: 4, loss: null },
+      { kind: "train", step: 3, loss: 0.8 },
+      { kind: "train", step: 1, loss: 1.4 },
+      { kind: "train", step: 4, loss: null },
     ],
   });
-  assert.ok(real.includes("共 2 个真实数据点"));
+  assert.ok(real.includes("共 2 个指标点"));
   assert.ok(real.includes("0.8000"));
   assert.ok(!real.includes("NaN"));
 });
