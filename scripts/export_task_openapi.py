@@ -16,7 +16,7 @@ from backend.app.main import create_app  # noqa: E402
 def build_contract():
     runtime = create_app(Settings(_env_file=None, api_prefix="/api/v1")).openapi()
     paths = {path.removeprefix("/api/v1"): value for path, value in runtime["paths"].items()
-             if path in ("/api/v1/tasks", "/api/v1/tasks/{task_id}")}
+             if path == "/api/v1/tasks" or path.startswith("/api/v1/tasks/")}
     selected = {}
 
     def collect(value):

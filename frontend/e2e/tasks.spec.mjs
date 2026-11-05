@@ -47,8 +47,9 @@ test("真实 202/去重头/详情 config，刷新后查询原任务且不 POST",
   await expect(detail(page)).toContainText("排队中");
   await expect(detail(page)).toContainText("进度待确认");
   await expect(detail(page).locator(".config-snapshot")).toContainText('"lora_r": 8');
-  await expect(detail(page).getByRole("tab", { name: "Loss 曲线" })).toBeDisabled();
-  await expect(detail(page).getByRole("tab", { name: "运行日志" })).toBeDisabled();
+  // M4 publishes these real GET capabilities; QUEUED still cannot download.
+  await expect(detail(page).getByRole("tab", { name: "Loss 曲线" })).toBeEnabled();
+  await expect(detail(page).getByRole("tab", { name: "运行日志" })).toBeEnabled();
   await expect(detail(page).getByRole("button", { name: "下载 Adapter" })).toBeDisabled();
   await page.reload();
   await expect(detail(page)).toContainText(task.id);

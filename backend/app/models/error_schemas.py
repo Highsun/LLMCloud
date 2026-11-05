@@ -5,6 +5,7 @@ from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, UUID4
 
 from backend.app.core.dataset_contract import MAX_ERROR_DETAILS
+from backend.app.core.observability_contract import ObservabilityErrorCode
 
 
 class ApiErrorCode(StrEnum):
@@ -25,6 +26,14 @@ class ApiErrorCode(StrEnum):
     DATABASE_UNAVAILABLE = "DATABASE_UNAVAILABLE"
     INTERNAL_ERROR = "INTERNAL_ERROR"
     HTTP_ERROR = "HTTP_ERROR"
+    METRICS_CURSOR_INVALID = ObservabilityErrorCode.METRICS_CURSOR_INVALID.value
+    METRICS_CORRUPTED = ObservabilityErrorCode.METRICS_CORRUPTED.value
+    METRICS_UNAVAILABLE = ObservabilityErrorCode.METRICS_UNAVAILABLE.value
+    LOGS_UNAVAILABLE = ObservabilityErrorCode.LOGS_UNAVAILABLE.value
+    ARTIFACT_NOT_READY = ObservabilityErrorCode.ARTIFACT_NOT_READY.value
+    INVALID_ARTIFACT = ObservabilityErrorCode.INVALID_ARTIFACT.value
+    ARTIFACT_TOO_LARGE = ObservabilityErrorCode.ARTIFACT_TOO_LARGE.value
+    DOWNLOAD_BUSY = ObservabilityErrorCode.DOWNLOAD_BUSY.value
 
 
 class ErrorDetail(BaseModel):

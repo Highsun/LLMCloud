@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "ARTIFACT_NOT_READY",
+    "message": "格式样例：ARTIFACT_NOT_READY。",
+    "details": [],
+    "details_truncated": false,
+    "request_id": "f63b14e1-7748-4e24-9db8-6d24810dd6df"
+  }
+}

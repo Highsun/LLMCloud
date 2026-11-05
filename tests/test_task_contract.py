@@ -294,12 +294,15 @@ assert LegacyCreate is TaskCreate
         result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_runtime_app_exposes_task_http_without_execution_or_result_endpoints(self):
+    def test_runtime_app_exposes_tasks_observation_and_download_without_inference(self):
         from backend.app.main import create_app
         paths = create_app(Settings(_env_file=None)).openapi()["paths"]
         self.assertEqual(set(paths["/api/v1/tasks"]), {"post", "get"})
         self.assertEqual(set(paths["/api/v1/tasks/{task_id}"]), {"get"})
-        self.assertFalse(any("/metrics" in path or "/inference" in path or "/adapter" in path for path in paths))
+        self.assertEqual(set(paths["/api/v1/tasks/{task_id}/metrics"]), {"get"})
+        self.assertEqual(set(paths["/api/v1/tasks/{task_id}/logs"]), {"get"})
+        self.assertEqual(set(paths["/api/v1/tasks/{task_id}/adapter"]), {"get"})
+        self.assertFalse(any("/inference" in path for path in paths))
 
 
 if __name__ == "__main__":

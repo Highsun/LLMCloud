@@ -1,0 +1,875 @@
+{
+  "$defs": {
+    "AdapterDownloadHeaders": {
+      "additionalProperties": false,
+      "description": "Header description with task context, NOT a JSON download response body.",
+      "properties": {
+        "task_id": {
+          "format": "uuid4",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "Content-Type": {
+          "const": "application/zip",
+          "default": "application/zip",
+          "title": "Content-Type",
+          "type": "string"
+        },
+        "Content-Disposition": {
+          "title": "Content-Disposition",
+          "type": "string"
+        },
+        "Cache-Control": {
+          "const": "no-store",
+          "default": "no-store",
+          "title": "Cache-Control",
+          "type": "string"
+        }
+      },
+      "required": [
+        "task_id",
+        "Content-Disposition"
+      ],
+      "title": "AdapterDownloadHeaders",
+      "type": "object"
+    },
+    "AdapterQuery": {
+      "additionalProperties": false,
+      "description": "Download has no query parameters; unknown parameters are forbidden.",
+      "properties": {},
+      "title": "AdapterQuery",
+      "type": "object"
+    },
+    "ApiError": {
+      "additionalProperties": false,
+      "properties": {
+        "code": {
+          "$ref": "#/$defs/ApiErrorCode"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "details": {
+          "items": {
+            "$ref": "#/$defs/ErrorDetail"
+          },
+          "maxItems": 10,
+          "title": "Details",
+          "type": "array"
+        },
+        "details_truncated": {
+          "title": "Details Truncated",
+          "type": "boolean"
+        },
+        "request_id": {
+          "format": "uuid4",
+          "title": "Request Id",
+          "type": "string"
+        }
+      },
+      "required": [
+        "code",
+        "message",
+        "details",
+        "details_truncated",
+        "request_id"
+      ],
+      "title": "ApiError",
+      "type": "object"
+    },
+    "ApiErrorCode": {
+      "enum": [
+        "INVALID_MULTIPART",
+        "UNSUPPORTED_MEDIA_TYPE",
+        "UPLOAD_TOO_LARGE",
+        "VALIDATION_ERROR",
+        "INVALID_DATASET",
+        "DATASET_NOT_FOUND",
+        "TASK_NOT_FOUND",
+        "IDEMPOTENCY_CONFLICT",
+        "REQUEST_TOO_LARGE",
+        "DISPATCH_FAILED",
+        "DISPATCH_UNCERTAIN",
+        "NOT_FOUND",
+        "METHOD_NOT_ALLOWED",
+        "STORAGE_UNAVAILABLE",
+        "DATABASE_UNAVAILABLE",
+        "INTERNAL_ERROR",
+        "HTTP_ERROR",
+        "METRICS_CURSOR_INVALID",
+        "METRICS_CORRUPTED",
+        "METRICS_UNAVAILABLE",
+        "LOGS_UNAVAILABLE",
+        "ARTIFACT_NOT_READY",
+        "INVALID_ARTIFACT",
+        "ARTIFACT_TOO_LARGE",
+        "DOWNLOAD_BUSY"
+      ],
+      "title": "ApiErrorCode",
+      "type": "string"
+    },
+    "CompletedArtifactSpec": {
+      "additionalProperties": false,
+      "description": "No filesystem/authorization/SQL checks; the repository must gate COMPLETED.",
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "spec": {
+          "$ref": "#/$defs/TaskExecutionSpec"
+        },
+        "output_key": {
+          "title": "Output Key",
+          "type": "string"
+        },
+        "manifest_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Manifest Sha256",
+          "type": "string"
+        },
+        "training_summary": {
+          "$ref": "#/$defs/TrainingSummary"
+        }
+      },
+      "required": [
+        "spec",
+        "output_key",
+        "manifest_sha256",
+        "training_summary"
+      ],
+      "title": "CompletedArtifactSpec",
+      "type": "object"
+    },
+    "DownloadBusyHeaders": {
+      "additionalProperties": false,
+      "properties": {
+        "Retry-After": {
+          "const": "2",
+          "default": "2",
+          "title": "Retry-After",
+          "type": "string"
+        }
+      },
+      "title": "DownloadBusyHeaders",
+      "type": "object"
+    },
+    "ErrorDetail": {
+      "additionalProperties": false,
+      "properties": {
+        "loc": {
+          "items": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "integer"
+              }
+            ]
+          },
+          "minItems": 1,
+          "title": "Loc",
+          "type": "array"
+        },
+        "code": {
+          "minLength": 1,
+          "title": "Code",
+          "type": "string"
+        },
+        "message": {
+          "minLength": 1,
+          "title": "Message",
+          "type": "string"
+        },
+        "line": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Line"
+        },
+        "column": {
+          "anyOf": [
+            {
+              "minimum": 1,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Column"
+        }
+      },
+      "required": [
+        "loc",
+        "code",
+        "message",
+        "line",
+        "column"
+      ],
+      "title": "ErrorDetail",
+      "type": "object"
+    },
+    "ErrorResponse": {
+      "additionalProperties": false,
+      "properties": {
+        "error": {
+          "$ref": "#/$defs/ApiError"
+        }
+      },
+      "required": [
+        "error"
+      ],
+      "title": "ErrorResponse",
+      "type": "object"
+    },
+    "LogsPage": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid4",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "task_status": {
+          "$ref": "#/$defs/TaskStatus"
+        },
+        "source_state": {
+          "$ref": "#/$defs/SourceState"
+        },
+        "lines": {
+          "items": {
+            "maxLength": 65536,
+            "type": "string"
+          },
+          "maxItems": 500,
+          "title": "Lines",
+          "type": "array"
+        },
+        "truncated": {
+          "title": "Truncated",
+          "type": "boolean"
+        },
+        "tail_incomplete": {
+          "title": "Tail Incomplete",
+          "type": "boolean"
+        },
+        "filtered_lines": {
+          "maximum": 500,
+          "minimum": 0,
+          "title": "Filtered Lines",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "task_id",
+        "task_status",
+        "source_state",
+        "lines",
+        "truncated",
+        "tail_incomplete",
+        "filtered_lines"
+      ],
+      "title": "LogsPage",
+      "type": "object"
+    },
+    "LogsQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "tail": {
+          "default": 100,
+          "maximum": 500,
+          "minimum": 1,
+          "title": "Tail",
+          "type": "integer"
+        }
+      },
+      "title": "LogsQuery",
+      "type": "object"
+    },
+    "MetricRecord": {
+      "additionalProperties": false,
+      "description": "TrainingProgress unchanged, with a response-only physical line identity.",
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "kind": {
+          "default": "train",
+          "enum": [
+            "train",
+            "eval"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "step": {
+          "exclusiveMinimum": 0,
+          "title": "Step",
+          "type": "integer"
+        },
+        "total_steps": {
+          "exclusiveMinimum": 0,
+          "title": "Total Steps",
+          "type": "integer"
+        },
+        "loss": {
+          "minimum": 0,
+          "title": "Loss",
+          "type": "number"
+        },
+        "learning_rate": {
+          "minimum": 0,
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "epoch": {
+          "minimum": 0,
+          "title": "Epoch",
+          "type": "number"
+        },
+        "recorded_at": {
+          "format": "date-time",
+          "title": "Recorded At",
+          "type": "string"
+        },
+        "offset": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Offset",
+          "type": "integer"
+        }
+      },
+      "required": [
+        "step",
+        "total_steps",
+        "loss",
+        "learning_rate",
+        "epoch",
+        "recorded_at",
+        "offset"
+      ],
+      "title": "MetricRecord",
+      "type": "object"
+    },
+    "MetricsPage": {
+      "additionalProperties": false,
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid4",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "task_status": {
+          "$ref": "#/$defs/TaskStatus"
+        },
+        "source_state": {
+          "$ref": "#/$defs/SourceState"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Source Id"
+        },
+        "items": {
+          "items": {
+            "$ref": "#/$defs/MetricRecord"
+          },
+          "maxItems": 1000,
+          "title": "Items",
+          "type": "array"
+        },
+        "next_cursor": {
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Next Cursor",
+          "type": "integer"
+        },
+        "has_more": {
+          "title": "Has More",
+          "type": "boolean"
+        },
+        "tail_incomplete": {
+          "title": "Tail Incomplete",
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "task_id",
+        "task_status",
+        "source_state",
+        "source_id",
+        "items",
+        "next_cursor",
+        "has_more",
+        "tail_incomplete"
+      ],
+      "title": "MetricsPage",
+      "type": "object"
+    },
+    "MetricsQuery": {
+      "additionalProperties": false,
+      "properties": {
+        "cursor": {
+          "default": 0,
+          "maximum": 9007199254740991,
+          "minimum": 0,
+          "title": "Cursor",
+          "type": "integer"
+        },
+        "source_id": {
+          "anyOf": [
+            {
+              "pattern": "^[0-9a-f]{64}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Source Id"
+        },
+        "limit": {
+          "default": 200,
+          "maximum": 1000,
+          "minimum": 1,
+          "title": "Limit",
+          "type": "integer"
+        }
+      },
+      "title": "MetricsQuery",
+      "type": "object"
+    },
+    "RuntimeOptions": {
+      "additionalProperties": false,
+      "description": "Internal execution choices; these are not public LoRA form fields.",
+      "properties": {
+        "precision": {
+          "default": "bf16",
+          "enum": [
+            "bf16",
+            "fp32"
+          ],
+          "title": "Precision",
+          "type": "string"
+        },
+        "max_steps": {
+          "anyOf": [
+            {
+              "exclusiveMinimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Max Steps"
+        },
+        "local_files_only": {
+          "default": true,
+          "title": "Local Files Only",
+          "type": "boolean"
+        }
+      },
+      "title": "RuntimeOptions",
+      "type": "object"
+    },
+    "SourceState": {
+      "enum": [
+        "ready",
+        "not_created"
+      ],
+      "title": "SourceState",
+      "type": "string"
+    },
+    "TaskExecutionSpec": {
+      "additionalProperties": false,
+      "description": "Detached claim snapshot. Key validation performs no filesystem checks.",
+      "properties": {
+        "contract_version": {
+          "const": "1.0.0",
+          "default": "1.0.0",
+          "title": "Contract Version",
+          "type": "string"
+        },
+        "task_id": {
+          "format": "uuid4",
+          "title": "Task Id",
+          "type": "string"
+        },
+        "dataset_id": {
+          "format": "uuid4",
+          "title": "Dataset Id",
+          "type": "string"
+        },
+        "dataset_key": {
+          "title": "Dataset Key",
+          "type": "string"
+        },
+        "dataset_sha256": {
+          "pattern": "^[0-9a-f]{64}$",
+          "title": "Dataset Sha256",
+          "type": "string"
+        },
+        "dataset_size_bytes": {
+          "exclusiveMinimum": 0,
+          "title": "Dataset Size Bytes",
+          "type": "integer"
+        },
+        "dataset_row_count": {
+          "exclusiveMinimum": 0,
+          "title": "Dataset Row Count",
+          "type": "integer"
+        },
+        "base_model": {
+          "const": "Qwen/Qwen2.5-0.5B-Instruct",
+          "title": "Base Model",
+          "type": "string"
+        },
+        "model_revision": {
+          "pattern": "^[0-9a-f]{40}$",
+          "title": "Model Revision",
+          "type": "string"
+        },
+        "config": {
+          "$ref": "#/$defs/TrainingConfig"
+        },
+        "runtime": {
+          "$ref": "#/$defs/RuntimeOptions"
+        }
+      },
+      "required": [
+        "task_id",
+        "dataset_id",
+        "dataset_key",
+        "dataset_sha256",
+        "dataset_size_bytes",
+        "dataset_row_count",
+        "base_model",
+        "model_revision",
+        "config"
+      ],
+      "title": "TaskExecutionSpec",
+      "type": "object"
+    },
+    "TaskStatus": {
+      "enum": [
+        "PENDING",
+        "QUEUED",
+        "RUNNING",
+        "COMPLETED",
+        "FAILED"
+      ],
+      "title": "TaskStatus",
+      "type": "string"
+    },
+    "TrainingConfig": {
+      "additionalProperties": false,
+      "properties": {
+        "lora_r": {
+          "default": 8,
+          "maximum": 64,
+          "minimum": 1,
+          "title": "Lora R",
+          "type": "integer"
+        },
+        "lora_alpha": {
+          "default": 16,
+          "maximum": 128,
+          "minimum": 1,
+          "title": "Lora Alpha",
+          "type": "integer"
+        },
+        "lora_dropout": {
+          "default": 0.05,
+          "exclusiveMaximum": 1,
+          "minimum": 0,
+          "title": "Lora Dropout",
+          "type": "number"
+        },
+        "target_modules": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Target Modules",
+          "type": "array"
+        },
+        "learning_rate": {
+          "default": 0.0002,
+          "exclusiveMinimum": 0,
+          "maximum": 0.01,
+          "title": "Learning Rate",
+          "type": "number"
+        },
+        "num_train_epochs": {
+          "default": 1,
+          "maximum": 10,
+          "minimum": 1,
+          "title": "Num Train Epochs",
+          "type": "integer"
+        },
+        "per_device_train_batch_size": {
+          "default": 1,
+          "maximum": 4,
+          "minimum": 1,
+          "title": "Per Device Train Batch Size",
+          "type": "integer"
+        },
+        "gradient_accumulation_steps": {
+          "default": 8,
+          "maximum": 64,
+          "minimum": 1,
+          "title": "Gradient Accumulation Steps",
+          "type": "integer"
+        },
+        "max_seq_length": {
+          "default": 512,
+          "maximum": 2048,
+          "minimum": 64,
+          "title": "Max Seq Length",
+          "type": "integer"
+        },
+        "logging_steps": {
+          "default": 1,
+          "maximum": 100,
+          "minimum": 1,
+          "title": "Logging Steps",
+          "type": "integer"
+        },
+        "seed": {
+          "default": 42,
+          "minimum": 0,
+          "title": "Seed",
+          "type": "integer"
+        }
+      },
+      "title": "TrainingConfig",
+      "type": "object"
+    },
+    "TrainingSummary": {
+      "additionalProperties": false,
+      "properties": {
+        "completed_steps": {
+          "exclusiveMinimum": 0,
+          "title": "Completed Steps",
+          "type": "integer"
+        },
+        "total_steps": {
+          "exclusiveMinimum": 0,
+          "title": "Total Steps",
+          "type": "integer"
+        },
+        "elapsed_seconds": {
+          "minimum": 0,
+          "title": "Elapsed Seconds",
+          "type": "number"
+        },
+        "peak_memory_allocated_bytes": {
+          "minimum": 0,
+          "title": "Peak Memory Allocated Bytes",
+          "type": "integer"
+        },
+        "trainable_parameters": {
+          "exclusiveMinimum": 0,
+          "title": "Trainable Parameters",
+          "type": "integer"
+        },
+        "total_parameters": {
+          "exclusiveMinimum": 0,
+          "title": "Total Parameters",
+          "type": "integer"
+        },
+        "final_loss": {
+          "minimum": 0,
+          "title": "Final Loss",
+          "type": "number"
+        },
+        "eval_loss": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "number"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Eval Loss"
+        }
+      },
+      "required": [
+        "completed_steps",
+        "total_steps",
+        "elapsed_seconds",
+        "peak_memory_allocated_bytes",
+        "trainable_parameters",
+        "total_parameters",
+        "final_loss"
+      ],
+      "title": "TrainingSummary",
+      "type": "object"
+    }
+  },
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "LLMCloud observability contracts (types only)",
+  "x-contract-version": "1.0.0",
+  "x-implementation-status": "types_only",
+  "x-http-implementation-status": "not_asserted",
+  "x-generated-by": "scripts/export_observability_contract.py",
+  "x-limits": {
+    "max_safe_integer": 9007199254740991,
+    "default_metrics_limit": 200,
+    "max_metrics_limit": 1000,
+    "max_metric_line_bytes": 16384,
+    "max_metrics_scan_bytes": 524288,
+    "max_metrics_response_bytes": 1048576,
+    "default_log_tail": 100,
+    "max_log_tail": 500,
+    "max_log_read_bytes": 65536,
+    "max_log_response_bytes": 262144,
+    "max_observed_log_tasks": 4096,
+    "max_log_diagnostics": 16,
+    "max_log_frames": 32,
+    "max_log_target_modules": 64,
+    "max_download_bytes": 268435456,
+    "max_concurrent_downloads": 1,
+    "download_chunk_bytes": 65536,
+    "max_download_manifest_bytes": 524288,
+    "download_retry_after_seconds": 2,
+    "poll_interval_ms": 2000,
+    "max_metric_pages_per_poll": 5,
+    "max_visible_metrics": 10000
+  },
+  "x-error-http-status": {
+    "TASK_NOT_FOUND": 404,
+    "DATABASE_UNAVAILABLE": 503,
+    "VALIDATION_ERROR": 422,
+    "STORAGE_UNAVAILABLE": 500,
+    "INTERNAL_ERROR": 500,
+    "METRICS_CURSOR_INVALID": 409,
+    "METRICS_CORRUPTED": 500,
+    "METRICS_UNAVAILABLE": 500,
+    "LOGS_UNAVAILABLE": 500,
+    "ARTIFACT_NOT_READY": 409,
+    "INVALID_ARTIFACT": 500,
+    "ARTIFACT_TOO_LARGE": 413,
+    "DOWNLOAD_BUSY": 429
+  },
+  "x-log-projection": {
+    "common": [
+      "recorded_at",
+      "stage"
+    ],
+    "stages": {
+      "preflight": [
+        "task_id",
+        "precision"
+      ],
+      "model_loading": [],
+      "data_preparation": [],
+      "data_verified": [
+        "train",
+        "validation"
+      ],
+      "parameters": [
+        "total_parameters",
+        "trainable_parameters",
+        "target_modules",
+        "base_sha256_before"
+      ],
+      "training": [
+        "total_steps",
+        "gradient_accumulation_steps"
+      ],
+      "metric": [
+        "contract_version",
+        "kind",
+        "step",
+        "total_steps",
+        "loss",
+        "learning_rate",
+        "epoch",
+        "framework_learning_rate"
+      ],
+      "parameter_verification": [
+        "changed_lora_tensors",
+        "lora_tensor_count",
+        "base_sha256_before",
+        "base_sha256_after",
+        "base_unchanged"
+      ],
+      "saving": [],
+      "training_and_save_finished": [
+        "completed_steps"
+      ],
+      "failed": [
+        "failure",
+        "diagnostic"
+      ]
+    },
+    "dataset": [
+      "sha256",
+      "size_bytes",
+      "row_count",
+      "review_status",
+      "build_id"
+    ],
+    "failure": [
+      "task_id",
+      "code",
+      "stage"
+    ],
+    "diagnostic": [
+      "type",
+      "frames"
+    ],
+    "frame": [
+      "file",
+      "function",
+      "line"
+    ]
+  },
+  "x-zip-layout": {
+    "root": "{task_id}/",
+    "members": "verified manifest.artifacts plus manifest.json",
+    "temporary_directory": "DATA_DIR/downloads",
+    "response_body": "binary ZIP, not JSON"
+  }
+}
