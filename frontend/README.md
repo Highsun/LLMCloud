@@ -133,3 +133,23 @@ npm run test:e2e
 2026-10-22 增加隔离的故障注入与边界场景，当前浏览器总计 19 项。测试配置显式使用 `serve_test_api.py --faults`，通过一次性测试控制触发磁盘/数据库/内部异常，核验真实错误与失败清理；这些入口只存在于临时服务，正常后端没有测试路由。产品组件没有新增 mock 或故障开关。验收矩阵见 [M1 检查](../docs/testing/m1-acceptance.md)。
 
 GitHub CI 自动执行后端、前端测试与构建及 Chromium 回归；失败 trace 保留 7 天，查看仓库 Actions。
+
+## M4-06 真实文件接口与浏览器回归
+
+在 Linux/WSL 的仓库根目录完成 `uv sync --locked`，前端安装 npm/Playwright 依赖后，在 frontend 运行：
+
+```bash
+npm run test:e2e:m4
+```
+
+入口为 `playwright.m4.config.mjs`、`e2e-m4/observability.spec.mjs` 和 `testing/serve_m4_api.py`。自动启动独立 API（18006）及 Vite（15176），使用一次性 SQLite、日志和输出目录，退出后清理；不复用业务服务。服务必须在 Linux 上运行，缺少 O_DIRECTORY/O_NOFOLLOW 时明确拒绝启动，不弱化正式文件安全检查。
+
+六项场景实际调用原 API/SQL/文件读取/下载服务，不拦截浏览器响应：验证增量追加与五页后续轮次、相同步 train/eval、零值、半行补全、来源替换的 409 重置、终态最终指标/日志与停止轮询；日志三类告警、未知字段过滤/缺文件/符号链接；五状态下载门禁、ZIP 浏览器落盘/CRC/解压后原共享审计、429/413/损坏/工作区权限错误；实际 body 中取消和切任务后的 TCP 断开、临时文件及槽位释放。合成事件通过原 MetricWriter 写入，状态仅通过正式仓储方法变化；下载复用已有 worker_support.synthetic_train CPU bundle，不复制 SQL、Trainer 或产物审计。
+
+Publisher、训练事件与 bundle 明确为 CPU 测试替身。COMPLETED 观测场景只完成测试元数据，不能用它的下载按钮推断产物有效；有效/无效下载由另两项 bundle 场景验证。body 暂停是此测试进程的 ASGI 故障注入，取消则由真实浏览器/代理/TCP 和原响应清理逻辑处理。不启动 Redis/Worker/GPU，不证明模型效果或 M4-07/M3 双方人工验收。
+
+本机也可用 Windows 浏览器连接容器内这一专用 Linux API：先在隔离环境启动上述测试服务并只转发本机 18006 端口，再设置 `$env:LLMCLOUD_M4_TEST_API='http://127.0.0.1:18006'` 后运行相同 npm 命令。该变量仅接受此一次性测试入口，不能指向业务 API；测试会核对 CPU 替身标记。已有浏览器缓存可通过 PLAYWRIGHT_BROWSERS_PATH 指定，已同步 Python 命令可通过 LLMCLOUD_TEST_PYTHON 指定；均不要求改锁文件。
+
+结果独立保存到被忽略的 `data/acceptance/b-review/m4-06/{run_id}/`：JSON 报告、各项实际 HTTP 状态/游标/请求编号摘要、桌面/390px 截图、合成 ZIP 和独立审计结果；失败时保存 trace。不同运行及原 M3 证据互不覆盖。CI 在原 M1/M3 浏览器回归后执行此入口，另保留 M4 CPU 证据 7 天。完整矩阵、执行结果和交接见 [M4-06 B 日志](../docs/worklogs/2026-11-05-m4-06-b.md)。
+
+完整后端/数据集契约检查应在保持 Git 原始 LF 字节的 Linux checkout 中执行。Windows autocrlf 会使 docs/examples/train.jsonl 从 625 变成 628 字节，从而触发已有 SHA-256/样例漂移检查；应使用独立 LF checkout 或仅本次关闭 autocrlf 的 Git archive 快照复核，不修改冻结样例或重新生成契约来迁就换行。

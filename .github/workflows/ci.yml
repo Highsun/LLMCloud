@@ -61,6 +61,17 @@ jobs:
       - name: Browser tests with disposable API
         run: npm run test:e2e
         working-directory: frontend
+      - name: M4 browser tests with real Linux file APIs
+        run: npm run test:e2e:m4
+        working-directory: frontend
+      - name: Preserve M4 CPU browser evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m4-real-http-cpu-evidence
+          path: data/acceptance/b-review/m4-06/
+          retention-days: 7
+          if-no-files-found: ignore
       - name: Preserve failure traces
         if: failure()
         uses: actions/upload-artifact@v4
