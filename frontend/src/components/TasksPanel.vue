@@ -1,6 +1,6 @@
 <script setup>
-import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
-import { ApiError, baseUrl, request, saveFile } from "../api";
+import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
+import { baseUrl, request, saveFile } from "../api";
 import {
   formatDate,
   cancelTaskRequest,
@@ -16,17 +16,18 @@ import AppIcon from "./AppIcon.vue";
 import EmptyState from "./EmptyState.vue";
 import ErrorNotice from "./ErrorNotice.vue";
 import LossChart from "./LossChart.vue";
+import TaskLogs from "./TaskLogs.vue";
 import { createTaskPolling } from "../task-polling";
 import { progressLabel, validateTaskDetail } from "../task-detail";
+import { createTaskObservability } from "../task-observability";
 
 const filter = computed(() => workspace.taskStatus);
 const selected = ref(null);
 const tab = ref("config");
-const metrics = ref([]);
-const logs = ref("");
+const observations = reactive({});
+const observer = createTaskObservability({ state: observations, request, supports });
+const metrics = computed(() => observations.metrics.points);
 const detailError = ref(null);
-const metricsError = ref(null);
-const logsError = ref(null);
 const downloading = ref(false);
 const downloadError = ref(null);
 const polling = ref(true);
@@ -39,7 +40,7 @@ let alive = true,
 const stateOf = (status) =>
   taskStates[status] || { label: status || "未知", tone: "neutral" };
 
-async function readDetail(id, isNew = false) {
+async function readDetail(id, isNew = false, manual = false) {
   if (!supports('/tasks/{task_id}')) return;
   if (detailLoading.value && !isNew) return;
   detailController?.abort();
@@ -49,11 +50,8 @@ async function readDetail(id, isNew = false) {
   detailLoading.value = true;
   if (isNew) {
     selected.value = { id };
-    metrics.value = [];
-    logs.value = "";
+    observer.select(id);
     detailError.value = null;
-    metricsError.value = null;
-    logsError.value = null;
     downloadError.value = null;
   }
   try {
@@ -61,55 +59,8 @@ async function readDetail(id, isNew = false) {
     if (current !== sequence || !alive) return;
     selected.value = validateTaskDetail(data, id);
     detailError.value = null;
-    const after = metrics.value.length
-      ? Math.max(...metrics.value.map((point) => point.step))
-      : -1;
-    await Promise.allSettled([
-      supports("/tasks/{task_id}/metrics")
-        ? request(
-            `/tasks/${encodeURIComponent(id)}/metrics${after >= 0 ? `?after_step=${after}` : ""}`,
-            { signal },
-          )
-            .then((result) => {
-              if (current !== sequence || !alive) return;
-              const points = Array.isArray(result) ? result : result.items;
-              if (!Array.isArray(points))
-                throw new ApiError("指标响应格式待联调。");
-              const merged = new Map(
-                metrics.value.map((point) => [point.step, point]),
-              );
-              for (const point of points)
-                if (Number.isFinite(point.step) && Number.isFinite(point.loss))
-                  merged.set(point.step, point);
-              metrics.value = [...merged.values()].toSorted(
-                (a, b) => a.step - b.step,
-              );
-              metricsError.value = null;
-            })
-            .catch((error) => {
-              if (current === sequence && alive) metricsError.value = error;
-            })
-        : Promise.resolve(),
-      supports("/tasks/{task_id}/logs")
-        ? request(`/tasks/${encodeURIComponent(id)}/logs?tail=100`, { signal })
-            .then((result) => {
-              if (current !== sequence || !alive) return;
-              const text =
-                typeof result === "string"
-                  ? result
-                  : Array.isArray(result.lines)
-                    ? result.lines.join("\n")
-                    : result.logs;
-              if (typeof text !== "string")
-                throw new ApiError("日志响应格式待联调。");
-              logs.value = text;
-              logsError.value = null;
-            })
-            .catch((error) => {
-              if (current === sequence && alive) logsError.value = error;
-            })
-        : Promise.resolve(),
-    ]);
+    observer.setStatus(selected.value.status);
+    observer.refresh({ force: manual || !polling.value });
   } catch (error) {
     if (current === sequence && alive) detailError.value = error;
   } finally {
@@ -120,20 +71,28 @@ const taskPolling = createTaskPolling({
   shouldPoll: () =>
     alive && polling.value && !document.hidden && supports("/tasks"),
   async refresh() {
-    await pollTasks();
-    if (
-      alive &&
-      polling.value &&
-      !document.hidden &&
-      selected.value &&
-      !["COMPLETED", "FAILED"].includes(selected.value.status)
-    )
-      await readDetail(selected.value.id);
+    await Promise.allSettled([
+      pollTasks(),
+      selected.value && !["COMPLETED", "FAILED"].includes(selected.value.status)
+        ? readDetail(selected.value.id) : Promise.resolve(),
+    ]);
   },
 });
+const observationPolling = createTaskPolling({
+  shouldPoll: () => alive && polling.value && !document.hidden && observer.needsRefresh(),
+  refresh: () => observer.refresh(),
+});
 function updatePolling() {
-  if (polling.value && !document.hidden) taskPolling.start();
-  else taskPolling.stop();
+  if (polling.value && !document.hidden) {
+    taskPolling.start();
+    observationPolling.start();
+    observer.resume();
+    observer.refresh();
+  } else {
+    taskPolling.stop();
+    observationPolling.stop();
+    observer.pause();
+  }
   if (document.hidden) {
     cancelTaskRequest();
     ++sequence;
@@ -160,6 +119,7 @@ async function download() {
 function closeDetail() {
   sequence++;
   detailController?.abort();
+  observer.select(null);
   selected.value = null;
   detailLoading.value = false;
 }
@@ -171,13 +131,19 @@ onMounted(() => {
 });
 watch(polling, updatePolling);
 watch(() => supports('/tasks/{task_id}'), (available) => {
-  if (available && submissionState.intent?.taskId && !selected.value)
+  if (available && submissionState.intent?.taskId && !selected.value && typeof document !== 'undefined' && !document.hidden)
     readDetail(submissionState.intent.taskId, true);
 }, { immediate: true });
+watch(() => [supports('/tasks/{task_id}/metrics'), supports('/tasks/{task_id}/logs')], () => {
+  observer.pause();
+  updatePolling();
+});
 onBeforeUnmount(() => {
   alive = false;
   sequence++;
   taskPolling.stop();
+  observationPolling.stop();
+  observer.dispose();
   document.removeEventListener("visibilitychange", updatePolling);
   cancelTaskRequest();
   detailController?.abort();
@@ -368,7 +334,10 @@ onBeforeUnmount(() => {
     </div>
     <ErrorNotice :error="detailError" />
     <p v-if="detailLoading" class="field-help" role="status">正在读取任务详情…</p>
-    <button class="text-button" :disabled="detailLoading || !supports('/tasks/{task_id}')" @click="readDetail(selected.id)">刷新任务详情</button>
+    <div class="detail-actions">
+      <button class="text-button" :disabled="detailLoading || !supports('/tasks/{task_id}')" @click="readDetail(selected.id, false, true)">刷新任务详情</button>
+      <button class="text-button" :disabled="!selected.status || observations.metrics.loading || observations.logs.loading || (!supports('/tasks/{task_id}/metrics') && !supports('/tasks/{task_id}/logs'))" @click="observer.refresh({ force: true })">刷新指标与日志</button>
+    </div>
     <div v-if="selected.status" class="detail-stats">
       <div>
         <span>训练步数</span
@@ -379,9 +348,9 @@ onBeforeUnmount(() => {
         <small class="task-progress-label">{{ progressLabel(selected) }}</small>
       </div>
       <div>
-        <span>最新 Loss</span
+        <span>最新训练 Loss</span
         ><strong>{{
-          metrics.length ? metrics.at(-1).loss.toFixed(4) : "—"
+          observations.metrics.latestTrain?.loss.toFixed(4) ?? "—"
         }}</strong>
       </div>
       <div>
@@ -420,20 +389,22 @@ onBeforeUnmount(() => {
     </div>
     <div role="tabpanel" :aria-labelledby="`tab-${tab}`">
       <template v-if="tab === 'metrics'"
-        ><ErrorNotice :error="metricsError" /><LossChart :points="metrics" />
+        ><ErrorNotice :error="observations.metrics.error" />
+        <p v-if="observations.metrics.loading" class="field-help" role="status">正在读取真实指标…</p>
+        <p v-if="observations.metrics.hasMore" class="notice" role="status">仍有历史指标待补拉。{{ polling ? '正在分批读取。' : '请手动刷新或开启自动刷新。' }}</p>
+        <p v-if="observations.metrics.dropped" class="notice" role="status">仅展示最近 10,000 条指标记录。任务成功完成后，可从产物包获取完整指标。</p>
+        <p v-if="observations.metrics.resetNotice" class="field-help" role="status">指标来源或游标已变化，已清除旧记录并从头重新读取。</p>
+        <p v-if="observations.metrics.tailIncomplete" class="notice" role="status">指标尾部存在未完成行，仅展示前面完整的记录。</p>
+        <p v-if="observations.metrics.done && !metrics.length" class="field-help">任务已结束，没有可展示的指标记录。</p>
+        <LossChart :points="metrics" />
         <p v-if="!supports('/tasks/{task_id}/metrics')" class="field-help">
           指标接口尚未就绪。
         </p></template
       ><template v-else-if="tab === 'logs'"
-        ><ErrorNotice :error="logsError" />
-        <pre class="terminal">{{
-          logs ||
-          (supports("/tasks/{task_id}/logs")
-            ? "等待服务端日志…"
-            : "日志服务尚未就绪。")
-        }}</pre>
-        <p class="field-help">仅展示当前任务最近 100 行日志。</p></template
-      >
+        ><TaskLogs v-if="supports('/tasks/{task_id}/logs')" :key="selected.id"
+          :page="observations.logs.page" :error="observations.logs.error"
+          :loading="observations.logs.loading" :task-status="selected.status" />
+        <p v-else class="field-help">日志服务尚未就绪。</p></template>
       <pre v-else class="config-snapshot">{{
         JSON.stringify(
           selected.config || {},
@@ -472,3 +443,7 @@ onBeforeUnmount(() => {
     >
   </div>
 </template>
+
+<style scoped>
+.detail-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; }
+</style>

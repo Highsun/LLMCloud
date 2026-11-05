@@ -118,6 +118,29 @@ test("错误提示输出字段位置和请求编号，安全转义消息", async
   assert.ok(html.includes("req-123"));
 });
 
+test("任务日志显示三类告警并按文本转义，不把日志内容作为 HTML 执行", async () => {
+  const html = await render("TaskLogs", {
+    taskStatus: "FAILED",
+    page: { source_state: "ready", lines: ['<img src=x onerror="alert(1)">'],
+      truncated: true, tail_incomplete: true, filtered_lines: 2 },
+  });
+  assert.ok(html.includes("更早的日志已省略"));
+  assert.ok(html.includes("未完成行"));
+  assert.ok(html.includes("2 条源记录被过滤或调整"));
+  assert.ok(html.includes("&lt;img"));
+  assert.ok(!html.includes("<img"));
+});
+
+test("任务终态无日志与已有空文件分别显示，不继续提示等待服务端", async () => {
+  const absent = await render("TaskLogs", { taskStatus: "FAILED",
+    page: { source_state: "not_created", lines: [] } });
+  assert.ok(absent.includes("任务已结束，未产生可展示的日志"));
+  assert.ok(!absent.includes("等待服务端"));
+  const empty = await render("TaskLogs", { taskStatus: "RUNNING",
+    page: { source_state: "ready", lines: [] } });
+  assert.ok(empty.includes("日志文件已创建"));
+});
+
 test("现有 M0 接口可连接，但不会错误启用尚未实现的数据上传", async () => {
   const originalFetch = globalThis.fetch;
   const calls = [];
