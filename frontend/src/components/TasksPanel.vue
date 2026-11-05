@@ -1,6 +1,6 @@
 <script setup>
 import { computed, onBeforeUnmount, onMounted, reactive, ref, watch } from "vue";
-import { baseUrl, request, saveFile } from "../api";
+import { request } from "../api";
 import {
   formatDate,
   cancelTaskRequest,
@@ -20,6 +20,7 @@ import TaskLogs from "./TaskLogs.vue";
 import { createTaskPolling } from "../task-polling";
 import { progressLabel, validateTaskDetail } from "../task-detail";
 import { createTaskObservability } from "../task-observability";
+import { createTaskDownload } from "../task-download";
 
 const filter = computed(() => workspace.taskStatus);
 const selected = ref(null);
@@ -28,8 +29,10 @@ const observations = reactive({});
 const observer = createTaskObservability({ state: observations, request, supports });
 const metrics = computed(() => observations.metrics.points);
 const detailError = ref(null);
-const downloading = ref(false);
-const downloadError = ref(null);
+const downloadState = reactive({});
+const downloader = createTaskDownload({ state: downloadState });
+const downloading = computed(() => downloadState.busy);
+const downloadError = computed(() => downloadState.error);
 const polling = ref(true);
 const detailLoading = ref(false);
 const visibleTasks = computed(() => workspace.tasks?.items || []);
@@ -51,8 +54,8 @@ async function readDetail(id, isNew = false, manual = false) {
   if (isNew) {
     selected.value = { id };
     observer.select(id);
+    downloader.select(id);
     detailError.value = null;
-    downloadError.value = null;
   }
   try {
     const data = await request(`/tasks/${encodeURIComponent(id)}`, { signal });
@@ -100,26 +103,11 @@ function updatePolling() {
     detailLoading.value = false;
   }
 }
-async function download() {
-  if (downloading.value || selected.value?.status !== "COMPLETED") return;
-  downloading.value = true;
-  downloadError.value = null;
-  try {
-    const blob = await request(
-      `${baseUrl}/tasks/${encodeURIComponent(selected.value.id)}/adapter`,
-      { raw: "blob", timeout: 60000 },
-    );
-    saveFile(blob, `adapter-${selected.value.id}.zip`);
-  } catch (error) {
-    downloadError.value = error;
-  } finally {
-    downloading.value = false;
-  }
-}
 function closeDetail() {
   sequence++;
   detailController?.abort();
   observer.select(null);
+  downloader.select(null);
   selected.value = null;
   detailLoading.value = false;
 }
@@ -138,12 +126,19 @@ watch(() => [supports('/tasks/{task_id}/metrics'), supports('/tasks/{task_id}/lo
   observer.pause();
   updatePolling();
 });
+watch(() => supports('/tasks/{task_id}/adapter'), (available) => {
+  if (!available) downloader.cancel();
+});
+watch(() => selected.value?.status, (status) => {
+  if (status !== 'COMPLETED') downloader.cancel();
+});
 onBeforeUnmount(() => {
   alive = false;
   sequence++;
   taskPolling.stop();
   observationPolling.stop();
   observer.dispose();
+  downloader.dispose();
   document.removeEventListener("visibilitychange", updatePolling);
   cancelTaskRequest();
   detailController?.abort();
@@ -414,6 +409,8 @@ onBeforeUnmount(() => {
       }}</pre>
     </div>
     <ErrorNotice :error="downloadError" />
+    <p v-if="downloadError?.code === 'DOWNLOAD_BUSY' && downloadError.retryAfter != null" class="field-help" role="status">下载服务正忙，请在 {{ downloadError.retryAfter }} 秒后手动重试。</p>
+    <p v-if="downloadState.message" class="field-help" role="status">{{ downloadState.message }}</p>
     <div class="panel-footer">
       <span>{{
         !supports('/tasks/{task_id}/adapter')
@@ -422,19 +419,19 @@ onBeforeUnmount(() => {
           ? "训练已完成，可下载服务端校验通过的产物。"
           : "仅完成的任务可下载 Adapter。"
       }}</span
-      ><button
+      ><div class="download-actions"><button v-if="downloading" class="button secondary" @click="downloader.cancel()">取消下载</button><button
         class="button secondary"
         :disabled="
           selected.status !== 'COMPLETED' ||
           !supports('/tasks/{task_id}/adapter') ||
           downloading
         "
-        @click="download"
+        @click="downloader.start(selected)"
       >
         <AppIcon name="download" size="16" />{{
-          downloading ? "准备下载…" : "下载 Adapter"
+          downloading ? "正在下载…" : "下载 Adapter"
         }}
-      </button>
+      </button></div>
     </div>
   </section>
   <div class="status-explainer">
@@ -446,4 +443,6 @@ onBeforeUnmount(() => {
 
 <style scoped>
 .detail-actions { display: flex; flex-wrap: wrap; gap: 8px 16px; margin-bottom: 12px; }
+.download-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.task-detail .panel-footer { flex-wrap: wrap; gap: 12px; }
 </style>

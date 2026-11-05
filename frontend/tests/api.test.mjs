@@ -94,6 +94,21 @@ test("超时请求被中断", async () => {
   );
 });
 
+test("原 blob 调用也保持超时有效至响应体结束", { timeout: 1000 }, async () => {
+  let bodyStarted = false, transport;
+  globalThis.fetch = async (_url, options) => {
+    transport = options.signal;
+    return { ok: true, blob: () => new Promise((_, reject) => {
+      bodyStarted = true;
+      options.signal.addEventListener("abort", () => reject(new DOMException("aborted", "AbortError")), { once: true });
+    }) };
+  };
+  await assert.rejects(request("/adapter", { raw: "blob", timeout: 15 }),
+    (error) => error instanceof ApiError && error.message.includes("取消或超时"));
+  assert.equal(bodyStarted, true);
+  assert.equal(transport.aborted, true);
+});
+
 test("取消请求不自动重试", async () => {
   globalThis.fetch = (_url, options) =>
     new Promise((_resolve, reject) => {

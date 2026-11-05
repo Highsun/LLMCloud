@@ -28,7 +28,7 @@ export class ApiError extends Error {
   }
 }
 
-function responseError(status, data, requestId, mutation = false) {
+export function responseError(status, data, requestId, mutation = false) {
   const error = data?.error;
   return new ApiError(
     error?.message ||
@@ -65,7 +65,7 @@ export async function request(
       headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...headers },
       body: body ? JSON.stringify(body) : undefined,
     });
-    if (raw === "blob" && response.ok) return response.blob();
+    if (raw === "blob" && response.ok) return await response.blob();
     const data = await response.json().catch(() => null);
     if (!response.ok)
       throw responseError(
