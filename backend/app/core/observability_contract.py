@@ -20,6 +20,8 @@ MAX_LOG_FRAMES = 32
 MAX_LOG_TARGET_MODULES = 64
 MAX_DOWNLOAD_BYTES = 256 * 1024 * 1024
 MAX_CONCURRENT_DOWNLOADS = 1
+DOWNLOAD_CHUNK_BYTES = 64 * 1024
+MAX_DOWNLOAD_MANIFEST_BYTES = 512 * 1024
 DOWNLOAD_RETRY_AFTER_SECONDS = 2
 DOWNLOAD_MEDIA_TYPE = "application/zip"
 DOWNLOAD_CACHE_CONTROL = "no-store"
@@ -102,6 +104,8 @@ def contract_limits() -> dict[str, int]:
         "max_log_target_modules": MAX_LOG_TARGET_MODULES,
         "max_download_bytes": MAX_DOWNLOAD_BYTES,
         "max_concurrent_downloads": MAX_CONCURRENT_DOWNLOADS,
+        "download_chunk_bytes": DOWNLOAD_CHUNK_BYTES,
+        "max_download_manifest_bytes": MAX_DOWNLOAD_MANIFEST_BYTES,
         "download_retry_after_seconds": DOWNLOAD_RETRY_AFTER_SECONDS,
         "poll_interval_ms": OBSERVATION_POLL_INTERVAL_MS,
         "max_metric_pages_per_poll": MAX_METRIC_PAGES_PER_POLL,

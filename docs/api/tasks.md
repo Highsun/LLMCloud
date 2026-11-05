@@ -13,6 +13,7 @@
 | GET /tasks/{task_id} | 数据库业务状态与配置详情 | 200，TaskDetail |
 | GET /tasks/{task_id}/metrics | 有界指标续读，source_id/cursor/limit | 200，MetricsPage；M4-02 已实现 |
 | GET /tasks/{task_id}/logs | 任务安全日志尾部，tail | 200，LogsPage；M4-02 已实现 |
+| GET /tasks/{task_id}/adapter | 仅已完成且审计通过，拒绝查询参数 | 200，application/zip 二进制；M4-03 已实现 |
 
 POST 保留 TaskCreate 的 dataset_id/base_model/config 字段：dataset_id 必填且为 UUIDv4；base_model 默认且只允许 Qwen/Qwen2.5-0.5B-Instruct；config 默认 {}，按原 TrainingConfig 补齐默认值。未知字段拒绝。服务器固定 model_revision/runtime，不接收服务器路径、revision、max_steps、状态、哈希或用户归属。请求为未压缩 UTF-8 application/json，允许 UTF-8 charset/identity 编码；不接受重复 JSON 键（含嵌套配置）、非有限数字、无效 JSON 或非对象正文。未知/重复查询和重复去重请求头也拒绝。
 
@@ -113,7 +114,7 @@ M3-05 已为 request 透传去重头、读取 error.task_id，冻结正文并支
 
 ## M4 规划中的观测与交付
 
-M4 的 [观测契约 1.0.0](task-observability.md) 和 CPU 类型/常量/格式样例已由 01 A 侧交付，B 消费核对待记录；02 已实现指标/日志只读服务、安全投影和 HTTP；下载仍待 03。原 TaskCreate/TaskDetail 和派发语义不变。02 已扩展 export_task_openapi.py 导出全部实际任务子路径，不提前登记下载空路由。前端旧 after_step/Map(step) 仍由 04 按新契约替换。
+M4 的 [观测契约 1.0.0](task-observability.md) 和 CPU 类型/常量/格式样例已由 01 A 侧交付，B 消费核对待记录；02 已实现指标/日志只读服务、安全投影和 HTTP；下载已由 03 实现。原 TaskCreate/TaskDetail 和派发语义不变。02 已扩展 export_task_openapi.py 导出全部实际任务子路径，03 的下载路由也已实际实现并导出。前端旧 after_step/Map(step) 仍由 04 按新契约替换。
 
 ## Publisher 与失败边界
 

@@ -9,6 +9,9 @@ from pydantic import TypeAdapter
 from sqlalchemy import func, select
 
 from backend.app.core.task_contract import TaskStatus
+from backend.app.core.observability_protocols import (
+    CompletedArtifactSpec, CompletedArtifactNotFound, CompletedArtifactNotReady,
+)
 from backend.app.core.task_protocols import TaskStoreError
 from backend.app.models.entities import Dataset, TrainingTask, utcnow
 from backend.app.models.task_schemas import TaskCreate, TaskDetail, TaskListQuery, TaskPage, TaskSummary
@@ -104,6 +107,17 @@ class SqlTaskRepository:
         with self._session() as session:
             row = self._row(session, task_id)
             return None if row is None else task_detail(row)
+
+    def get_completed_artifact(self, task_id):
+        with self._session() as session:
+            row = self._row(session, task_id)
+            if row is not None and row["status"] == TaskStatus.COMPLETED:
+                return CompletedArtifactSpec(spec=execution_spec(row), output_key=row["output_path"],
+                    manifest_sha256=row["manifest_sha256"], training_summary=row["training_summary"])
+        # Business outcomes must escape outside _session's storage-error wrapper.
+        if row is None:
+            raise CompletedArtifactNotFound()
+        raise CompletedArtifactNotReady()
 
     def list(self, query: TaskListQuery | None = None) -> TaskPage:
         with self._session() as session:

@@ -425,7 +425,7 @@ class TaskObservabilityTests(unittest.TestCase):
         parent.symlink_to(moved_parent, target_is_directory=True)
         self.error(self.get("logs"), 500, "LOGS_UNAVAILABLE")
 
-    def test_openapi_queries_responses_export_cors_and_adapter_absence(self):
+    def test_openapi_queries_responses_export_and_cors(self):
         runtime, exported = self.app.openapi(), build_contract()
         for kind, query, model in (("metrics", ("cursor", "source_id", "limit"), "MetricsPage"),
                                    ("logs", ("tail",), "LogsPage")):
@@ -438,7 +438,7 @@ class TaskObservabilityTests(unittest.TestCase):
             response = self.get(kind)
             self.assertEqual(response.headers["access-control-allow-origin"], "http://localhost:5173")
             self.assertIn("X-Request-ID", response.headers["access-control-expose-headers"])
-        self.assertNotIn("/api/v1/tasks/{task_id}/adapter", runtime["paths"])
+        self.assertIn("/api/v1/tasks/{task_id}/adapter", runtime["paths"])
 
     def test_file_reads_do_not_load_gpu_libraries_or_take_worker_lock(self):
         program = """

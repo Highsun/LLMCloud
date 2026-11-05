@@ -1,4 +1,4 @@
-"""Detached completed-artifact contract; M4-03 will implement its SQL projection."""
+"""Detached completed-artifact contract, implemented by the SQL read projection."""
 
 from typing import Literal, Protocol, runtime_checkable
 from uuid import UUID
@@ -49,6 +49,6 @@ class CompletedArtifactRepository(Protocol):
         """One short read; missing/not-ready errors above, corruption -> TaskStoreError.
 
         This is an additional interface, not a change to the five Worker methods.
-        No artifact files are opened here. M4-03 adds the concrete SQL method.
+        No artifact files are opened here. SqlTaskRepository implements this read.
         """
         ...

@@ -23,19 +23,31 @@ def _directory(stack, name, parent=None):
 
 
 @contextmanager
-def _open(root, parts):
+def open_task_directory(root, parts=()):
     # Walk even root ancestors without following links. Do not resolve a link
     # and subsequently trust the resolved target. Configured roots are absolute.
     root = Path(root)
-    if not root.is_absolute() or not parts or any(p in ("", ".", "..") or "/" in p or "\\" in p for p in parts):
+    if (not root.is_absolute() or ".." in root.parts
+            or any(p in ("", ".", "..") or "/" in p or "\\" in p for p in parts)):
         raise OSError("Unsafe task file layout")
     with ExitStack() as stack:
         parent = _directory(stack, "/")
         for part in root.parts[1:]:
             parent = _directory(stack, part, parent)
         try:
-            for part in parts[:-1]:
+            for part in parts:
                 parent = _directory(stack, part, parent)
+        except FileNotFoundError:
+            raise TaskFileMissing() from None
+        yield parent
+
+
+@contextmanager
+def _open(root, parts):
+    if not parts or any(p in ("", ".", "..") or "/" in p or "\\" in p for p in parts):
+        raise OSError("Unsafe task file layout")
+    with open_task_directory(root, parts[:-1]) as parent, ExitStack() as stack:
+        try:
             fd = os.open(parts[-1], os.O_RDONLY | os.O_NOFOLLOW | os.O_CLOEXEC | os.O_NONBLOCK,
                          dir_fd=parent)
         except FileNotFoundError:
@@ -62,7 +74,7 @@ class TaskFile:
 
 @contextmanager
 def open_task_file(root, parts):
-    """Close all handles, then verify the path still names our pinned inode."""
+    """Pin a file, verify its final named identity, and always close handles."""
     with _open(root, parts) as (fd, initial):
         yield TaskFile(fd, initial)
         current = os.fstat(fd)

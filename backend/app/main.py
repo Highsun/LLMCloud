@@ -10,6 +10,7 @@ from backend.app.api.dataset_openapi import add_dataset_schemas
 from backend.app.api.datasets import router as dataset_router
 from backend.app.api.tasks import router as task_router
 from backend.app.api.task_observability import router as observability_router
+from backend.app.api.task_download import router as download_router
 from backend.app.api.task_openapi import add_task_schemas
 from backend.app.api.errors import http_error_handler, request_validation_handler, service_error_handler
 from backend.app.api.middleware import APIErrorMiddleware, RequestIDMiddleware
@@ -22,6 +23,7 @@ from backend.app.services.task_dispatch import CeleryPublisher
 from backend.app.services.task_repository import SqlTaskRepository
 from backend.app.services.tasks import TaskService
 from backend.app.services.task_observability import TaskObservabilityService
+from backend.app.services.task_download import TaskDownloadService
 
 
 def create_app(settings: Settings | None = None, *, task_publisher=None) -> FastAPI:
@@ -54,18 +56,20 @@ def create_app(settings: Settings | None = None, *, task_publisher=None) -> Fast
     app.state.task_service = TaskService(settings, app.state.task_repository,
         task_publisher if task_publisher is not None else CeleryPublisher(settings))
     app.state.task_observability_service = TaskObservabilityService(settings, app.state.task_repository)
+    app.state.task_download_service = TaskDownloadService(settings, app.state.task_repository)
     # add_middleware prepends: request context -> CORS -> safe errors -> routes.
     app.add_middleware(APIErrorMiddleware, upload_path=f"{settings.api_prefix}/datasets", task_path=f"{settings.api_prefix}/tasks")
     app.add_middleware(
         CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False,
         allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Idempotency-Key"],
-        expose_headers=["X-Request-ID", "Location"],
+        expose_headers=["X-Request-ID", "Location", "Content-Disposition", "Retry-After"],
     )
     app.add_middleware(RequestIDMiddleware)
     app.include_router(router, prefix=settings.api_prefix)
     app.include_router(dataset_router, prefix=settings.api_prefix)
     app.include_router(task_router, prefix=settings.api_prefix)
     app.include_router(observability_router, prefix=settings.api_prefix)
+    app.include_router(download_router, prefix=settings.api_prefix)
 
     original_openapi = app.openapi
 

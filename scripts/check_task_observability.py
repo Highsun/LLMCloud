@@ -86,12 +86,12 @@ async def check(root):
                 assert old.status_code == 409 and old.json()["error"]["code"] == "METRICS_CURSOR_INVALID"
                 paths = (await client.get("/openapi.json")).json()["paths"]
                 assert "/api/v1/tasks/{task_id}/metrics" in paths and "/api/v1/tasks/{task_id}/logs" in paths
-                assert "/api/v1/tasks/{task_id}/adapter" not in paths
+                assert "/api/v1/tasks/{task_id}/adapter" in paths
                 assert all(name not in sys.modules for name in ("torch", "numpy", "transformers", "peft"))
                 return {"status": "ok", "transport": "TCP/HTTP", "sql": "isolated SQLite",
                     "events": "controlled CPU MetricWriter", "publisher": "test double", "gpu": False,
                     "append": True, "terminal_drain": True, "log_projection": True,
-                    "duplicate_query": 422, "stale_source": 409, "download_implemented": False}
+                    "duplicate_query": 422, "stale_source": 409, "download_verified": False}
         finally:
             server.should_exit = True
             await running

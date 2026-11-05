@@ -1,6 +1,6 @@
 # M4 观测与 Adapter 下载契约 1.0.0
 
-日期：2026-11-04。M4-01 类型/格式样例已交付，B 消费者核对待独立记录；M4-02 已实现指标/日志读取与 HTTP、安全日志投影及运行时 OpenAPI。**Adapter 下载和 SQL 完成投影仍属 M4-03，尚未实现**。本契约字段/版本未变；类型校验不能代替文件/授权/审计，正式可调用能力以真实 app.openapi() 为准。
+更新：2026-11-05。M4-01 A 类型/样例、M4-02 指标/日志及 M4-03 SQL 完成投影与 Adapter 下载均已实现，真实 OpenAPI 包含三个 GET；B 消费者核对及页面适配仍待独立交付。本契约字段/版本未变；类型校验不能代替文件/授权/审计，正式可调用能力以真实 app.openapi() 为准。
 
 实现入口：[CPU Schema](../../backend/app/models/observability_schemas.py)、[常量与日志字段策略](../../backend/app/core/observability_contract.py)、[内部完成 DTO/Protocol](../../backend/app/core/observability_protocols.py)。生成物为 [JSON Schema](../contracts/observability.schema.json)、[mock 样例索引](../examples/observability/index.json) 和 [样例说明](../examples/observability/README.md)。原 TaskCreate/TrainingConfig/TaskDetail、M2 事件与 Worker 五方法不变；观测契约独立版本从 1.0.0 起步。
 
@@ -93,7 +93,16 @@ AdapterQuery 没有参数，额外字段拒绝；成功为二进制 ZIP，不是
 | 资源 | 单 API 进程最多 1 个在途下载（覆盖打包至清理）；未压缩总量最多 256 MiB |
 | 忙 | 429/DOWNLOAD_BUSY，Retry-After: 2（DownloadBusyHeaders） |
 
-服务先检查 SQL COMPLETED 和 CompletedArtifactSpec，再复用原完整 CPU 审计并比较固定快照/manifest 哈希/summary；大小在大读取前预检，复制中复核实际大小/哈希。先生成完整有效 ZIP，再返回成功头；成功/失败/取消/断连关闭句柄、清理本次临时文件并释放槽位。进程强杀遗留由停 API 后人工清理专用临时目录，不承诺自动回收。文件审计、打包、CORS 与生命周期均是 M4-03，当前只有类型定义。
+M4-03 的 [TaskDownloadService](../../backend/app/services/task_download.py) 已实现以下流程，HTTP/生命周期见 [task_download.py](../../backend/app/api/task_download.py)：
+
+1. 短事务取得 SQL COMPLETED 的 CompletedArtifactSpec 后释放；非完成状态返回 409，损坏 SQL 记录/存储失败返回 503，不根据磁盘目录猜状态。
+2. 非阻塞取得单应用/单进程下载槽位；以安全 fd 读取最多 512 KiB manifest，比较其原始字节 SHA-256 和 SQL，校验原 TrainingManifest、模型/revision、完整 config/runtime、数据哈希/大小/行数、summary，服务任务不允许额外验证集。
+3. 只扫描原审计白名单目录项的元数据，不遍历 checkpoints。拒绝链接、异常硬链接/非普通文件、未知文件、缺项、大小不符；先检查声明/实际未压缩总量（含 manifest）均不超过 256 MiB，再读取权重。
+4. 在 DATA_DIR/downloads 的独立 0700 临时工作区按 64 KiB 复制，逐文件比较实际大小/哈希。临时父目录 fd 保留到清理，不接受可被组/其他用户写入的 downloads 目录。原审计器是基于路径的读取器，先隔离到私有副本再复用原 verify_training_artifacts，可避免审计源文件时被替换为无界/越界输入；不修改 Trainer 或其审计规则。
+5. 原 CPU 审计通过后，只将该副本的 manifest.artifacts 加原 manifest.json 写入 ZIP_STORED；写入 ZIP 的实际字节再次校验大小/哈希，检查 ZIP CRC。打包前后复核源目录文件身份/大小/mtime/ctime，拒绝检测到的源变动。临时副本和 ZIP 总磁盘需求约两倍未压缩量（最高约 512 MiB 加 ZIP 元数据）；ZIP 不进入内存或原输出目录，不作下载缓存。
+6. 完整包准备好再发送 200、Content-Length 和成功头；响应监听断连，读取/发送失败或取消均在 finally 关闭 ZIP、清理整个工作区并释放槽位。准备阶段请求取消时，后台线程完成后负责清理，结束前仍占槽位，不能提前放行第二次打包。CPU 文件读取在线程池运行，不占 GPU 锁。
+
+重复/未知查询参数拒绝，CORS 暴露 Content-Disposition/X-Request-ID/Retry-After。下载接入原统一 ErrorResponse，源损坏为 INVALID_ARTIFACT，超限 413，忙时 429 + Retry-After: 2，临时存储失败 STORAGE_UNAVAILABLE；不改变任务状态。无 Range/断点续传缓存，重复请求重新校验并打包。进程强杀遗留由停 API 后人工清理专用临时目录，不承诺自动回收。
 
 TaskDetail 100% 且 RUNNING 不可下载；只存在权重目录不可下载；缺失/损坏的 COMPLETED 文件也不可下发。下载旧的完成任务不获取 GPU 锁。响应开始后发生网络错误只能终止传输，不能往半个 ZIP 后面拼 JSON。
 
@@ -103,9 +112,9 @@ TaskDetail 100% 且 RUNNING 不可下载；只存在权重目录不可下载；�
 
 ## 内部完成快照：额外只读接口
 
-CompletedArtifactRepository.get_completed_artifact(UUID) -> CompletedArtifactSpec，未实现 SQL 方法。DTO 为 spec:TaskExecutionSpec、output_key、manifest_sha256、training_summary、独立 contract_version。输出键必须 outputs/{spec.task_id}，summary 必须满足原完成约束及已设置的 runtime.max_steps；嵌套值从字典重校验并脱离传入模型的可变列表。
+CompletedArtifactRepository.get_completed_artifact(UUID) -> CompletedArtifactSpec，SqlTaskRepository 已实现该额外只读投影。DTO 为 spec:TaskExecutionSpec、output_key、manifest_sha256、training_summary、独立 contract_version。输出键必须 outputs/{spec.task_id}，summary 必须满足原完成约束及已设置的 runtime.max_steps；嵌套值从字典重校验并脱离传入模型的可变列表。
 
-找不到抛 CompletedArtifactNotFound（404）；任何已存在非 COMPLETED 抛 CompletedArtifactNotReady（409）；损坏/SQL 异常沿用 TaskStoreError（503）。M4-03 注意当前 SqlTaskRepository._session 会包装大部分异常，应在读事务外区分业务异常或明确保留异常，不把 not-ready 包装成数据库不可用。不修改 get_status/claim/record_progress/complete/fail，不在仓储开文件或持事务等待 ZIP。
+找不到抛 CompletedArtifactNotFound（404）；任何已存在非 COMPLETED 抛 CompletedArtifactNotReady（409）；损坏/SQL 异常沿用 TaskStoreError（503）。业务异常在读事务外抛出，避免被 _session 包装成数据库不可用。不修改 get_status/claim/record_progress/complete/fail，不在仓储开文件或持事务等待 ZIP。
 
 这是结构约定，不表示实例已被 SQL/路径/文件审计。[内部 mock DTO](../examples/observability/completed-artifact-spec.json) 没有真实成功标记或权重，不能用于宣布任务完成。
 
@@ -131,7 +140,9 @@ CompletedArtifactRepository.get_completed_artifact(UUID) -> CompletedArtifactSpe
 uv run --locked python scripts/export_observability_contract.py --check
 ```
 
-去掉 --check 生成类型/27 个格式样例、索引及说明。Schema 标记 types_only，HTTP 状态 not_asserted，索引 http_evidence=false；这些标记表示此导出器不提供 HTTP 证据，并非运行时能力探测。02 已扩展 export_task_openapi.py 从真实 app.openapi() 导出全部实际任务子路径，真实测试已替换 01 的旧保护预期；adapter 仍不发布。用 `uv run --locked python scripts/check_task_observability.py` 运行隔离 TCP/HTTP+SQLite+MetricWriter 追加/终态/投影冒烟，明确使用 Publisher 和执行事件替身，不启动 Worker/Redis/GPU，不证明真实训练或 M4-07 已验收。
+去掉 --check 生成类型/27 个格式样例、索引及说明。Schema 标记 types_only，HTTP 状态 not_asserted，索引 http_evidence=false；这些标记表示此导出器不提供 HTTP 证据，并非运行时能力探测。export_task_openapi.py 从真实 app.openapi() 导出全部实际任务子路径，含指标/日志/下载，旧未发布保护已按真实实现更新。
+
+`uv run --locked python scripts/check_task_observability.py` 运行隔离 TCP/SQL/MetricWriter 观测冒烟；`uv run --locked python scripts/check_task_download.py` 复用已有 synthetic CPU bundle 测试工具，验证真实 HTTP ZIP、解压独立审计、忙/损坏、实际 TCP 断连后的清理（首块后显式注入暂停，报告 response_stall_injected=true）。两者均明确替身/CPU 范围，不启动 Worker/Redis/GPU，不代表新 GPU 训练、前端适配或 M4-07 验收已完成。
 
 B 完成 04a 后，用本次实际类型/fixture 核对并在独立日志记录：
 

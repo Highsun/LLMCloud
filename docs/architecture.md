@@ -130,9 +130,9 @@ stateDiagram-v2
 
 ### M4 读取与交付链路
 
-[M4 计划 1.2](m4-development-plan.md) 的 01 A 侧 [CPU 观测类型/契约 1.0.0](api/task-observability.md) 已交付，B 核对待记录；02 已交付以下指标/日志文件服务与端点，下载待 03。API 查 SQL 任务身份后，由 CPU 文件服务读 DATA_DIR/outputs/{UUID}/metrics.jsonl 和 LOG_DIR/tasks/{UUID}.log；不持 GPU 锁、不加载训练库，不修改 Worker/Trainer 写入契约。source_id/cursor/offset 保留同 step 的 train/eval，日志有限尾部/安全字段策略及响应结构已固定，02 已以 task_files 的目录描述符/NOFOLLOW 和有界 pread 实现读取，task_log_projection 校验字段值后输出安全文本，线程池内执行，不持有 SQL 事务等待文件。日志已观测状态用最多 4096 项进程 LRU 补充 SQL 步数判断，非跨重启持久保证。
+[M4 计划 1.3](m4-development-plan.md) 的 01 A 侧 [CPU 观测类型/契约 1.0.0](api/task-observability.md) 已交付，B 核对待记录；02 已交付以下指标/日志文件服务与端点，下载已由 03 实现。API 查 SQL 任务身份后，由 CPU 文件服务读 DATA_DIR/outputs/{UUID}/metrics.jsonl 和 LOG_DIR/tasks/{UUID}.log；不持 GPU 锁、不加载训练库，不修改 Worker/Trainer 写入契约。source_id/cursor/offset 保留同 step 的 train/eval，日志有限尾部/安全字段策略及响应结构已固定，02 已以 task_files 的目录描述符/NOFOLLOW 和有界 pread 实现读取，task_log_projection 校验字段值后输出安全文本，线程池内执行，不持有 SQL 事务等待文件。日志已观测状态用最多 4096 项进程 LRU 补充 SQL 步数判断，非跨重启持久保证。
 
-下载尚未实现，03 将另取完成任务的内部只读快照，复用完整 CPU 审计并比对 SQL manifest 哈希/配置/数据摘要；在独立 DATA_DIR/downloads 临时区域打包，只复制已审计文件，实际复制再核对哈希。不能向原输出目录放 ZIP，不能持有 SQL 事务或 GPU 锁等待下载。单 API 进程的在途下载槽位限制资源，清理覆盖成功/失败/断连；不新增持久下载缓存或数据库列。
+03 已取完成任务的内部只读快照，先比对 SQL manifest 哈希/配置/数据摘要并预检大小，再在独立 DATA_DIR/downloads 私有临时副本调用原完整 CPU 审计和打包，只复制已审计文件，实际复制再核对哈希。不能向原输出目录放 ZIP，不能持有 SQL 事务或 GPU 锁等待下载。单 API 进程的在途下载槽位限制资源，清理覆盖成功/失败/断连；不新增持久下载缓存或数据库列。
 
 B 保留现有 Vue 组件，将观测控制器从任务详情状态隔离，按记录身份合并、终态补拉，日志替换快照。下载固定点击时任务 ID，超时/取消覆盖 blob 读取全程；生产能力仍以真实运行时 OpenAPI 为准。共享类型短时核对后前后端可依 fixture 并行，最终真实 HTTP/服务/GPU 联调仍需共同进行；可同场补 M3 的人工剩余项并分别记证据。
 

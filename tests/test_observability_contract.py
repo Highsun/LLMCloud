@@ -260,13 +260,9 @@ for name in ('fastapi','celery','sqlalchemy','torch','numpy','transformers','dat
             with TestClient(app) as client:
                 for suffix in ("metrics", "logs", "adapter"):
                     path = f"/api/v1/tasks/{exporter.TASK_ID}/{suffix}"
-                    if suffix == "adapter":
-                        self.assertNotIn(f"/api/v1/tasks/{{task_id}}/{suffix}", paths)
-                    else:
-                        self.assertIn(f"/api/v1/tasks/{{task_id}}/{suffix}", paths)
+                    self.assertIn(f"/api/v1/tasks/{{task_id}}/{suffix}", paths)
                     self.assertEqual(client.get(path).status_code, 404)
-                    self.assertEqual(client.get(path).json()["error"]["code"],
-                                     "NOT_FOUND" if suffix == "adapter" else "TASK_NOT_FOUND")
+                    self.assertEqual(client.get(path).json()["error"]["code"], "TASK_NOT_FOUND")
 
     def test_export_is_deterministic_valid_and_marks_mocks_without_runtime_claims(self):
         first, second = exporter.generate_outputs(), exporter.generate_outputs()

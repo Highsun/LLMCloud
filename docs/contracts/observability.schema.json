@@ -770,6 +770,8 @@
     "max_log_target_modules": 64,
     "max_download_bytes": 268435456,
     "max_concurrent_downloads": 1,
+    "download_chunk_bytes": 65536,
+    "max_download_manifest_bytes": 524288,
     "download_retry_after_seconds": 2,
     "poll_interval_ms": 2000,
     "max_metric_pages_per_poll": 5,

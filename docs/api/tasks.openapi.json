@@ -823,6 +823,208 @@
         "x-observability-contract-version": "1.0.0",
         "x-duplicate-query-parameters": "rejected"
       }
+    },
+    "/tasks/{task_id}/adapter": {
+      "get": {
+        "tags": [
+          "task-observability"
+        ],
+        "summary": "Download a completed task's verified Adapter bundle",
+        "operationId": "download_task_adapter",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid4",
+              "title": "Task Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Verified binary ZIP, not a JSON header-description object",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Content-Disposition": {
+                "schema": {
+                  "type": "string"
+                },
+                "description": "attachment; filename=\"llmcloud-adapter-{task_id}.zip\""
+              },
+              "Cache-Control": {
+                "schema": {
+                  "type": "string",
+                  "const": "no-store"
+                }
+              },
+              "Content-Length": {
+                "schema": {
+                  "type": "string",
+                  "pattern": "^[0-9]+$"
+                }
+              }
+            },
+            "content": {
+              "application/zip": {
+                "schema": {
+                  "type": "string",
+                  "format": "binary"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "TASK_NOT_FOUND",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "409": {
+            "description": "ARTIFACT_NOT_READY",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "413": {
+            "description": "ARTIFACT_TOO_LARGE",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "VALIDATION_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "DOWNLOAD_BUSY",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              },
+              "Retry-After": {
+                "schema": {
+                  "type": "string",
+                  "const": "2"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "INVALID_ARTIFACT / STORAGE_UNAVAILABLE / INTERNAL_ERROR",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "DATABASE_UNAVAILABLE",
+            "headers": {
+              "X-Request-ID": {
+                "description": "Server-generated UUID; matches error.request_id",
+                "schema": {
+                  "type": "string",
+                  "format": "uuid"
+                }
+              }
+            },
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponse"
+                }
+              }
+            }
+          }
+        },
+        "x-observability-contract-version": "1.0.0",
+        "x-query-parameters": "none; extras/duplicates rejected"
+      }
     }
   },
   "components": {

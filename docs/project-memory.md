@@ -26,7 +26,7 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 | M2-05 | [共享 CPU 产物审计](training-artifacts.md)、排他原子提交与保存故障验收已完成；已校验 M2-04 真实产物和新训练结果 |
 | M2-06 | [新进程重载](adapter-reload.md) 已实际加载并生成，M2 工程闭环完成 |
 | M3 | [计划 1.9](m3-development-plan.md)；01～06 独立交付齐备，04/05 已审查合入；07 A 真实 GPU/Redis/SQL/生产浏览器 9 项场景通过，B 异步复核已通过，待同步人工联调；见 [结果与交接](m3-acceptance.md)、[日志](worklogs/2026-11-04-m3-07-a.md) |
-| M4 | [计划 1.2](m4-development-plan.md)；01 A 侧 [CPU 观测契约 1.0.0](api/task-observability.md)、生成 Schema/27 个 mock 样例已交付，B 核对待记录；02 指标/日志 HTTP 已交付，03～07 待实施，指标/日志 HTTP 已发布，下载尚未实现 |
+| M4 | [计划 1.3](m4-development-plan.md)；01 A 侧 [CPU 观测契约 1.0.0](api/task-observability.md)、生成 Schema/27 个 mock 样例已交付，B 核对待记录；02 指标/日志 HTTP 已交付，03 下载已交付，04～07 待实施，指标/日志 HTTP 已发布，下载已实现 |
 | M5 | 在线推理、稳定/正式实验、部署与课程交付待完成 |
 
 `trainer.train` 已执行真实 Qwen LoRA，`worker.train` 已接入原 Trainer，实际 Redis 缺缓存 CPU 消费通过，异步 GPU 链路已在 07 A 实测通过，B 异步复核已通过，待同步人工联调。已有产物的新进程重载已通过；未来各任务仍须分别验收，不表示正式效果提升。
@@ -49,7 +49,7 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 
 ## 协作与下一步
 
-2026-11-04 M4 接续：01 A 侧代码已交付，正式 MetricsQuery/MetricsPage/MetricRecord、LogsQuery/LogsPage、下载头与 CompletedArtifactSpec/CompletedArtifactRepository 见 [观测契约](api/task-observability.md)。source_id/cursor/offset、日志告警/字段策略和八个统一错误已固定并生成格式样例，B 核对尚待独立日志；02 已交付只读文件服务、安全日志投影与两条 HTTP，实际任务 OpenAPI 已更新；无 SQL 方法/前端改动。B 可先 04a，随后用 fixture 实现 04/05；A 后续按 03 实现下载，不扩展 SQL 列或 Worker 五方法。现前端 Map(step)、下载 selected.id 和 blob 生命周期问题仍由对应任务修正。主线 A 10/B 8 人时、另 4 人时缓冲；M3 人工剩余项继续保留，可与 M4-07 同场分别验证。01 见 [类型日志](worklogs/2026-11-04-m4-01.md)，02 行为/边界/TCP 验证见 [开发日志](worklogs/2026-11-04-m4-02-a.md)。
+2026-11-05 M4 接续：01 A 侧代码已交付，正式 MetricsQuery/MetricsPage/MetricRecord、LogsQuery/LogsPage、下载头与 CompletedArtifactSpec/CompletedArtifactRepository 见 [观测契约](api/task-observability.md)。source_id/cursor/offset、日志告警/字段策略和八个统一错误已固定并生成格式样例，B 核对尚待独立日志；02 已交付只读文件服务、安全日志投影与两条 HTTP，实际任务 OpenAPI 已更新；03 已新增只读 SQL 完成投影和下载；无前端改动。B 可先 04a，随后用 fixture 实现 04/05；A 的 03 下载/完成投影已交付，后续配合 B 实际对齐和 06/07，不扩展 SQL 列或 Worker 五方法。现前端 Map(step)、下载 selected.id 和 blob 生命周期问题仍由对应任务修正。主线 A 10/B 8 人时、另 4 人时缓冲；M3 人工剩余项继续保留，可与 M4-07 同场分别验证。01 见 [类型日志](worklogs/2026-11-04-m4-01.md)，02 见 [指标/日志记录](worklogs/2026-11-04-m4-02-a.md)，03 下载/资源与清理见 [开发日志](worklogs/2026-11-05-m4-03-a.md)。
 
 成员 A 主负责后端/存储/调度，成员 B 已交付 frontend。原 M2 分工计划中 A 负责契约、缓存和产物校验辅助模块，B 负责 trainer/train.py、数据转换和重载入口；实际 M2-03/04/06 按用户要求由当前侧交付，不能将计划分工当成 B 已完成的工作。共享类型先核对，不并行改同一训练入口。保留成员 B 的组件、样式和页面结构；必要修复以最小变更配合回归验证，并在新日志说明原因。不要覆写历史交付记录。
 
