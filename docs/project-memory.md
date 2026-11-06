@@ -1,6 +1,6 @@
 # 项目状态与协作记忆
 
-梳理日期：2026-11-04。当前状态见下表，详细契约以对应 API 文档/类型为准；历史事实保留于工作日志，开始任务仍须核对最新 Git 与代码。
+梳理日期：2026-11-06。当前状态见下表，详细契约以对应 API 文档/类型为准；历史事实保留于工作日志，开始任务仍须核对最新 Git 与代码。
 
 M3-07 跨机器交接补充：用户已明确授权将约 6.4 MiB 的 review.zip 及 .zip.sha256 两文件纳入 Git，B 同步 main 后按 [校验/解压说明](m3-acceptance.md#跨机器证据交接) 取得报告、20 张截图、10 份 trace、隔离 SQL 快照及训练元数据。原完整运行目录和解压内容继续被忽略。B 已接收、独立异步复核材料并在 CPU 快照页面复查，61d8703 也经 A 本机回归合入；双方同步人工端到端操作仍未完成。原报告地址不是在线服务。
 
@@ -26,7 +26,7 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 | M2-05 | [共享 CPU 产物审计](training-artifacts.md)、排他原子提交与保存故障验收已完成；已校验 M2-04 真实产物和新训练结果 |
 | M2-06 | [新进程重载](adapter-reload.md) 已实际加载并生成，M2 工程闭环完成 |
 | M3 | [计划 1.9](m3-development-plan.md)；01～06 独立交付齐备，04/05 已审查合入；07 A 真实 GPU/Redis/SQL/生产浏览器 9 项场景通过，B 异步复核已通过，待同步人工联调；见 [结果与交接](m3-acceptance.md)、[日志](worklogs/2026-11-04-m3-07-a.md) |
-| M4 | [计划 1.3](m4-development-plan.md)；01 A 侧 [CPU 观测契约 1.0.0](api/task-observability.md)、生成 Schema/27 个 mock 样例已交付，B 核对待记录；02 指标/日志 HTTP 已交付，03 下载已交付，04～07 待实施，指标/日志 HTTP 已发布，下载已实现 |
+| M4 | [计划 1.4](m4-development-plan.md)；01～06 已交付，B 的 ef1fe06 经 A 审查/本机复跑快进合入；07 真实 GPU/双方人工待执行，见 [审查](worklogs/2026-11-06-m4-b-review.md) 与 [联合安排](m4-acceptance.md) |
 | M5 | 在线推理、稳定/正式实验、部署与课程交付待完成 |
 
 `trainer.train` 已执行真实 Qwen LoRA，`worker.train` 已接入原 Trainer，实际 Redis 缺缓存 CPU 消费通过，异步 GPU 链路已在 07 A 实测通过，B 异步复核已通过，待同步人工联调。已有产物的新进程重载已通过；未来各任务仍须分别验收，不表示正式效果提升。
@@ -49,7 +49,7 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 
 ## 协作与下一步
 
-2026-11-05 M4 接续：01 A 侧代码已交付，正式 MetricsQuery/MetricsPage/MetricRecord、LogsQuery/LogsPage、下载头与 CompletedArtifactSpec/CompletedArtifactRepository 见 [观测契约](api/task-observability.md)。source_id/cursor/offset、日志告警/字段策略和八个统一错误已固定并生成格式样例，B 核对尚待独立日志；02 已交付只读文件服务、安全日志投影与两条 HTTP，实际任务 OpenAPI 已更新；03 已新增只读 SQL 完成投影和下载；无前端改动。B 可先 04a，随后用 fixture 实现 04/05；A 的 03 下载/完成投影已交付，后续配合 B 实际对齐和 06/07，不扩展 SQL 列或 Worker 五方法。现前端 Map(step)、下载 selected.id 和 blob 生命周期问题仍由对应任务修正。主线 A 10/B 8 人时、另 4 人时缓冲；M3 人工剩余项继续保留，可与 M4-07 同场分别验证。01 见 [类型日志](worklogs/2026-11-04-m4-01.md)，02 见 [指标/日志记录](worklogs/2026-11-04-m4-02-a.md)，03 下载/资源与清理见 [开发日志](worklogs/2026-11-05-m4-03-a.md)。
+2026-11-06 M4 接续：ef1fe06 已收录 B 的 01 核对、04a/04 曲线/日志、05 完整下载生命周期和 06 实际 Linux HTTP/浏览器回归。A 本机 394 项后端、116 项前端、29 项旧浏览器、6 项实际 M4 场景及三项独立浏览器入口均通过；没有更改 B 业务实现或 wire 1.0.0。生产页已移除 after_step/Map(step)，按 source_id/offset 合并与原 cursor 续读，终态补拉，下载固定 UUID 并覆盖完整 body 的取消/超时。下一步按 [安排](m4-acceptance.md)：A 做专用 GPU opt-in 验收编排，B 准备人工清单和访问，两方共同操作并分别补 M3 人工项；当前专用脚本尚未实现，07 未执行，M4 不提前收口。证据和范围见 [审查日志](worklogs/2026-11-06-m4-b-review.md)。
 
 成员 A 主负责后端/存储/调度，成员 B 已交付 frontend。原 M2 分工计划中 A 负责契约、缓存和产物校验辅助模块，B 负责 trainer/train.py、数据转换和重载入口；实际 M2-03/04/06 按用户要求由当前侧交付，不能将计划分工当成 B 已完成的工作。共享类型先核对，不并行改同一训练入口。保留成员 B 的组件、样式和页面结构；必要修复以最小变更配合回归验证，并在新日志说明原因。不要覆写历史交付记录。
 

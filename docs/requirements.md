@@ -65,7 +65,7 @@ MVP 的训练与推理使用同一 GPU 时需要互斥；训练期间推理返�
 | `GET /tasks/{id}/adapter` | 任务 ID，不接受查询参数 | 已审计 ZIP；未完成 409，超限 413，忙 429 | M4-03 已实现 |
 | `POST /inference` | task_id、prompt、max_new_tokens | 生成结果；GPU 忙返回 409 | M5 |
 
-M4 的 [正式观测契约 1.0.0](api/task-observability.md)、类型/错误/上限与生成样例已由 01 A 侧交付，B 核对待记录；02 指标/日志端点已发布，下载已由 03 实现。先前 after_step 只是未发布草案，已改为文件游标方案以保留同 step 的 train/eval，不修改既有 M3 客户端接口。02 已从真实应用导出指标/日志 OpenAPI；此表不作为另一套已实现 HTTP 契约。
+M4 的 [正式观测契约 1.0.0](api/task-observability.md)、类型/错误/上限与生成样例已由 01 A 侧交付，B 核对与 04/05/06 页面/实际 HTTP 已审查合入；02 指标/日志端点已发布，下载已由 03 实现。先前 after_step 只是未发布草案，已改为文件游标方案以保留同 step 的 train/eval，不修改既有 M3 客户端接口。02 已从真实应用导出指标/日志 OpenAPI；此表不作为另一套已实现 HTTP 契约。
 
 任务配置 JSON 示例：
 

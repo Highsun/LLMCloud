@@ -1,6 +1,6 @@
 # M4 可观测性与 Adapter 交付开发计划
 
-版本：执行计划 1.3；更新：2026-11-05（Asia/Shanghai）。M4-01 A 侧 CPU 类型/常量/格式样例已交付，B 消费者核对待独立记录；02 指标/日志 HTTP 已交付，03 下载已交付，04～07 待实施。正式类型/边界见 [观测契约 1.0.0](api/task-observability.md)，运行时指标/日志已发布，下载已实现。规划起点 main=25b2f52，01 开发起点 main=52d2974。
+版本：执行计划 1.4；更新：2026-11-06（Asia/Shanghai）。M4-01 A 侧 CPU 类型/常量/格式样例已交付，B 消费者核对已审查收录；02 指标/日志 HTTP 已交付，03 下载已交付，04/05/06 已审查合入，07 待真实联合验收。正式类型/边界见 [观测契约 1.0.0](api/task-observability.md)，运行时指标/日志已发布，下载已实现。规划起点 main=25b2f52，01 开发起点 main=52d2974。
 
 阅读入口：[协作约束](../AGENTS.md)、[项目记忆](project-memory.md)、[总计划](project-plan.md)、[训练契约](contracts/training.md)、[任务契约](contracts/tasks.md)、[产物审计](training-artifacts.md) 和 [M3 审查](worklogs/2026-11-04-m3-07-a-review.md)。
 
@@ -15,8 +15,8 @@ M4 将已经保存的真实指标、任务日志和有效产物接入浏览器�
 | LOG_DIR/tasks/{task_id}.log 为 Trainer 的 JSONL 阶段/指标/安全失败日志 | 展示的是该任务阶段日志，不是共享 Celery stdout 或完整框架控制台输出 |
 | TaskDetail 已有状态/进度/config，无 last_loss；完成行已有 output_key、manifest_sha256、training_summary 及固定快照 | 不新增数据库列；最新 train Loss 从指标取得；下载新增内部只读投影，不改变 Worker 五方法 Protocol |
 | trainer.artifacts.verify_training_artifacts 可在无 torch/numpy/HF 的 CPU 环境检查完整 bundle | 复用审计及正式类型，不另写一套简化的“目录存在即成功”检查 |
-| TasksPanel 有能力探测/详情/错误壳，但按 after_step 拉取、Map(step) 合并，LossChart 只有 train 单线 | 按新契约替换旧猜测；保留组件、视觉设计和 M1/M3 行为 |
-| 下载函数在 await 后读取 selected.id；request 的 blob 返回没有 await | 下载需固定点击时的任务身份，并保证超时/取消覆盖响应体读取 |
+| B 04 已替换 after_step/Map(step)，图表支持 train/eval | 按 source_id/offset 合并、返回 cursor 续读；不回退旧猜测或重写 M1/M3 |
+| B 05 已固定点击 UUID 并补齐完整 body 的 timeout/abort | 保持任务切换/旧响应隔离，基本 ZIP 门禁不代替后端审计 |
 | 02 已将任务 OpenAPI 扩展到全部实际任务子路径 | 指标/日志已发布，下载已由 03 实现；不登记假的已实现路由 |
 
 本阶段包含三个 GET 接口、增量曲线、有限日志尾部、ZIP 下载、必要失败处理和真实联合验收。不做在线推理/生成、取消/恢复训练、自动重训、SSE/WebSocket、Prometheus、多租户、对象存储、下载历史库或持久化下载缓存。正式语料/效果实验仍独立推进。
@@ -33,19 +33,19 @@ A 为当前侧/你，主负责后端/共享契约；B 为队友，主负责现�
 
 | 编号 | 主负责与人时 | 依赖 | 交付/主改文件（完成状态见正文） | 通过条件 |
 | --- | --- | --- | --- | --- |
-| M4-01 共享契约 | A 1.5 + B 0.5 = 2 | 本文和现有类型 | core/observability_contract.py/observability_protocols.py、models/observability_schemas.py、统一错误枚举；正式接口文档、生成 Schema/mock 样例和导出检查 | A 已交付 CPU 类型/生成样例和检查，待 B 按消费清单核对；未注册空路由 |
+| M4-01 共享契约 | A 1.5 + B 0.5 = 2 | 本文和现有类型 | core/observability_contract.py/observability_protocols.py、models/observability_schemas.py、统一错误枚举；正式接口文档、生成 Schema/mock 样例和导出检查 | A 类型/生成样例和 B 独立核对均已审查完成，wire 1.0.0 无变更 |
 | M4-02 指标与日志 API | A 4 | 01 | services/task_files.py、task_observability.py；api/task_observability.py、main 装配与 HTTP/文件边界测试 | 已交付，见 [02 日志](worklogs/2026-11-04-m4-02-a.md)；有界读取/半行/两 kind/游标/投影/缺文件和运行时 OpenAPI 检查通过 |
 | M4-03 下载 API | A 3 | 01；路径辅助复用 02 | task_repository 新增只读完成产物投影；services/task_download.py、下载路由/响应生命周期与测试 | 已交付，见 [03 日志](worklogs/2026-11-05-m4-03-a.md)；SQL/原审计/打包字节一致，失败统一 JSON、取消/断连清理通过 |
-| M4-04 曲线与日志 UI | B 4 | 展示准备可先做；请求适配依赖 01 | LossChart.vue、TasksPanel.vue、新 task-observability.js、组件/控制器测试 | train/eval 分开；按记录身份合并、终态补拉、任务切换/错误隔离、日志真实且有上限 |
-| M4-05 下载交互 | B 1.5 | 01；复用 04 的任务生命周期 | TasksPanel.vue、api.js 或专用 task-download.js、对应测试 | 固定任务 ID；覆盖 blob 全程的取消/超时；合法 ZIP 保存、JSON 错误展示、重复点击保护 |
-| M4-06 跨模块回归 | B 1 + A 0.5 = 1.5 | 02～05 实际接口可用 | 独立 HTTP/浏览器检查、CPU CI 和测试说明；A 提供隔离服务/文件场景，B 不复制 SQL | 真实 HTTP/类型/前端响应一致；失败矩阵通过；M1/M3 回归不退化，替身只用于明确隔离测试 |
+| M4-04 曲线与日志 UI | B 4 | 展示准备可先做；请求适配依赖 01 | LossChart.vue、TasksPanel.vue、新 task-observability.js、组件/控制器测试 | 已审查合入，见 [A 审查](worklogs/2026-11-06-m4-b-review.md)；train/eval 分开；按记录身份合并、终态补拉、任务切换/错误隔离、日志真实且有上限 |
+| M4-05 下载交互 | B 1.5 | 01；复用 04 的任务生命周期 | TasksPanel.vue、api.js 或专用 task-download.js、对应测试 | 已审查合入，见 [A 审查](worklogs/2026-11-06-m4-b-review.md)；固定任务 ID；覆盖 blob 全程的取消/超时；合法 ZIP 保存、JSON 错误展示、重复点击保护 |
+| M4-06 跨模块回归 | B 1 + A 0.5 = 1.5 | 02～05 实际接口可用 | 独立 HTTP/浏览器检查、CPU CI 和测试说明；A 提供隔离服务/文件场景，B 不复制 SQL | 已审查合入，见 [A 审查](worklogs/2026-11-06-m4-b-review.md)；真实 HTTP/类型/前端响应一致；失败矩阵通过；M1/M3 回归不退化，替身只用于明确隔离测试 |
 | M4-07 真实联合验收 | A 1 + B 1 = 2 | 02～06 | 隔离真实训练、页面操作、下载后审计、双方日志和状态收口 | 活任务观察、终态最后记录、真实 ZIP 核验及 M3 人工流程有证据；无未解释的阻塞问题 |
 
-当前 01 A 侧、02 指标/日志 HTTP 和 03 下载已交付，01 B 消费者核对待记录，04～07 待办。每笔交付包括小提交、独立 YYYY-MM-DD-m4-XX-a.md / -b.md、已测/未测与接续说明。02 有真实接口/文件服务和 CPU/TCP 验收；03 下载已实现，未创建 GitHub Issues。
+当前 01～06 已交付并经 A 复跑接受，ef1fe06 已快进合入；07 真实 GPU/双方人工待执行。每笔交付包括小提交、独立 YYYY-MM-DD-m4-XX-a.md / -b.md、已测/未测与接续说明。02 有真实接口/文件服务和 CPU/TCP 验收；03 下载已实现，未创建 GitHub Issues。
 
 ## 三、怎样并行，以及两人现在分别做什么
 
-02 已交付：不改变观测契约 1.0.0，新增真实指标/日志路由、Linux 描述符有界文件读取和日志值投影；完整 CPU/HTTP 与隔离 TCP 检查通过，见 [02 日志](worklogs/2026-11-04-m4-02-a.md)。03 下载/只读 SQL 快照也已交付，A 下一步配合 B 实际对齐与 06/07，B 按 01 清单实际核对后继续 04/05。M3 人工待办、M4-07 GPU/页面联合验收不因此完成。
+01～06 已交付，ef1fe06 经 A 本机审查/CPU/实际 HTTP/页面检查后快进合入，wire 仍为 1.0.0；见 [审查](worklogs/2026-11-06-m4-b-review.md)。A 下一步做 07 专用编排，B 并行准备人工清单/访问，两方再约定共用服务/GPU 时段。M3 人工待办、M4-07 GPU/页面联合验收不因此完成。
 
 ```mermaid
 flowchart LR
@@ -62,25 +62,25 @@ flowchart LR
     M3[M3 待同步人工操作] --> G
 ```
 
-### A：M4-01 已交付与接续
+### A：01～06 审查完成，接续 07 验收编排
 
-已交付 CPU 类型/常量/头描述、内部完成 DTO/只读 Protocol、正式文档及生成格式样例/--check。B 按 [消费者清单](api/task-observability.md) 核对 source_id/cursor、空数据、终态补拉、日志过滤和下载头，约 30 分钟计入 01 人时，实际反馈另记；A 不能代签 B 核对。02 已实现，03 下载也已实现，后续配合 B 的 04/05 和 06/07。API/服务不得加载模型、修改 Trainer 文件或索要客户端路径。
+已交付 CPU 类型/常量/头描述、内部完成 DTO/只读 Protocol、正式文档及生成格式样例/--check。B 已按 [消费者清单](api/task-observability.md) 核对 source_id/cursor、空数据、终态补拉、日志过滤和下载头，约 30 分钟计入 01 人时，实际反馈见 B 的 01 独立日志并经 A 收录；没有代签。02/03/04/05/06 均已交付，A 下一步实现 07 编排，见 [联合安排](m4-acceptance.md)。API/服务不得加载模型、修改 Trainer 文件或索要客户端路径。
 
 01 正式文档为 [task-observability.md](api/task-observability.md)，类型/27 个格式 fixture 及索引/说明由 scripts/export_observability_contract.py 生成到 docs/contracts/observability.schema.json 与 docs/examples/observability/；均已存在，标记类型样例而非 HTTP 证据。接口新增是 /api/v1 的兼容扩展，不修改 TaskCreate/TrainingConfig/TaskDetail 或 M2 事件格式。M3 任务契约仍为 1.0.0，新观测契约单独从 1.0.0 起步；不兼容变更须重新核对版本和样例。
 
-### B 当前可领取：M4-04a（计入 04，约 1 小时）
+### B：04a/04/05/06 已交付，接续人工准备
 
-先只改已有 LossChart 与相应测试：输入采用已有事件的 kind/step/loss，train/eval 分色与图例，同 step 的两个点都保留；覆盖 Loss=0、单点和空记录。曲线不平滑、不补点，不将“没数据”绘制成零。此准备不依赖 HTTP，也不要求先改 API 返回字段。
+已有 LossChart 与相应测试已实现：输入采用已有事件的 kind/step/loss，train/eval 分色与图例，同 step 的两个点都保留；覆盖 Loss=0、单点和空记录。曲线不平滑、不补点，不将“没数据”绘制成零。此准备不依赖 HTTP，也不要求先改 API 返回字段。
 
-真实页面继续受 OpenAPI 能力探测控制；样例只放组件测试，不能往产品页面注入假曲线。先交独立小提交与日志。01 定稿后再按其生成 fixture 实现 04 请求/合并/日志和 05 下载，不维护私有的另一套响应。若契约核对正在进行，可以先写纯展示测试；这段短的共同确认是必要依赖，不能承诺完全零等待。
+真实页面继续受 OpenAPI 能力探测控制；样例只放组件测试，不能往产品页面注入假曲线。五份独立日志已审查收录，04/05 已按正式契约接入且 06 实际 HTTP 通过；不重复领取这些任务。B 现在准备人工清单、访问方式和独立记录，与 A 约定共同操作时段。
 
 ### 必须保留的共同检查
 
-01 的字段核对、02/03 与前端的真实 HTTP 对齐、07 的同一服务/GPU 操作都需要双方配合。B 可以用定稿 fixture 完成请求控制器和 UI 测试，不等后端全部完成；但不能用这些测试代替真实服务验收。具体截止、中途同步和 GPU 时段由双方约定并记日志，阻塞约 30 分钟时反馈接口/复现步骤，而非继续猜测。
+01 字段核对和 06 实际 HTTP 对齐已经完成；07 同一服务/GPU 的双方人工操作仍需配合。B 可以用定稿 fixture 完成请求控制器和 UI 测试，不等后端全部完成；但不能用这些测试代替真实服务验收。具体截止、中途同步和 GPU 时段由双方约定并记日志，阻塞约 30 分钟时反馈接口/复现步骤，而非继续猜测。
 
 ## 四、M4-01 接口摘要（以正式类型/文档为准）
 
-以下为 [正式观测契约 1.0.0](api/task-observability.md) 摘要，CPU 类型已实现但 B 核对待记录；02 指标/日志执行已实现，03 下载已实现。参数/字段/上限/错误若调整须同步本文、正式文档、类型和生成样例，并按兼容性更新独立观测版本，不由两人各改一套。所有接口继续查数据库中的任务身份，成功直接返回资源，失败沿用 ErrorResponse/X-Request-ID；SQL 读取失败不能伪装成空数据。
+以下为 [正式观测契约 1.0.0](api/task-observability.md) 摘要，CPU 类型已实现、B 核对已审查收录；02 指标/日志执行已实现，03 下载已实现。参数/字段/上限/错误若调整须同步本文、正式文档、类型和生成样例，并按兼容性更新独立观测版本，不由两人各改一套。所有接口继续查数据库中的任务身份，成功直接返回资源，失败沿用 ErrorResponse/X-Request-ID；SQL 读取失败不能伪装成空数据。
 
 ### 4.1 GET /api/v1/tasks/{task_id}/metrics
 
@@ -152,7 +152,7 @@ SQL 仓储已新增内部只读 get_completed_artifact(task_id)，不存在/未�
 | 下载量超限；下载槽位忙 | 413/ARTIFACT_TOO_LARGE；429/DOWNLOAD_BUSY，Retry-After=2 |
 | 临时存储 I/O 失败 | 500/STORAGE_UNAVAILABLE，安全说明，不泄露本机路径 |
 
-新 code 已在 01 纳入 ApiErrorCode 和生成 Schema，B 消费核对待记录，不解析中文 message 判断条件。共享枚举改变时重导出受影响的原数据集/任务 Schema 和样例。API 查询继续拒绝重复/未知项；现 parse_query 只特别处理 page/page_size，02 已用对应查询类型落实 cursor/limit/tail 的严格整数校验并回归 M3，不依赖宽松浮点转整数。
+新 code 已在 01 纳入 ApiErrorCode 和生成 Schema，B 消费核对已审查收录，不解析中文 message 判断条件。共享枚举改变时重导出受影响的原数据集/任务 Schema 和样例。API 查询继续拒绝重复/未知项；现 parse_query 只特别处理 page/page_size，02 已用对应查询类型落实 cursor/limit/tail 的严格整数校验并回归 M3，不依赖宽松浮点转整数。
 
 01 仅导出类型/mock 样例；02 已扩展 export_task_openapi.py 从真实 app.openapi() 导出实际任务子路径，包含指标/日志，下载已由 03 实现。不手写另一套运行时 OpenAPI。B 只启用实际发布的接口，单接口出错不影响 TaskDetail，失败不回退虚构指标。
 
@@ -207,11 +207,15 @@ M4-07 使用独立 DATA_DIR/SQLite/Redis、共用物理 GPU 锁和固定 0.5B re
 - [x] 01 A 侧类型、边界、生成 fixture/漂移检查已实现且 CPU 可导入。
 - [x] 02 指标/日志只读服务、真实 HTTP/OpenAPI、有界文件/安全投影及 CPU/TCP 检查已交付。
 - [x] 03 完成只读 SQL 快照、原 CPU 审计/ZIP/资源限制及取消/实际 TCP 断连清理已交付。
-- [ ] B 按实际 01 类型/样例完成消费者核对并记录，两方差异已处理。
-- [ ] 指标/日志/下载真实 HTTP 与 OpenAPI 一致，错误/资源界限通过。
-- [ ] UI 不丢同 step 的两类记录，不被旧请求污染；终态最终记录可见。
-- [ ] 完成任务下载包布局/哈希/原共享审计通过，失败/未完成任务不能下载。
-- [ ] M1/M3 和本阶段受影响回归通过，代码/文档/各自日志已同步。
+- [x] B 按实际 01 类型/样例完成消费者核对并记录，两方差异已处理，未变 wire 1.0.0。
+- [x] 06 指标/日志/下载实际 HTTP 与 OpenAPI 一致，CPU 事件/bundle 的错误/资源界限通过。
+- [x] 04/05/06 UI 不丢同 step 两类记录，旧请求隔离及终态最终记录可见（CPU/HTTP）。
+- [x] CPU bundle 的完成任务下载布局/哈希/原审计通过，失败/未完成任务不能下载；真实 GPU 下载另在 07 记录。
+- [x] M1/M3 和本阶段受影响 CPU/HTTP/浏览器回归通过，代码/文档/各自日志已收录；不代替 M3 人工剩余项。
 - [ ] 双方实际服务/GPU 人工过程有记录，M3 剩余项和 M4 新能力分别确认。
 
 满足后才将 M4 标为完成。Loss 是否下降、回答是否改善不属于本阶段的通过条件；M5 的在线推理、正式效果实验和云部署继续独立规划。
+
+## 八、当前下一步
+
+只剩 M4-07 的新工具准备、实际 GPU 和双方人工操作；详细 [联合安排](m4-acceptance.md) 列出了 A/B 可并行准备、必须共同完成的步骤和证据要求。当前没有 M4-07 专用运行脚本或新 GPU 通过记录；不把 CPU 联调标为全阶段完成。

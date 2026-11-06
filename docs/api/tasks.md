@@ -70,7 +70,7 @@ PENDING 是保存成功但尚未确认派发；QUEUED 是确认接受后等待�
 
 TaskDetail.error_code 是业务诊断，和 HTTP error.code 不必相同：训练失败复用现有 TrainingFailure code，离线恢复另需 WORKER_INTERRUPTED/TASK_ABANDONED，派发未知可暂为 DISPATCH_UNCERTAIN，成功领取/确认后清除该暂态说明并保留服务日志。不要为这些任务级原因修改 Trainer 的既定枚举；M3-01 单独定义业务错误集合及映射。
 
-不返回 output_path、cache_dir、log_path、celery_task_id、claim_token 或用户归属。不返回虚构 Loss，也不新增 metrics/logs/adapter/inference 路由；这些继续按 M4/M5 实施。模型目录不等于缓存就绪。
+不返回 output_path、cache_dir、log_path、celery_task_id、claim_token 或用户归属。TaskDetail 不内嵌虚构 Loss；M4 指标/日志/下载由各自 GET 提供，在线推理待 M5。模型目录不等于缓存就绪。
 
 ## 错误和派发不确定性
 
@@ -112,9 +112,9 @@ B 已交付列表筛选/分页/请求竞争小交付，范围与验收见 [完�
 
 M3-05 已为 request 透传去重头、读取 error.task_id，冻结正文并支持 sessionStorage 刷新恢复；后端 CORS 已允许 Content-Type/Idempotency-Key，并暴露 X-Request-ID/Location，不启用凭据。05 的列表/提交/详情 HTTP/SQL 浏览器检查使用明确的 Publisher/执行事件替身；07 A 已另行通过实际 Redis/Worker/GPU/生产浏览器自动验收，B 异步复核已通过，待同步人工联调。M3 不接通 Loss/日志/下载：这些能力继续禁用，不能在 API 出错后回退 mock；本次没有修改 B 的前端代码。
 
-## M4 规划中的观测与交付
+## M4 观测与交付
 
-M4 的 [观测契约 1.0.0](task-observability.md) 和 CPU 类型/常量/格式样例已由 01 A 侧交付，B 消费核对待记录；02 已实现指标/日志只读服务、安全投影和 HTTP；下载已由 03 实现。原 TaskCreate/TaskDetail 和派发语义不变。02 已扩展 export_task_openapi.py 导出全部实际任务子路径，03 的下载路由也已实际实现并导出。前端旧 after_step/Map(step) 仍由 04 按新契约替换。
+M4 的 [观测契约 1.0.0](task-observability.md) 和 CPU 类型/常量/格式样例已由 01 A 侧交付，B 消费核对与 04/05/06 已审查合入；02 已实现指标/日志只读服务、安全投影和 HTTP；下载已由 03 实现。原 TaskCreate/TaskDetail 和派发语义不变。02 已扩展 export_task_openapi.py 导出全部实际任务子路径，03 的下载路由也已实际实现并导出。前端旧 after_step/Map(step) 已由 04 替换；05 下载与 06 实际 HTTP/浏览器已通过 A 复跑，07 联合验收待执行。
 
 ## Publisher 与失败边界
 

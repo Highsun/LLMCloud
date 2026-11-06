@@ -1,6 +1,6 @@
 # M4 观测与 Adapter 下载契约 1.0.0
 
-更新：2026-11-05。M4-01 A 类型/样例、M4-02 指标/日志及 M4-03 SQL 完成投影与 Adapter 下载均已实现，真实 OpenAPI 包含三个 GET；B 消费者核对及页面适配仍待独立交付。本契约字段/版本未变；类型校验不能代替文件/授权/审计，正式可调用能力以真实 app.openapi() 为准。
+更新：2026-11-06。M4-01～06 已交付并审查收录，B 的消费者核对及观测/下载页面已在 ef1fe06 合入，真实 OpenAPI 包含三个 GET；07 GPU/双方人工待执行。本契约字段/版本未变；类型校验不能代替文件/授权/审计，正式可调用能力以真实 app.openapi() 为准。
 
 实现入口：[CPU Schema](../../backend/app/models/observability_schemas.py)、[常量与日志字段策略](../../backend/app/core/observability_contract.py)、[内部完成 DTO/Protocol](../../backend/app/core/observability_protocols.py)。生成物为 [JSON Schema](../contracts/observability.schema.json)、[mock 样例索引](../examples/observability/index.json) 和 [样例说明](../examples/observability/README.md)。原 TaskCreate/TrainingConfig/TaskDetail、M2 事件与 Worker 五方法不变；观测契约独立版本从 1.0.0 起步。
 
@@ -14,7 +14,7 @@
 | --- | --- | --- |
 | 查询 | 值/默认值/上限、cursor 与 source_id 配对、额外字段 | 02 已检查原始重复项、任务存在、游标文件身份/真实换行边界 |
 | 响应 | ID、字段类型、局部记录顺序/计数/游标结构、日志编码/响应字节上限 | 02 已检查读预算、文件缺失语义、源内容/JSON/路径安全、直接前驱与本页顺序 |
-| 完成 DTO/下载头 | 输出键和 UUID 一致、固定 max_steps/summary、一致安全文件名 | 03 待检查 SQL COMPLETED、快照/哈希/实际文件、审计、ZIP 和资源清理 |
+| 完成 DTO/下载头 | 输出键和 UUID 一致、固定 max_steps/summary、一致安全文件名 | 03 已检查 SQL COMPLETED、快照/哈希/实际文件、审计、ZIP 和资源清理；06 实际 HTTP/浏览器复核通过 |
 
 ## 指标：GET /api/v1/tasks/{task_id}/metrics
 
@@ -144,7 +144,7 @@ uv run --locked python scripts/export_observability_contract.py --check
 
 `uv run --locked python scripts/check_task_observability.py` 运行隔离 TCP/SQL/MetricWriter 观测冒烟；`uv run --locked python scripts/check_task_download.py` 复用已有 synthetic CPU bundle 测试工具，验证真实 HTTP ZIP、解压独立审计、忙/损坏、实际 TCP 断连后的清理（首块后显式注入暂停，报告 response_stall_injected=true）。两者均明确替身/CPU 范围，不启动 Worker/Redis/GPU，不代表新 GPU 训练、前端适配或 M4-07 验收已完成。
 
-B 完成 04a 后，用本次实际类型/fixture 核对并在独立日志记录：
+B 已完成下列消费者核对并交付 04/05/06，见 [B 核对](../worklogs/2026-11-05-m4-01-b-consumer-review.md)、[A 审查](../worklogs/2026-11-06-m4-b-review.md)。清单保留为后续回归基线：
 
 1. source_id/cursor/offset 是三种不同含义，下一页实际 cursor=304，同一步两类不会覆盖。
 2. not_created、ready 空文件、终态空页、半行、0 Loss 可区分，EOF 不丢最后 train。
@@ -153,4 +153,4 @@ B 完成 04a 后，用本次实际类型/fixture 核对并在独立日志记录�
 5. 成功下载是 ZIP/HTTP 头，不把 header-description fixture 当 JSON body；固定 UUID 文件名与取消/超时能覆盖整个 blob。
 6. internal DTO 不用于页面状态；原 M1/M3 调用签名和能力探测保持，HTTP 未发布时不展示 fake 数据。
 
-A 已做类型/格式消费者行为检查，但没有代替 B 的实际核对。B 的确认/具体差异另记；不兼容调整须先更新独立观测契约版本/类型/样例，不让两边分别猜一套。M3 人工验收与 M4 后续真实接口/GPU 验收仍按 [完整计划](../m4-development-plan.md) 执行。
+A 已收录 B 独立核对并重跑真实 HTTP/页面检查，无需调整 wire 版本；不兼容调整仍须同步独立观测版本/类型/样例。M3 人工剩余项和 M4-07 真实 GPU/联合操作继续按 [安排](../m4-acceptance.md) 执行，CPU 替身不替代它们。
