@@ -20,7 +20,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 
 执行 M3 前继续读 [完整计划](docs/m3-development-plan.md)、[任务 API](docs/api/tasks.md)、[共享契约](docs/contracts/tasks.md)、[Worker](docs/worker.md)、[对账](docs/task-reconciliation.md) 及 [M3-05 审查](docs/worklogs/2026-11-04-m3-05-a-review.md)。M3-01～06 已交付；07 的 A 真实 GPU 自动验收、B 异步证据/既有任务页面复查及 A 本机审查回归均通过，61d8703 已审查合入。双方从新上传到实际 GPU 完成的同步人工联调尚未执行，M3 保持待共同验收；M4-01 A 侧类型/样例已交付，B 核对已审查收录，02 指标/日志 HTTP 已交付，03 下载已交付，04/05/06 已审查合入，07 待真实联合验收。
 
-执行 M4 前读 [完整计划 1.4](docs/m4-development-plan.md)、[观测契约 1.0.0](docs/api/task-observability.md)、[B 交付审查](docs/worklogs/2026-11-06-m4-b-review.md) 和 [M4-07 安排](docs/m4-acceptance.md)。01～06 已交付并经 A 本机复跑接受：ef1fe06 含 B 的 01 核对、04a/04/05/06，已快进合入。共享 wire 契约仍为 1.0.0，后端三个 GET 与页面已接通；07 真实 GPU/双方人工尚未执行，M4 不提前收口。M3 剩余同步人工流程可与 07 同场分别记录。
+执行 M4 前读 [完整计划 1.5](docs/m4-development-plan.md)、[观测契约 1.0.0](docs/api/task-observability.md)、[B 交付审查](docs/worklogs/2026-11-06-m4-b-review.md) 和 [M4-07 安排](docs/m4-acceptance.md)。01～06 已交付并经 A 本机复跑接受：ef1fe06 含 B 的 01 核对、04a/04/05/06，已快进合入。共享 wire 契约仍为 1.0.0，后端三个 GET 与页面已接通；07 真实 GPU/双方人工尚未执行，M4 不提前收口。M3 剩余同步人工流程可与 07 同场分别记录。
 
 ## 当前事实与任务边界
 
@@ -76,7 +76,7 @@ LLMCloud 是《云计算技术及应用》课程项目：将 Qwen2.5-0.5B-Instru
 ### M4 实施时延续的约束
 
 - 2026-11-06 已审查 ef1fe06，B 的五份新增日志已收录。task-observability.js 按 source_id/offset 合并、使用返回 cursor、每轮五页/最近 10000 条、终态补拉/最终日志、任务切换/隐藏隔离；task-download.js 固定 UUID/MIME、完整 body 取消/超时与旧请求隔离。A 未改 B 业务代码或后端契约。
-- frontend/testing/serve_m4_api.py 只供隔离 CPU 浏览器检查，不是生产服务或真实 GPU 验收；不得用其中 __test__ 控制和合成 bundle 代替 07。下一步 A 开发专用 GPU opt-in 验收编排，B 准备人工清单/访问，两方约定真实操作时段；专用 M4-07 脚本尚未实现，不直接用 M3 两步脚本冒充本阶段通过。
+- frontend/testing/serve_m4_api.py 只供隔离 CPU 浏览器检查，不是生产服务或真实 GPU 验收；不得用其中 __test__ 控制和合成 bundle 代替 07。A 已交付 scripts/check_m4_acceptance.py、check_m4_browser.mjs 及 CPU 审计辅助模块，非 GPU 检查通过；下一步在干净提交上运行真实 GPU，B 准备人工清单/访问并约定共同操作时段；真实 M4-07 尚未运行，不直接用 M3 两步脚本冒充本阶段通过。
 
 - M4-03 已交付，继续读 [03 日志](docs/worklogs/2026-11-05-m4-03-a.md)。SqlTaskRepository.get_completed_artifact 为额外只读投影，业务未完成/缺失异常在事务外抛出。TaskDownloadService 先校验 SQL/manifest/元数据和 256 MiB 总量，再安全复制到 downloads 私有工作区，复用原完整 CPU 审计，ZIP 写入再次核对实际哈希/CRC及源元数据。响应/准备取消均有清理归属，槽位保留到清理结束；不改 Worker 五方法、不占 GPU。check_task_download.py 为明确 CPU 替身的 TCP 冒烟，含注入发送暂停后的真实断连，不是 M4-07 验收。
 

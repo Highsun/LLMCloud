@@ -18,9 +18,11 @@ M1 已完成 **M1-01 契约、M1-02 数据集服务层、M1-03 HTTP 接口、M1-
 
 `trainer.train` 已实现真实单 GPU LoRA，`worker.train` 已接入 SQL/原 Trainer/审计。M3 前端任务提交/详情/去重/刷新恢复已接通；M4 观测和下载页面也已接通真实 HTTP，M5 推理仍按能力禁用。已有 GPU/生产页面自动验收属于 M3，不能据此替代 M4-07。
 
-**M4 开发入口**：[完整计划 1.4](docs/m4-development-plan.md)、[正式契约](docs/api/task-observability.md)、[B 交付审查](docs/worklogs/2026-11-06-m4-b-review.md)。ef1fe06 已快进合入，01～06 已交付并本机复跑接受：394 项后端、116 项前端、29 项既有浏览器与 6 项实际 M4 HTTP/文件/下载检查通过；CPU 事件/bundle 明确为替身，不代表 GPU。下一步 [M4-07 安排](docs/m4-acceptance.md)：A 准备实际训练验收入口，B 准备人工操作清单，双方共同执行并同场补 M3 人工剩余项。主线/缓冲预算仍按原计划，M4 尚未全阶段收口。
+**M4 开发入口**：[完整计划 1.5](docs/m4-development-plan.md)、[正式契约](docs/api/task-observability.md)、[B 交付审查](docs/worklogs/2026-11-06-m4-b-review.md)。ef1fe06 已快进合入，01～06 已交付并本机复跑接受：394 项后端、116 项前端、29 项既有浏览器与 6 项实际 M4 HTTP/文件/下载检查通过；CPU 事件/bundle 明确为替身，不代表 GPU。下一步 [M4-07 安排](docs/m4-acceptance.md)：A 已交付专用验收工具及非 GPU 检查，B 准备人工操作清单，双方共同执行并同场补 M3 人工剩余项。主线/缓冲预算仍按原计划，M4 尚未全阶段收口。
 
 **M2 单机真实 LoRA 工程闭环已验收**：[完整开发计划](docs/m2-development-plan.md) 拆为六项任务。M2-01 [内部契约](docs/contracts/training.md)、M2-02 [模型准备](docs/model-cache.md)、M2-03 [数据转换/监督标签/截断/清单核对](docs/training-data.md) 已完成，M2-04 [真实训练、指标与回调](docs/training.md) 已完成。M2-05 [独立产物审计/故障验收](docs/training-artifacts.md) 已完成，M2-06 新进程重载工程验收已完成；任务 HTTP/Celery 接入属于 M3。
+
+M4-07 A 侧验收工具已交付，见 [工具日志](docs/worklogs/2026-11-06-m4-07-a-tools.md) 和 [运行说明](docs/m4-acceptance.md#已交付入口与运行方式)。`UV_PROJECT_ENVIRONMENT=.venv-cpu uv run --locked python scripts/check_m4_acceptance.py --check` 仅做 CPU/浏览器预检；真实 `--gpu` 自动检查和 `--gpu --manual` 双方会话尚未执行。工具及明确 CPU 替身的浏览器检查通过，不能据此勾选 M3/M4 的真实联合验收。
 
 **M3 协作开发入口**：[完整计划](docs/m3-development-plan.md)、[共享契约](docs/contracts/tasks.md)、[任务 API](docs/api/tasks.md)、[Worker](docs/worker.md) 与 [对账](docs/task-reconciliation.md)。04/05 和 07 B 的 61d8703 已审查合入；07 见 [真实结果/剩余项](docs/m3-acceptance.md)、[B 复核](docs/worklogs/2026-11-04-m3-07-b.md) 和 [A 审查](docs/worklogs/2026-11-04-m3-07-a-review.md)。下一步补同步人工端到端操作；M4 按独立计划推进，01 A 与 02/03 后端已交付。
 

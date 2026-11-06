@@ -26,7 +26,7 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 | M2-05 | [共享 CPU 产物审计](training-artifacts.md)、排他原子提交与保存故障验收已完成；已校验 M2-04 真实产物和新训练结果 |
 | M2-06 | [新进程重载](adapter-reload.md) 已实际加载并生成，M2 工程闭环完成 |
 | M3 | [计划 1.9](m3-development-plan.md)；01～06 独立交付齐备，04/05 已审查合入；07 A 真实 GPU/Redis/SQL/生产浏览器 9 项场景通过，B 异步复核已通过，待同步人工联调；见 [结果与交接](m3-acceptance.md)、[日志](worklogs/2026-11-04-m3-07-a.md) |
-| M4 | [计划 1.4](m4-development-plan.md)；01～06 已交付，B 的 ef1fe06 经 A 审查/本机复跑快进合入；07 真实 GPU/双方人工待执行，见 [审查](worklogs/2026-11-06-m4-b-review.md) 与 [联合安排](m4-acceptance.md) |
+| M4 | [计划 1.5](m4-development-plan.md)；01～06 已交付，B 的 ef1fe06 经 A 审查/本机复跑快进合入；07 真实 GPU/双方人工待执行，见 [审查](worklogs/2026-11-06-m4-b-review.md) 与 [联合安排](m4-acceptance.md) |
 | M5 | 在线推理、稳定/正式实验、部署与课程交付待完成 |
 
 `trainer.train` 已执行真实 Qwen LoRA，`worker.train` 已接入原 Trainer，实际 Redis 缺缓存 CPU 消费通过，异步 GPU 链路已在 07 A 实测通过，B 异步复核已通过，待同步人工联调。已有产物的新进程重载已通过；未来各任务仍须分别验收，不表示正式效果提升。
@@ -49,7 +49,7 @@ LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交
 
 ## 协作与下一步
 
-2026-11-06 M4 接续：ef1fe06 已收录 B 的 01 核对、04a/04 曲线/日志、05 完整下载生命周期和 06 实际 Linux HTTP/浏览器回归。A 本机 394 项后端、116 项前端、29 项旧浏览器、6 项实际 M4 场景及三项独立浏览器入口均通过；没有更改 B 业务实现或 wire 1.0.0。生产页已移除 after_step/Map(step)，按 source_id/offset 合并与原 cursor 续读，终态补拉，下载固定 UUID 并覆盖完整 body 的取消/超时。下一步按 [安排](m4-acceptance.md)：A 做专用 GPU opt-in 验收编排，B 准备人工清单和访问，两方共同操作并分别补 M3 人工项；当前专用脚本尚未实现，07 未执行，M4 不提前收口。证据和范围见 [审查日志](worklogs/2026-11-06-m4-b-review.md)。
+2026-11-06 M4 接续：ef1fe06 已收录 B 的 01 核对、04a/04 曲线/日志、05 完整下载生命周期和 06 实际 Linux HTTP/浏览器回归。A 本机 394 项后端、116 项前端、29 项旧浏览器、6 项实际 M4 场景及三项独立浏览器入口均通过；没有更改 B 业务实现或 wire 1.0.0。生产页已移除 after_step/Map(step)，按 source_id/offset 合并与原 cursor 续读，终态补拉，下载固定 UUID 并覆盖完整 body 的取消/超时。下一步按 [安排](m4-acceptance.md)：A 已交付专用 GPU opt-in 验收工具及非 GPU 检查，B 准备人工清单和访问，两方共同操作并分别补 M3 人工项；专用脚本和非 GPU 检查已交付（见 [A 日志](worklogs/2026-11-06-m4-07-a-tools.md)），真实 GPU/人工 07 未执行，M4 不提前收口。证据和范围见 [审查日志](worklogs/2026-11-06-m4-b-review.md)。
 
 成员 A 主负责后端/存储/调度，成员 B 已交付 frontend。原 M2 分工计划中 A 负责契约、缓存和产物校验辅助模块，B 负责 trainer/train.py、数据转换和重载入口；实际 M2-03/04/06 按用户要求由当前侧交付，不能将计划分工当成 B 已完成的工作。共享类型先核对，不并行改同一训练入口。保留成员 B 的组件、样式和页面结构；必要修复以最小变更配合回归验证，并在新日志说明原因。不要覆写历史交付记录。
 

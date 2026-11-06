@@ -1,6 +1,6 @@
 # M4-07 真实服务联合验收安排
 
-更新：2026-11-06。**这是下一步计划，尚未执行 M4-07，也没有新的 GPU/双方人工通过记录。** `ef1fe06` 的 M4-01 B 核对、04a/04/05 和 06 已由 A 审查、在 Linux 本机复跑并快进合入；依据见 [审查日志](worklogs/2026-11-06-m4-b-review.md)。后端、页面及实际文件 HTTP 的 CPU 闭环已齐，下一步验证真实 Worker/Trainer 的文件生产与双方人工操作。
+更新：2026-11-06。**A 侧专用工具及非 GPU 检查已交付；尚未执行 M4-07 真实 GPU/双方人工验收。** `ef1fe06` 的 M4-01 B 核对、04a/04/05 和 06 已由 A 审查、在 Linux 本机复跑并快进合入；依据见 [审查日志](worklogs/2026-11-06-m4-b-review.md)。本次工具交付见 [A 日志](worklogs/2026-11-06-m4-07-a-tools.md)，下一步在干净提交上验证真实 Worker/Trainer 的文件生产并共同操作。
 
 入口：[完整计划](m4-development-plan.md)、[正式契约](api/task-observability.md)、[M3 剩余人工项](m3-acceptance.md#当前还差哪一步)。M5 在线推理、部署和正式效果实验仍另行实施。
 
@@ -14,7 +14,7 @@ M4-07 至少交付：一次新上传到真实训练/页面观测/下载的完整
 
 | 负责人 | 现在的明确任务 | 交付物/边界 |
 | --- | --- | --- |
-| A（当前侧） | 开发并检查专用 M4-07 验收入口，准备 WSL 服务/固定缓存/隔离 Redis、SQL、文件和证据目录 | 计划新增 `scripts/check_m4_acceptance.py`、`scripts/check_m4_browser.mjs`；当前这两个文件尚不存在。复用生产 API/Worker/Trainer 与原 CPU 审计，可参考 M3 生命周期，不复制训练实现或向产品增加测试控制路由。先提交工具和非 GPU 检查，再在干净代码上运行。 |
+| A（当前侧） | 专用工具/非 GPU 检查已交付；接下来在干净提交上准备实际服务并执行真实 GPU 运行 | [Python 编排](../scripts/check_m4_acceptance.py)、[浏览器入口](../scripts/check_m4_browser.mjs)、[CPU 证据检查](../scripts/m4_acceptance_support.py)。复用 M3 服务生命周期及生产 API/Worker/Trainer，不执行旧 M3 故障场景、不新增产品测试路由。工具已用明确 CPU 替身检查，真实 GPU 尚未运行。 |
 | B（队友） | 将下表转为逐步人工操作清单，检查其浏览器能访问 A 的服务或安排共享屏幕；准备桌面/390px 检查与独立记录 | 同步最新 main，维护自己的人工检查清单/运行后 B 日志；无需重写 04/05、再跑一遍整个 CPU 故障矩阵，或在 Windows 安装 GPU 训练环境。准备过程中发现问题给出操作、task_id/request_id 与差异。 |
 | A+B | 约定一个共用 GPU/服务时段，实际完成人工端到端流程 | 此步存在真实合作依赖，不能以互相独立开发代替。尚未约定具体日期/时间；先按原 A 1+B 1 人时预算安排，工具准备若超出则登记并使用缓冲，不削减验收。 |
 
@@ -27,7 +27,41 @@ M4-07 至少交付：一次新上传到真实训练/页面观测/下载的完整
 - 为本轮创建全新 DATA_DIR/SQLite/私有 Redis 队列、结果后端及文件目录；证据默认放忽略的 `data/acceptance/m4-07/{run_id}/`。不接触业务 DB/队列，不覆盖 M3 运行或两个已获准入 Git 的证据文件。
 - 实际 Worker 与本机其他 GPU 工作共用既有 LOG_DIR/worker.lock；先确认其他手工训练/重载不并发。只启动一台并发 1 的生产 Worker，不通过持 GPU 锁的 API 阻塞读取/下载。
 - 内部 max_steps 可从 20～40 步开始，logging_steps=1；公开 API 请求不新增内部字段。至少取得 5 个真实 train 点并跨过两轮实际轮询；太快则增加真实工作量并记录，不延时或补点。服务没有验证集输入，不要求或伪造 eval；双系列由已通过的受控用例覆盖。
-- 验收工具必须显式 opt-in GPU，能清理自己启动的进程并保留失败证据；本次只安排，尚未提供可运行的 M4-07 命令。原 `check_m3_acceptance.py --gpu` 默认两步及旧页面检查不是本阶段替代入口。
+- 验收工具必须显式 opt-in GPU，能清理自己启动的进程并保留失败证据；运行命令见下节。原 `check_m3_acceptance.py --gpu` 默认两步及旧页面检查不是本阶段替代入口。
+
+## 已交付入口与运行方式
+
+先在根目录安装前端依赖和 Chromium（Linux 缺浏览器系统库时按既有环境说明安装），再运行 CPU 预检。单独使用 `.venv-cpu`，避免同步基础依赖时裁剪已有训练环境：
+
+```bash
+cd frontend
+npm ci
+npx playwright install --with-deps chromium
+cd ..
+UV_PROJECT_ENVIRONMENT=.venv-cpu uv run --locked python scripts/check_m4_acceptance.py --check
+```
+
+`--check` 实际启动/关闭一个空白 Chromium 页面，检查 node/npm/redis-server 命令是否存在，报告训练包是否可发现；不启动 API/Redis/Worker，不检查缓存或 CUDA，不代表真实验收通过。浏览器安装路径、共享库、字体若由环境提供，沿用 `PLAYWRIGHT_BROWSERS_PATH`、`LD_LIBRARY_PATH`、`FONTCONFIG_FILE`，工具不内置本机临时目录。
+
+工具/配置提交并确认独占 GPU 后，由 A 执行**尚未执行**的自动部分：
+
+```bash
+uv run --locked --extra training python scripts/check_m4_acceptance.py --gpu --max-steps 40 --timeout 600
+```
+
+默认建立 `data/acceptance/m4-07/{新UUID}`；`--run-dir` 仅允许该目录的全新 UUID 直接子目录，拒绝复用、越界及链接根目录。固定 revision 和 BF16，训练包只检查可发现性，真实执行仍由生产 Worker 导入。预先校验离线模型缓存，API 和 Worker 同时使用 40 步内部上限，公开请求只提交原有 config 字段。两条消息经浏览器真实提交、进入私有 Redis 后才启动唯一生产 Worker；这不是训练中暂停或伪造指标。
+
+自动入口记录提交/锁文件摘要、服务 PID/队列/URL、请求与任务 ID、数据摘要、SQL 快照、原日志、HTTP 指标/日志、截图/trace、浏览器下载及解压审计。自动检查包括两个任务 SQL 区间串行、至少五个真实 train 点、跨两轮活指标请求、终态 UI/HTTP/原指标一致、旧任务下载在另一任务真实优化器事件之间完成、下载工作区清空与下一份下载成功。太快则报告失败，增加真实 `--max-steps`（上限 200）再用新目录运行。成功状态只写 `automated_passed`，M3/M4 的人工验收字段始终 `pending`。
+
+双方已约好时段后，另开一个**新的**实际人工会话，不把自动页面操作算作 B 的操作：
+
+```bash
+uv run --locked --extra training python scripts/check_m4_acceptance.py --gpu --manual --max-steps 40 --hold-seconds 1800
+```
+
+终端及 report.json 输出本轮 loopback 页面 URL，A 可通过现有远程开发端口转发/共享屏幕与 B 操作；工具不开放公网监听。B 新上传并提交两个任务，明确设置 `logging_steps=1`，建议 `gradient_accumulation_steps=1`、`max_seq_length=256`，按下表操作。原始下载保存在 B 浏览器选择的位置，双方保留 ZIP/SHA-256 并按既有下载产物说明解压、运行 `scripts/check_training_artifacts.py` 原 CPU 审计；A 可调用 `scripts.m4_acceptance_support.audit_download` 与本轮源目录逐文件对比。人工会话到时会保留真实任务状态和已完成产物审计，关闭自己的 Worker/API/Vite/Redis；`manual_session_closed_pending_review` 仅表示会话已关闭，**不表示双方验收通过**。关闭前确认任务完成；若到时或 Ctrl+C 尚有 RUNNING，保留证据，停机后按既有对账流程处理，不自动重投或修状态。
+
+下载取消、下载中切任务、隐藏/恢复、日志历史滚动及双方同步操作仍由人工清单执行；自动脚本没有声称覆盖这些交互。CPU 合成输入的机器人自检见 A 日志，与真正 `--gpu` 的报告分开保存，不生成新的 GPU/人工通过记录。
 
 ## 共同操作与通过条件
 
