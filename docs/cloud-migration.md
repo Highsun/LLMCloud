@@ -1,6 +1,6 @@
 # WSL 清点、迁移材料与 macOS／云端接续
 
-日期：2026-11-06（Asia/Shanghai）。这是**已清点/打包、目标端待接收**的交接记录，不是云部署成功报告。主提示在根目录 [continue.md](../continue.md)，不再依赖旧聊天。
+日期：2026-11-06（Asia/Shanghai）。这是**已清点/打包、Windows 下载中转、Mac/云端待接收**的交接记录，不是云部署成功报告。主提示在根目录 [continue.md](../continue.md)，不再依赖旧聊天。
 
 ## 当前状态与清点范围
 
@@ -50,14 +50,14 @@ M3 人工剩余项、M4 自动 GPU/双方人工均待在云端重新组织，旧
 
 ## 实际交付目录与校验
 
-原仓库生成目录：`data/migration/2026-11-06-wsl-to-cloud/`。收尾后另复制到仓库外 `/home/highsun/LLMCloud-migration/2026-11-06-wsl-to-cloud/`。**目录仍在原 WSL，不是云端或独立物理备份；在目标端接收且校验前不要删除 WSL/主机数据。**
+主交付按用户新指定放在 **`C:\Users\PC\Downloads\LLMCloud-migration-2026-11-06\`**，WSL 访问路径 `/mnt/c/Users/PC/Downloads/LLMCloud-migration-2026-11-06/`。原仓库制备目录 `data/migration/2026-11-06-wsl-to-cloud/` 和仓库外 `/home/highsun/LLMCloud-migration/2026-11-06-wsl-to-cloud/` 也保留。Windows 副本在 WSL 之外；但在 Mac/独立目标接收并校验前，不要清空 Windows 主机。
 
 | 文件 | 字节数（当前数据归档） | SHA-256 |
 | --- | ---: | --- |
 | runtime.tar.gz | 101653472 | `46ec890f7116013c15a407e40eb89e60d939d32075ebf5febc94d9398a487e2f` |
 | models.tar.gz | 796430805 | `a45ca30e258fbfa7317788f00f8673c6791cf74322271bc8b420115120e3ba77` |
 
-同目录还含 manifest.json、restore-verification.json、host-inventory.json、最终 code.bundle、handoff.json、SHA256SUMS。后几项在收尾生成，不循环把代码 bundle 的摘要写回它所包含的 continue.md；以整个目录的最终 SHA256SUMS 校验。文件权限及目录为私有，内含原 `.env` 参考，不公开发布。
+同目录还含 manifest.json、restore-verification.json、host-inventory.json、最终 code.bundle、handoff.json、continue.md、RESTORE.md、SHA256SUMS，共 10 个文件。后几项在收尾生成，不循环把代码 bundle 的摘要写回它所包含的 continue.md；以整个目录的最终 SHA256SUMS 校验。文件权限及目录为私有，内含原 `.env` 参考，不公开发布。
 
 已实际完成：普通文件逐项摘要校验、精确目录/链接清单校验、新目录完整解压、固定模型缓存离线检查、7 份还原 DB integrity_check、还原后的 6+4 份成功产物原 CPU 审计。未使用 GPU，未实际上传云端，也未在 macOS 运行。
 
@@ -77,7 +77,7 @@ python3 scripts/migration_bundle.py restore --bundle /ABS/PATH/2026-11-06-wsl-to
 
 ## 实际跨机传输还缺什么
 
-用户未提供云端 SSH/接收目录，也未指定 Mac 接收端；因此**截至本轮没有执行 scp/rsync 上传**。待用户提供目标后，先创建私有持久接收目录，再从持有归档的一端发送完整文件夹。Mac `shasum -a 256 -c SHA256SUMS`、Ubuntu `sha256sum -c SHA256SUMS`，继续运行逐项 verify。不要通过 Git 上传，也不要删本机唯一副本后再想办法找数据。
+用户已确认云服务器暂未准备；先交 Windows 下载目录，再由用户传到 Mac。完整分步命令见 [Windows→Mac→Ubuntu 恢复](migration-restore.md)，包内 RESTORE.md 是同文离线副本。**当前没有上传云端**。待用户提供目标后，先创建私有持久接收目录，再从持有归档的一端发送完整文件夹。Mac `shasum -a 256 -c SHA256SUMS`、Ubuntu `sha256sum -c SHA256SUMS`，继续运行逐项 verify。不要通过 Git 上传，也不要删本机唯一副本后再想办法找数据。
 
 模板（仅示意，不代表目标已经存在）：
 

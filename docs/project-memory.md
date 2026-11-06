@@ -84,3 +84,6 @@ M3-01 A 侧代码已交付：models/task_schemas、core/task_contract/task_proto
 M3-06 A 侧已独立交付 [离线对账](task-reconciliation.md)：scripts/reconcile_tasks.py 默认只读；--apply --services-stopped 持共享实例锁，完整产物/固定快照匹配后恢复 RUNNING 为 COMPLETED，其余中断/放弃，终态不变；逐项短事务检查全行指纹/token，保留文件和审计日志，提交未知不再 fail。公共 core/worker_lock.WorkerInstanceLock(log_dir) 固定 LOG_DIR/worker.lock，B 的实例锁/生命周期入口已复用；2026-11-03 的生产 Worker 锁互斥/停止释放 CPU 冒烟已通过。25 项新增、共 283 项回归通过，合成 CPU bundle 与真实子进程锁/SQL 异常退出仅为独立证据，该历史子进程验收未覆盖 Celery/GPU；当前已补真实 Celery CPU 消费，GPU 中断/恢复已在 07 A 实测通过，B 异步复核已通过，待同步人工联调。本机业务库只读 current/items=[]，没有应用修复。
 
 派发 not_sent 与 unknown 分开；unknown 可留 PENDING 或已被领取状态，返回可查询 task_id。03 已实现可选 Idempotency-Key，同键不重发；消息领取仍需 claim_token CAS。早确认不承诺崩溃自动恢复；最低限度对账离线应用，先停 API/Worker，不擅自重训。上述均须在 M3-01～07 实现并验收，任务路由和真实 Publisher 已实现，worker.train 已实现，实际 GPU/生产浏览器自动验收已在 07 A 通过，B 异步复核已通过，待同步人工联调。
+
+
+2026-11-06 后续确认：用户暂未准备云服务器，指定 Windows 下载目录中转，再自行传到 Mac。交付目录 `C:\Users\PC\Downloads\LLMCloud-migration-2026-11-06\`；10 文件完整包、最新代码 bundle、SHA256SUMS 及离线 RESTORE.md/continue.md。详见 [恢复步骤](migration-restore.md)，不把 Windows 副本当作已经到 Mac/云端。

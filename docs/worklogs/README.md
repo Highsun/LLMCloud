@@ -8,6 +8,7 @@ M4 的 [执行计划 1.5](../m4-development-plan.md)：01～06 已交付并审�
 
 | 日期 | 任务 | 内容 |
 | --- | --- | --- |
+| 2026-11-06 | [Windows 下载中转](2026-11-06-windows-migration-handoff.md) | 用户指定 Windows 下载后自行传 Mac；10 文件包附完整 RESTORE.md/continue.md、更新代码 bundle/校验；不等于云端部署 |
 | 2026-11-06 | [macOS/云端迁移交接](2026-11-06-macos-cloud-handoff.md) | WSL 服务停用、完整清点/私有归档/真实恢复、根 continue.md；6 迁移+57 契约、3 前端文件/构建通过；跨机上传待目标信息 |
 | 2026-11-06 | [M4-07 B 人工准备](2026-11-06-m4-07-b-preparation.md) | 7d5239c 清单/日志已同步；旧空会话迁移前停止，实际 GPU/双方人工流程未完成 |
 | 2026-11-06 | [删除 Actions workflow](2026-11-06-actions-removed.md) | 按用户明确要求删除唯一 workflow，不保留手动入口；本机验证，未经明确要求不重新添加或运行 Actions |

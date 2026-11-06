@@ -4,7 +4,7 @@
 
 ## 当前开发与运行位置（2026-11-06 用户新约定）
 
-- 接续入口为根目录 [continue.md](continue.md) 和 [迁移清点](docs/cloud-migration.md)。macOS 只做代码开发、静态检查及少量 CPU 测试；实际服务/Redis/数据库/文件/GPU/部署与集成验收均在云端 Ubuntu + CUDA，由用户执行命令并反馈日志。WSL/RTX 5070 是历史环境，不再依赖本地主机或混合 GPU。
+- 接续入口为根目录 [continue.md](continue.md)、[迁移清点](docs/cloud-migration.md) 和 [Windows/Mac/云端恢复步骤](docs/migration-restore.md)。macOS 只做代码开发、静态检查及少量 CPU 测试；实际服务/Redis/数据库/文件/GPU/部署与集成验收均在云端 Ubuntu + CUDA，由用户执行命令并反馈日志。WSL/RTX 5070 是历史环境，不再依赖本地主机或混合 GPU。
 - 不在 Mac 安装 training extra、启动全栈/GPU 验收，不为兼容 Mac 削弱 Linux 文件安全校验。完整云部署、M4-07 与 M5 未完成；云地址尚未提供，迁移包尚未跨机。先确认私有包已接收/校验，再允许删除旧主机唯一副本。
 - 已停止原空人工会话和项目 Redis 自启；其 SIGINT 快照读取 ConnectError 是已知关闭顺序问题，见 continue.md，不改旧报告为通过。
 

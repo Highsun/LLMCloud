@@ -14,7 +14,7 @@
 - **GitHub Actions workflow 已按用户明确要求删除，提交 bb7e8ac；不恢复、不新建、不启动、不重跑。** 本地小测和用户反馈的云端检查替代它。
 - 所有开发/部署沟通使用中文。合理独立推进已授权的工作，不为常规可逆操作反复询问；缺少云地址/凭据/硬件等真实必要信息时直说缺口。
 
-当前云服务器地址、用户名/端口、Ubuntu/GPU/驱动、持久磁盘、目标目录和接收端**均未提供**。迁移包已在原 WSL 制备并做恢复检查，**没有实际上传云端**。请先问用户迁移包是否已经离开原主机、在哪里，不能假定 clone 包含它。
+用户已明确：**云服务器暂时没有**。迁移包先交付 Windows 下载目录 `C:\Users\PC\Downloads\LLMCloud-migration-2026-11-06\`，用户之后自行搬到 Mac；详细逐步方法见 [完整恢复说明](docs/migration-restore.md)，同文以 RESTORE.md 随包。Mac 推荐保存到 `~/Downloads/LLMCloud-migration-2026-11-06/`。实际 Mac/云端接收仍待用户完成，不能假定 clone 包含私有数据。
 
 ## 2. 项目与团队
 
@@ -104,7 +104,7 @@ node --test tests/task-submission.test.mjs tests/task-observability.test.mjs tes
 
 ## 7. Git 之外的资产：不能遗漏
 
-私有迁移目录名 **`2026-11-06-wsl-to-cloud`**。生成位置为原仓库 `data/migration/2026-11-06-wsl-to-cloud/`，本轮收尾另复制到仓库外 `/home/highsun/LLMCloud-migration/2026-11-06-wsl-to-cloud/`，供删除仓库后保留。**这两处仍在原 WSL，不代表已离开本地主机。先确认实际副本存在和 SHA256SUMS 完整。**
+**主交付位置为 Windows `C:\Users\PC\Downloads\LLMCloud-migration-2026-11-06\`**，不在 WSL 项目内。原制备目录 `data/migration/2026-11-06-wsl-to-cloud/` 和仓库外 `/home/highsun/LLMCloud-migration/2026-11-06-wsl-to-cloud/` 同时保留。Windows 和 WSL 仍属于同一物理主机；先在 Mac 接收并校验整个目录，再清空整台主机。Windows 文件夹自带 continue.md 和 RESTORE.md，但相对项目链接以 clone 后的仓库文档为准。
 
 | 文件 | 内容 | 迁移策略 |
 | --- | --- | --- |
@@ -112,6 +112,7 @@ node --test tests/task-submission.test.mjs tests/task-observability.test.mjs tes
 | `models.tar.gz` | 完整项目 HF_HOME：固定快照/blob/清单、9 条相对链接和 Accelerate 配置 | 推荐直送云端；Mac 不需要展开；也可在云端按固定 revision 重新 prepare |
 | `manifest.json` | 580 条目录/文件/链接清单，每个普通文件 SHA-256、7 份 DB 检查与排除说明 | 用脚本逐项校验，不作为训练成功证明 |
 | `code.bundle` | 收尾时导出的完整 Git refs/历史，包含本次 continue.md/工具/文档 | 离线代码兜底；正常优先 clone GitHub 最新 main |
+| `continue.md` / `RESTORE.md` | 当前接续提示和完整恢复说明的离线副本 | 包不是开发仓库；先按 RESTORE.md clone，再读仓库根 continue.md |
 | `handoff.json` / `host-inventory.json` / `SHA256SUMS` | 收尾 commit/状态、原机软件与数据盘点、所有顶层交付文件摘要 | 跟整个迁移目录一同交接，勿单发 tar 而丢清单 |
 
 两个数据归档已生成，固定摘要可在仓库中交叉核对：
@@ -127,7 +128,7 @@ a45ca30e258fbfa7317788f00f8673c6791cf74322271bc8b420115120e3ba77  models.tar.gz
 
 ## 8. 云端接收与恢复：资料齐备后才执行
 
-先向用户收集：SSH alias/地址/端口/用户名（不在聊天索取私钥/密码）、Ubuntu/CPU 架构、GPU/显存/驱动、持久磁盘容量和挂载点、目标目录、数据包保存位置与访问方式。云端根目录示例 `/srv/llmcloud` 是占位；不要硬编码成用户实际路径或未经授权 sudo 建目录。
+当前先按 [Windows→Mac→Ubuntu 完整恢复步骤](docs/migration-restore.md) 在 Mac 验包/导入代码；不必在 Mac 解压模型。云机准备好后，先向用户收集：SSH alias/地址/端口/用户名（不在聊天索取私钥/密码）、Ubuntu/CPU 架构、GPU/显存/驱动、持久磁盘容量和挂载点、目标目录、数据包保存位置与访问方式。云端根目录示例 `/srv/llmcloud` 是占位；不要硬编码成用户实际路径或未经授权 sudo 建目录。
 
 由持有迁移包的一端将**整个目录**经已有 SSH/scp/rsync 发往云端私有持久目录。先校验：Mac 用 `shasum -a 256 -c SHA256SUMS`，Ubuntu 用 `sha256sum -c SHA256SUMS`。不要清空旧机器，直到目标端核对成功。
 

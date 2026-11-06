@@ -8,7 +8,7 @@
 
 ## 当前开发方式与跨机器接续
 
-2026-11-06 起，**macOS 只编辑代码/静态检查/小范围 CPU 测试，实际运行和部署放在云端 Ubuntu + CUDA**；由用户执行云端命令并返回日志，再迭代代码。新 Codex 从根目录 [continue.md](continue.md) 接手，清点与私有归档见 [迁移说明](docs/cloud-migration.md)。云服务器尚未提供，归档未实际上传；clone 不包含全部数据/模型/证据，取走并校验迁移包后再删旧环境。
+2026-11-06 起，**macOS 只编辑代码/静态检查/小范围 CPU 测试，实际运行和部署放在云端 Ubuntu + CUDA**；由用户执行云端命令并返回日志，再迭代代码。新 Codex 从根目录 [continue.md](continue.md) 接手，清点与私有归档见 [迁移说明](docs/cloud-migration.md)。云服务器尚未提供，归档未实际上传；clone 不包含全部数据/模型/证据，迁移包按用户要求交付 Windows 下载目录，用户后续传 Mac；[完整恢复步骤](docs/migration-restore.md) 同时以 RESTORE.md 随包，Mac 验包后再清空旧主机。
 
 ## 一、当前进度
 
