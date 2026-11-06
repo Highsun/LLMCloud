@@ -5,6 +5,7 @@
 ## 已完成范围
 
 1. 检查工作区、fetch、队友日志和真实文件；代码起点与远端一致。清点仓库 ignored 数据、所有数据库、模型/产物/验收、环境配置、Python/Node/Redis/Docker、home 重复 HF/uv 缓存、用户 Redis 服务和活进程，详见 [逐项清点](../cloud-migration.md)。没有把历史规划当已实现，也未读取/打包 SSH/AWS/AI agent 凭据。
+   补查 stash 为空，额外 worktree 为原目录不存在的失效登记；Docker 实际查询项目容器/卷均为空，确认没有仓库外 Docker 卷数据需迁移。
 2. 检查原人工会话 0 数据集/0 任务后关闭自有 API/Worker/Vite/私有 Redis，并停用项目 Redis 用户服务自启。确认 inactive/disabled、无项目训练进程；不删除数据、不停止其他项目和全局 Docker。
 3. 保留空会话 SIGINT 后真实 `failed/ConnectError` 报告。Uvicorn 先关闭使 manual finally 无法取列表，cleanup_errors=[]；独立 migration-stop.json 记录迁移前空库状态。此关闭顺序缺陷留为迁移后待修，M3/M4 人工验收仍未完成；本轮未进行训练。
 4. 新增标准库 `scripts/migration_bundle.py`：停写声明、限定全新输出、排除包自身/旧锁/SQLite sidecar/缓存 token；SQLite backup API+完整性检查；按文件摘要打包、保留相对模型链接、拒绝外部链接与特殊文件；逐项验证和不存在的新目录安全恢复，不覆盖业务库。不复制 Linux .venv/node_modules/工具或凭据，不自动回放 Redis、不自动上传。

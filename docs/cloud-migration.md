@@ -8,6 +8,8 @@
 
 清点覆盖仓库 tracked/untracked/ignored 数据布局、实际运行进程、项目 `.env`、Python/Node/Redis/Docker 版本、HF 缓存（项目内与 home 重复缓存）、用户 Redis unit、数据库和历史训练/验收产物。未读取/复制 SSH 私钥、AWS/AI agent 凭据，不把主机个人环境当项目依赖。
 
+补查结果：Git stash 为空，另一个 M3 审查 worktree 仅有可清理的失效登记，原临时目录已不存在，没有额外未提交代码可搬。实际 Docker 查询确认 `com.docker.compose.project=llmcloud` 的容器与卷均为 0，没有遗漏的项目 Docker 持久卷；Python 基础解释器路径和这些检查另记入私有 host-inventory.json。
+
 | 组件/内容 | 原机观测 | 处理与云端意义 |
 | --- | --- | --- |
 | Git 历史/代码/文档/锁文件 | `.git` 约 16 MiB；新文档/工具收尾提交 | GitHub clone；另制完整 code.bundle，排除机器专属 .git/config |
