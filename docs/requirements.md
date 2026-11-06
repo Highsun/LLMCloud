@@ -12,8 +12,8 @@ M0 和 M1-01 至 M1-03 已完成，数据集后端已支持真实 HTTP 上传/�
 
 ## 二、开发约束
 
-- 主要开发环境：WSL2 Ubuntu + VS Code Remote WSL。
-- 本地 GPU：RTX 5070 Desktop，12GB 显存。
+- 当前开发环境：macOS，仅静态检查与少量 CPU 单元测试；实际平台为云端 Ubuntu + CUDA，用户执行命令/反馈日志。
+- 历史 GPU 基线为 WSL RTX 5070 12GB；不再依赖本地 GPU，目标云机硬件待确认，迁移细节见 [清点](cloud-migration.md)。
 - 初始模型：Qwen2.5-0.5B-Instruct；后续考虑 Qwen2.5-1.5B-Instruct。
 - 初始训练方式：LoRA，暂不引入量化、FlashAttention 等额外兼容性变量。
 - 元数据先用 SQLite，文件先用本地磁盘。

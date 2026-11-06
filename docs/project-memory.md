@@ -4,11 +4,15 @@
 
 M3-07 跨机器交接补充：用户已明确授权将约 6.4 MiB 的 review.zip 及 .zip.sha256 两文件纳入 Git，B 同步 main 后按 [校验/解压说明](m3-acceptance.md#跨机器证据交接) 取得报告、20 张截图、10 份 trace、隔离 SQL 快照及训练元数据。原完整运行目录和解压内容继续被忽略。B 已接收、独立异步复核材料并在 CPU 快照页面复查，61d8703 也经 A 本机回归合入；双方同步人工端到端操作仍未完成。原报告地址不是在线服务。
 
+## 最新接续决定：macOS 开发／云端运行
+
+2026-11-06 用户要求离开 WSL 本机：macOS 仅代码/静态/小范围 CPU，Ubuntu+CUDA 云机承担全栈、GPU、部署与集成验收；用户执行命令回传日志，助手再改代码。根目录 [continue.md](../continue.md) 为旧聊天删除后的完整提示，[迁移清点](cloud-migration.md) 记录所有资产/依赖/7 份 DB/私有归档和未完成转移。没有实际上传云端，不恢复 Actions。M4 空人工会话 0 任务已停止，SIGINT 后 ConnectError 是待修关闭顺序问题，不是训练或人工通过。
+
 ## 项目目标与边界
 
 LLMCloud 将 Qwen2.5-0.5B-Instruct 的 LoRA 微调封装成异步云服务。交付链路：上传数据 → 配置微调 → Celery 排队 → 单 GPU 真实训练 → Loss/日志 → Adapter 下载 → 测试推理。团队两人、每人每周 6–8 小时、八周完成，先实现单用户与单 GPU 闭环。
 
-开发环境为 WSL2 Ubuntu、Python 3.12/uv、Node/Vue3/Vite；RTX 5070 12GB 用于本地训练验证。API 使用 FastAPI，SQLite 管元数据、本地文件管数据和产物，Redis/Celery 执行异步任务。当前不引入更大模型、量化、Kubernetes、多 GPU 或新的存储服务。
+历史验证环境为 WSL2 Ubuntu/RTX 5070 12GB；现改为 macOS 开发、Ubuntu+CUDA 云机运行。技术保持 Python 3.12/uv、Node/Vue3/Vite。API 使用 FastAPI，SQLite 管元数据、本地文件管数据和产物，Redis/Celery 执行异步任务。当前不引入更大模型、量化、Kubernetes、多 GPU 或新的存储服务。
 
 ## 已确认的实现
 

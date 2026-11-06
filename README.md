@@ -6,6 +6,10 @@
 
 项目重点是将数据管理、任务调度、GPU 训练、过程观测和模型交付连接成完整服务。初始模型为 `Qwen/Qwen2.5-0.5B-Instruct`，优先使用 LoRA，后续再考虑 1.5B 模型。
 
+## 当前开发方式与跨机器接续
+
+2026-11-06 起，**macOS 只编辑代码/静态检查/小范围 CPU 测试，实际运行和部署放在云端 Ubuntu + CUDA**；由用户执行云端命令并返回日志，再迭代代码。新 Codex 从根目录 [continue.md](continue.md) 接手，清点与私有归档见 [迁移说明](docs/cloud-migration.md)。云服务器尚未提供，归档未实际上传；clone 不包含全部数据/模型/证据，取走并校验迁移包后再删旧环境。
+
 ## 一、当前进度
 
 验证在本机执行。按 2026-11-06 用户明确要求，本仓库的 GitHub Actions workflow 已删除，不保留手动入口；AI 助手未经用户明确要求不得重新添加 workflow、启动或重跑 Actions。
@@ -57,7 +61,7 @@ M3-04 CPU 消费冒烟：`uv run --locked python scripts/check_worker_dispatch.p
 | 模型训练 | PyTorch + Transformers + Datasets + PEFT + TRL + Accelerate | 本地 LoRA/可校验产物/新进程重载已验收 |
 | 文件存储 | 本地文件系统 | 数据集、模型缓存、训练产物与日志 |
 
-开发目标环境：Windows 11 + WSL2 Ubuntu + RTX 5070 12GB。一个物理 GPU 只运行一个训练 Worker，暂不引入 Kubernetes 或多 GPU 分布式训练。
+当前：macOS 开发、云端 Ubuntu + CUDA 运行；Windows 11 + WSL2 Ubuntu + RTX 5070 12GB 是历史验证基线。一个物理 GPU 只运行一个训练 Worker，暂不引入 Kubernetes 或多 GPU 分布式训练。
 
 ## 三、目录结构
 
@@ -128,7 +132,7 @@ LLMCloud/
 
 ## 四、启动基础服务
 
-以下命令均在 WSL2 中执行。Python 环境统一由 **uv** 管理，`.python-version` 指定 **Python 3.12**，项目支持 Python 3.11/3.12。前端使用 **Node.js 22.18+ 的 22.x 或 24.12+**。先启动基础服务，无需安装 PyTorch，也无需下载模型。
+以下全栈运行命令只在 Ubuntu 云机执行；WSL 是历史基线，Mac 导入改读 continue.md。Python 环境统一由 **uv** 管理，`.python-version` 指定 **Python 3.12**，项目支持 Python 3.11/3.12。前端使用 **Node.js 22.18+ 的 22.x 或 24.12+**。先启动基础服务，无需安装 PyTorch，也无需下载模型。
 
 ### 1. 后端
 
@@ -228,7 +232,7 @@ uv run --locked python -c 'from worker.tasks import ping; print(ping.delay().get
 
 服务依赖位于 `project.dependencies`，训练依赖位于可选的 `training` extra。默认同步安装服务依赖及 dev 测试组，按需启用训练依赖；两者由同一份 `uv.lock` 锁定。当前先使用同一个 `.venv`，未来部署时拆为 CPU API 镜像与 GPU Worker 镜像。
 
-RTX 5070 使用 Blackwell 架构，不能沿用只支持旧 GPU 的 PyTorch wheel。PyTorch 官方从 2.7 开始提供 Blackwell/CUDA 12.8 支持；本项目选择 **2.9.1 + cu128** 作为候选基线。`pyproject.toml` 将 Linux/Windows 的 torch 明确绑定到官方 cu128 索引，其余依赖使用 PyPI。先检查 Windows NVIDIA 驱动与 WSL 透传，再在根目录执行：
+RTX 5070 使用 Blackwell 架构，不能沿用只支持旧 GPU 的 PyTorch wheel。PyTorch 官方从 2.7 开始提供 Blackwell/CUDA 12.8 支持；本项目选择 **2.9.1 + cu128** 作为候选基线。`pyproject.toml` 将 Linux/Windows 的 torch 明确绑定到官方 cu128 索引，其余依赖使用 PyPI。历史 WSL 已验证；迁移后先确认云机 NVIDIA 驱动/CUDA/BF16，再由用户在云机根目录执行（Mac 不执行）：
 
 ```bash
 nvidia-smi
@@ -302,6 +306,6 @@ bash scripts/export_requirements.sh      # 更新两个兼容 requirements 文�
 
 M2 的工程验收是“真实模型更新 → 保存 Adapter → 退出训练进程 → 新进程重载生成”。正式领域数据编写与审核并行推进，格式草稿只用于工程冒烟。成员 A 主负责训练契约、模型缓存和产物规范，成员 B 主负责数据转换、训练主体和重载；具体文件归属、约 14 人时排期和验收清单见 [M2 开发计划](docs/m2-development-plan.md)。本阶段不要求改动现有前端业务代码。
 
-MVP 采用单用户课程演示模式，用户表仅预留扩展。云端公开服务前需要实现认证、数据权限和资源配额。混合部署需要共享文件访问方案，不能仅把本地路径传给远端 Worker，详见架构文档。
+MVP 采用单用户课程演示模式，用户表仅预留扩展。云端公开服务前需要实现认证、数据权限和资源配额。当前采用单云机运行，旧云 CPU+本地 GPU 混合方案不再采用，迁移见 continue.md。
 
 新进程重载：`uv run --locked --extra training python scripts/reload_adapter.py --task-id <实际UUID> --prompt "开发提示词"`。命令须在训练退出后运行，详见 [重载验收](docs/adapter-reload.md)。M2 完成工程闭环，下一阶段为 M3 异步调度，正式效果实验继续独立推进。

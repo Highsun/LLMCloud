@@ -1,5 +1,7 @@
 # 系统架构
 
+> 当前机器分工（2026-11-06）：macOS 开发/轻量检查，实际 API/Redis/SQLite/文件/单 GPU Worker 在同一 Ubuntu+CUDA 云机；用户执行与反馈。WSL 为历史验证环境，不再采用云 CPU+本地 GPU。移机材料和运行缺口见 [迁移清点](cloud-migration.md)，不等于完整生产部署已完成。
+
 ## 一、组件与职责
 
 ```mermaid
@@ -138,8 +140,8 @@ B 已保留现有 Vue 组件并将观测控制器从任务详情状态隔离，�
 
 ## 五、部署演进
 
-1. **本地 WSL2**：Vue 开发服务 + FastAPI + Redis + SQLite + 单 GPU Worker，全部共享仓库数据目录。
+1. **历史本地 WSL2（已退役）**：Vue 开发服务 + FastAPI + Redis + SQLite + 单 GPU Worker，全部共享仓库数据目录。
 2. **单台云服务器**：反向代理 + 静态前端 + CPU API + Redis + GPU Worker；数据目录使用持久化挂载，API 与 Worker 使用相同逻辑路径。
-3. **云端 CPU + 本地 GPU**：API、队列与 PostgreSQL 在云端，本地 Worker 通过私有连接消费队列；数据和产物通过对象存储传输，数据库保存对象键或 URI。Worker 下载到本地临时目录、完成后上传产物，API 使用对象存储提供下载。
+3. **旧备选，不再采用：云端 CPU + 本地 GPU**：API、队列与 PostgreSQL 在云端，本地 Worker 通过私有连接消费队列；数据和产物通过对象存储传输，数据库保存对象键或 URI。Worker 下载到本地临时目录、完成后上传产物，API 使用对象存储提供下载。
 
 混合部署不能共享 SQLite 文件或直接依赖云端本地路径。Redis 与数据库应通过受控网络连接，CPU API 不需要 CUDA，GPU Worker 镜像单独安装匹配的 PyTorch wheel。Docker 化完整服务属于后期阶段，目前 `compose.yaml` 仅提供本地 Redis。

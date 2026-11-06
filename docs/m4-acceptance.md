@@ -1,5 +1,7 @@
 # M4-07 真实服务联合验收安排
 
+> 2026-11-06 迁移更新：macOS 只开发/轻量检查，下列服务与 GPU 命令只由用户在 Ubuntu 云机执行；旧 WSL 空会话已停止。当前有 SIGINT 退出时 API 先关闭导致快照 ConnectError 的已知问题，先修生命周期再重开人工会话。详见 [接续提示](../continue.md) 与 [清点](cloud-migration.md)；云端尚未提供/部署，M4 仍未验收。
+
 更新：2026-11-06。**A 侧专用工具及非 GPU 检查已交付；尚未执行 M4-07 真实 GPU/双方人工验收。** `ef1fe06` 的 M4-01 B 核对、04a/04/05 和 06 已由 A 审查、在 Linux 本机复跑并快进合入；依据见 [审查日志](worklogs/2026-11-06-m4-b-review.md)。本次工具交付见 [A 日志](worklogs/2026-11-06-m4-07-a-tools.md)，下一步在干净提交上验证真实 Worker/Trainer 的文件生产并共同操作。
 
 入口：[完整计划](m4-development-plan.md)、[正式契约](api/task-observability.md)、[M3 剩余人工项](m3-acceptance.md#当前还差哪一步)。M5 在线推理、部署和正式效果实验仍另行实施。

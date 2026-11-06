@@ -1,5 +1,7 @@
 # 开发环境配置
 
+> 2026-11-06 更新：下文 WSL/RTX 5070/代理/systemd 是历史环境记录。新工作方式为 macOS 编辑/小范围 CPU 检查、云端 Ubuntu+CUDA 实际运行；从 [continue.md](../continue.md) 和 [迁移清单](cloud-migration.md) 导入。Mac 不以本文全栈检查为门槛，不装 training extra、不启动 Redis/Docker/GPU。原项目 Redis 自启已停用；云服务器与实际跨机传输仍待用户提供资料。
+
 ## 一、配置范围
 
 2026-10-23：M2-04 已在现有 uv training 环境完成真实 Qwen LoRA 更新与基础保存，无新增依赖；运行见 [训练说明](training.md)，实测见 [工作日志](worklogs/2026-10-23-m2-04.md)。M2-05 的 CPU 产物审计/保存故障验收已完成，新增直接基础依赖 safetensors（锁定版本仍为 0.8.0）；M2-06 新进程重载工程验收已完成。
