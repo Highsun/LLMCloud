@@ -8,6 +8,7 @@ from starlette.responses import JSONResponse
 from backend.app.core.dataset_contract import MAX_ERROR_DETAILS
 from backend.app.core.request_context import request_id_context
 from backend.app.models.error_schemas import ApiError, ApiErrorCode, ErrorDetail, ErrorResponse
+from backend.app.models.inference_schemas import InferenceApiError, InferenceErrorCode, InferenceErrorResponse
 from backend.app.models.task_schemas import TaskSubmissionError, TaskSubmissionErrorResponse
 from backend.app.services.errors import DatasetServiceError
 
@@ -46,8 +47,12 @@ def error_response(error: DatasetServiceError, *, headers=None) -> JSONResponse:
         details_truncated=len(error.details) > MAX_ERROR_DETAILS,
         request_id=request_id_context.get())
     task_id = getattr(error, "task_id", None)
-    payload = (TaskSubmissionErrorResponse(error=TaskSubmissionError(**fields, task_id=task_id))
-               if task_id is not None else ErrorResponse(error=ApiError(**fields)))
+    if task_id is not None:
+        payload = TaskSubmissionErrorResponse(error=TaskSubmissionError(**fields, task_id=task_id))
+    elif isinstance(error.code, InferenceErrorCode):
+        payload = InferenceErrorResponse(error=InferenceApiError(**fields))
+    else:
+        payload = ErrorResponse(error=ApiError(**fields))
     return JSONResponse(payload.model_dump(mode="json"), status_code=error.status_code, headers=headers)
 
 

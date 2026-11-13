@@ -76,7 +76,7 @@ def reject_constant(_value):
     raise ValueError("Non-finite number")
 
 
-async def task_body(request):
+async def parse_json_body(request, model):
     types = request.headers.getlist("content-type")
     encodings = request.headers.getlist("content-encoding")
     bad_charset = any(part.partition("=")[0].strip().lower() == "charset"
@@ -93,7 +93,7 @@ async def task_body(request):
     except (ValueError, UnicodeError, RecursionError):
         raise validation_error([detail(["body"], "invalid_json", "请求正文必须是有效的 UTF-8 JSON。")]) from None
     try:
-        return TaskCreate.model_validate(value)
+        return model.model_validate(value)
     except ValidationError as error:
         raise validation_error(safe_validation_details(error.errors(), ("body",))) from None
 
@@ -108,7 +108,7 @@ async def task_body(request):
 async def create_task(request: Request, response: Response, service: Service) -> TaskDetail:
     parse_query(request)
     headers = submission_headers(request)
-    body = await task_body(request)
+    body = await parse_json_body(request, TaskCreate)
     result = await run_in_threadpool(service.create, body, headers.idempotency_key)
     response.status_code = 200 if result.replayed else 202
     response.headers["Location"] = f"{request.app.state.settings.api_prefix}/tasks/{result.task.id}"

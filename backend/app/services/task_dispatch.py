@@ -15,6 +15,12 @@ class CeleryPublisher:
         self.settings = settings
 
     def publish(self, task_id, celery_task_id):
+        return self._publish("worker.train", task_id, celery_task_id)
+
+    def publish_inference(self, inference_id):
+        return self._publish("worker.infer", inference_id, inference_id)
+
+    def _publish(self, name, task_id, celery_task_id):
         connection = application = None
         sending = False
         try:
@@ -41,7 +47,7 @@ class CeleryPublisher:
                 broker_connection_timeout=timeout, task_protocol=2, enable_utc=True, timezone="UTC")
             producer = Producer(connection, serializer="json")
             sending = True
-            application.send_task("worker.train", args=[task_id], task_id=celery_task_id,
+            application.send_task(name, args=[task_id], task_id=celery_task_id,
                 producer=producer, queue=self.settings.training_queue, serializer="json",
                 retry=False, ignore_result=True, add_to_parent=False)
             return PublishOutcome.ACCEPTED

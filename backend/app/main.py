@@ -1,13 +1,16 @@
 from contextlib import asynccontextmanager
 
+from anyio import create_task_group, sleep
 from fastapi import FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import sessionmaker
 from starlette.exceptions import HTTPException
+from starlette.concurrency import run_in_threadpool
 
 from backend.app.api.dataset_openapi import add_dataset_schemas
 from backend.app.api.datasets import router as dataset_router
+from backend.app.api.inference import add_inference_schema, router as inference_router
 from backend.app.api.tasks import router as task_router
 from backend.app.api.task_observability import router as observability_router
 from backend.app.api.task_download import router as download_router
@@ -17,8 +20,10 @@ from backend.app.api.middleware import APIErrorMiddleware, RequestIDMiddleware
 from backend.app.api.router import router
 from backend.app.core.config import Settings, get_settings
 from backend.app.core.database import create_database_engine, init_db
+from backend.app.core.task_protocols import TaskStoreError
 from backend.app.services.datasets import DatasetService
 from backend.app.services.errors import DatasetServiceError
+from backend.app.services.inference_repository import InferenceRepository
 from backend.app.services.task_dispatch import CeleryPublisher
 from backend.app.services.task_repository import SqlTaskRepository
 from backend.app.services.tasks import TaskService
@@ -26,17 +31,32 @@ from backend.app.services.task_observability import TaskObservabilityService
 from backend.app.services.task_download import TaskDownloadService
 
 
-def create_app(settings: Settings | None = None, *, task_publisher=None) -> FastAPI:
+def create_app(settings: Settings | None = None, *, task_publisher=None, inference_publisher=None) -> FastAPI:
     settings = settings or get_settings()
     engine = create_database_engine(settings.resolved_database_url)
     sessions = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
+    inference_repository = InferenceRepository(sessions)
+
+    async def prune_inference():
+        while True:
+            try:
+                await run_in_threadpool(inference_repository.prune_inference)
+            except TaskStoreError:
+                # The repository logs the failure. Retry on the next pass.
+                pass
+            await sleep(30)
 
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         try:
             settings.ensure_directories()
             init_db(engine)
-            yield
+            async with create_task_group() as maintenance:
+                maintenance.start_soon(prune_inference)
+                try:
+                    yield
+                finally:
+                    maintenance.cancel_scope.cancel()
         finally:
             engine.dispose()
 
@@ -57,8 +77,11 @@ def create_app(settings: Settings | None = None, *, task_publisher=None) -> Fast
         task_publisher if task_publisher is not None else CeleryPublisher(settings))
     app.state.task_observability_service = TaskObservabilityService(settings, app.state.task_repository)
     app.state.task_download_service = TaskDownloadService(settings, app.state.task_repository)
+    app.state.inference_repository = inference_repository
+    app.state.inference_publisher = inference_publisher if inference_publisher is not None else CeleryPublisher(settings)
     # add_middleware prepends: request context -> CORS -> safe errors -> routes.
-    app.add_middleware(APIErrorMiddleware, upload_path=f"{settings.api_prefix}/datasets", task_path=f"{settings.api_prefix}/tasks")
+    app.add_middleware(APIErrorMiddleware, upload_path=f"{settings.api_prefix}/datasets",
+        task_path=f"{settings.api_prefix}/tasks", inference_path=f"{settings.api_prefix}/inference")
     app.add_middleware(
         CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False,
         allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Idempotency-Key"],
@@ -70,12 +93,13 @@ def create_app(settings: Settings | None = None, *, task_publisher=None) -> Fast
     app.include_router(task_router, prefix=settings.api_prefix)
     app.include_router(observability_router, prefix=settings.api_prefix)
     app.include_router(download_router, prefix=settings.api_prefix)
+    app.include_router(inference_router, prefix=settings.api_prefix)
 
     original_openapi = app.openapi
 
     def openapi():
         if app.openapi_schema is None:
-            app.openapi_schema = add_task_schemas(add_dataset_schemas(original_openapi()))
+            app.openapi_schema = add_inference_schema(add_task_schemas(add_dataset_schemas(original_openapi())))
         return app.openapi_schema
 
     app.openapi = openapi

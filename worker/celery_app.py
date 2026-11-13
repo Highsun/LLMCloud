@@ -38,7 +38,10 @@ celery_app.conf.update(
     task_acks_late=False,
     task_reject_on_worker_lost=False,
     result_expires=86400,
-    task_routes={"worker.train": {"queue": settings.training_queue}},
+    task_routes={
+        "worker.train": {"queue": settings.training_queue},
+        "worker.infer": {"queue": settings.training_queue},
+    },
 )
 
 
@@ -56,6 +59,17 @@ def guard_worker_instance(sender=None, **_):
     except Exception:
         # No raw Settings, broker credentials or file paths in the error.
         raise SystemExit("Worker 启动被拒绝：实例锁不可用或并发配置不符合单 GPU 约定。") from None
+    if getattr(sender, "app", None) is celery_app:
+        try:
+            from backend.app.core.database import SessionLocal, init_db
+            from backend.app.services.inference_repository import InferenceRepository
+
+            settings.ensure_directories()
+            init_db()
+            InferenceRepository(SessionLocal).recover_inference()
+        except Exception:
+            release_worker_lock()
+            raise SystemExit("Worker 启动被拒绝：无法初始化或恢复推理状态。") from None
 
 
 @worker_shutdown.connect(weak=False)

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timezone
 from typing import Any
 
-from sqlalchemy import CheckConstraint, DateTime, Enum, Float, ForeignKey, Index, Integer, JSON, String, Text
+from sqlalchemy import Boolean, CheckConstraint, DateTime, Enum, Float, ForeignKey, Index, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from backend.app.core.database import Base
@@ -95,3 +95,25 @@ class TrainingTask(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow)
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class InferenceJob(Base):
+    """Short-lived inference requests, separate from training state."""
+
+    __tablename__ = "inference_jobs"
+    __table_args__ = (
+        CheckConstraint("state IN ('WAITING','RUNNING','FINISHED')", name="inference_job_state"),
+        Index("ix_inference_jobs_state", "state"),
+        Index("ix_inference_jobs_delete_at", "delete_at"),
+    )
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    task_id: Mapped[str] = mapped_column(String(36))
+    state: Mapped[str] = mapped_column(String(8))
+    request: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True))
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSON(none_as_null=True))
+    error_code: Mapped[str | None] = mapped_column(String(40))
+    cancelled: Mapped[bool] = mapped_column(Boolean, default=False)
+    claim_by: Mapped[float] = mapped_column(Float)
+    finish_by: Mapped[float] = mapped_column(Float)
+    delete_at: Mapped[float | None] = mapped_column(Float)

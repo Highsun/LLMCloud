@@ -11,6 +11,7 @@ from backend.app.core.dataset_contract import MAX_MULTIPART_BYTES
 from backend.app.core.task_contract import MAX_TASK_BODY_BYTES
 from backend.app.core.request_context import RequestLogger, request_id_context
 from backend.app.models.error_schemas import ApiErrorCode
+from backend.app.models.inference_schemas import MAX_INFERENCE_BODY_BYTES
 from backend.app.services.errors import DatasetServiceError
 
 logger = RequestLogger(logging.getLogger(__name__), {})
@@ -41,27 +42,37 @@ class RequestIDMiddleware:
 class APIErrorMiddleware:
     """Runs inside CORS, so even early upload failures and 500s get CORS headers."""
 
-    def __init__(self, app, *, upload_path: str, task_path: str | None = None):
-        self.app, self.upload_path, self.task_path = app, upload_path, task_path
+    def __init__(self, app, *, upload_path: str, task_path: str | None = None,
+                 inference_path: str | None = None):
+        self.app = app
+        self.upload_path = upload_path
+        self.task_path = task_path
+        self.inference_path = inference_path
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         started = False
+        path = scope["path"].rstrip("/")
+        is_inference = scope["method"] == "POST" and path == self.inference_path
 
         async def track_send(message):
             nonlocal started
             if message["type"] == "http.response.start":
                 started = True
+                if is_inference:
+                    MutableHeaders(scope=message)["Cache-Control"] = "no-store"
             await send(message)
 
-        is_task = scope["path"].rstrip("/") == self.task_path
-        limit = MAX_TASK_BODY_BYTES if is_task else MAX_MULTIPART_BYTES
+        json_limits = {self.task_path: MAX_TASK_BODY_BYTES, self.inference_path: MAX_INFERENCE_BODY_BYTES}
+        is_json = path in json_limits
+        limit = json_limits.get(path, MAX_MULTIPART_BYTES)
 
         def too_large():
-            if is_task:
-                return DatasetServiceError(ApiErrorCode.REQUEST_TOO_LARGE, "任务请求正文超过允许大小。", 413,
-                    [detail(["body"], "request_too_large", "任务 JSON 请求正文不能超过 64 KiB。")])
+            if is_json:
+                label = "任务" if path == self.task_path else "推理"
+                return DatasetServiceError(ApiErrorCode.REQUEST_TOO_LARGE, f"{label}请求正文超过允许大小。", 413,
+                    [detail(["body"], "request_too_large", f"{label} JSON 请求正文不能超过 64 KiB。")])
             return DatasetServiceError(
                 ApiErrorCode.UPLOAD_TOO_LARGE, "上传请求体超过允许大小。", 413,
                 [detail(["body"], "file_too_large", "整个上传请求体超过允许大小。")],
@@ -69,7 +80,7 @@ class APIErrorMiddleware:
 
         try:
             bounded_receive = receive
-            if scope["method"] == "POST" and scope["path"].rstrip("/") in (self.upload_path, self.task_path):
+            if scope["method"] == "POST" and (path == self.upload_path or is_json):
                 lengths = Headers(scope=scope).getlist("content-length")
                 if lengths:
                     if len(lengths) != 1 or not lengths[0].isascii() or not lengths[0].isdigit():

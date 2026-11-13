@@ -35,9 +35,13 @@ def init_db(bind: Engine = engine) -> None:
     from backend.app.core.dataset_migration import require_dataset_schema
     from backend.app.core.task_migration import require_task_schema
 
+    # API and Worker may both start on the same SQLite file. Serialize the
+    # table-exists checks and creation of any additive tables.
     require_dataset_schema(bind)
     require_task_schema(bind)
-    Base.metadata.create_all(bind=bind)
+    with bind.begin() as connection:
+        connection.exec_driver_sql("BEGIN IMMEDIATE")
+        Base.metadata.create_all(bind=connection)
 
 
 def get_db():

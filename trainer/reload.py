@@ -32,7 +32,22 @@ def reload_and_generate(output_dir, cache_dir, *, prompt, input_text="", max_new
     return _generate(verified, cached, prompt, input_text, max_new_tokens)
 
 
-def _generate(verified, cached, prompt, input_text, max_new_tokens):
+def generate_verified_adapter(verified, cached, *, prompt, max_new_tokens, compare, checkpoint):
+    validate_generation(prompt, "", max_new_tokens)
+    if cached.manifest.chat_template_sha256 != verified.manifest.chat_template_sha256:
+        fail("INVALID_ARTIFACT", "reloading", "产物模板与固定基础模型缓存不一致。")
+    if os.environ.get("WORLD_SIZE", "1") != "1":
+        fail("INVALID_REQUEST", "preflight", "推理仅支持单进程单 GPU。")
+    return _generate(verified, cached, prompt, "", max_new_tokens,
+                     compare=compare, checkpoint=checkpoint, online=True)
+
+
+class GenerationInterrupted(Exception):
+    """The caller no longer wants this generation to continue."""
+
+
+def _generate(verified, cached, prompt, input_text, max_new_tokens, *,
+              compare=False, checkpoint=lambda: None, online=False):
     try:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer, GenerationConfig, LogitsProcessor
@@ -40,10 +55,11 @@ def _generate(verified, cached, prompt, input_text, max_new_tokens):
         from safetensors.torch import load_file
     except ImportError as error:
         fail("MODEL_LOAD_FAILED", "reloading", "请先 uv sync --locked --extra training。", cause=error)
-    model = base = tokens = generated = current = saved = None
+    model = base = tokens = current = saved = None
     started = time.monotonic()
     manifest, result = verified.manifest, verified.result
     try:
+        checkpoint()
         if not torch.cuda.is_available() or torch.cuda.device_count() != 1:
             fail("MODEL_LOAD_FAILED", "reloading", "重载需要恰好一个可见 CUDA GPU。")
         if manifest.runtime.precision == "bf16" and not torch.cuda.is_bf16_supported():
@@ -61,9 +77,11 @@ def _generate(verified, cached, prompt, input_text, max_new_tokens):
                                                return_tensors="pt", return_dict=True)
         if tokens["input_ids"].shape[1] > 2048:
             fail("INVALID_REQUEST", "preflight", "模板化提示词超过 2048 token；不自动截断。")
+        checkpoint()
         base = AutoModelForCausalLM.from_pretrained(str(cached.snapshot_dir), local_files_only=True,
             trust_remote_code=False, use_safetensors=True,
             dtype=torch.bfloat16 if manifest.runtime.precision == "bf16" else torch.float32)
+        checkpoint()
         model = PeftModel.from_pretrained(base, str(result.adapter_dir), is_trainable=False,
                                           local_files_only=True, autocast_adapter_dtype=True)
         current = get_peft_model_state_dict(model, save_embedding_layers=False)
@@ -72,41 +90,63 @@ def _generate(verified, cached, prompt, input_text, max_new_tokens):
                 or model.active_adapters != ["default"] or any(p.requires_grad for p in model.parameters())):
             fail("INVALID_ARTIFACT", "reloading", "实际加载的 Adapter 张量、激活状态或冻结状态不符。")
         current = saved = None
+        checkpoint()
         model.to("cuda:0").eval()
         tokens = {key: value.to("cuda:0") for key, value in tokens.items()}
+
         class FiniteScores(LogitsProcessor):
             def __call__(self, input_ids, scores):
+                checkpoint()
                 if not torch.isfinite(scores).all().item():
                     fail("MODEL_LOAD_FAILED", "reloading", "生成出现非有限 logits。")
                 return scores
         generation = GenerationConfig(do_sample=False, num_beams=1, max_new_tokens=max_new_tokens,
             eos_token_id=tokenizer.eos_token_id, pad_token_id=tokenizer.pad_token_id, use_cache=True)
-        with torch.inference_mode():
-            generated = model.generate(**tokens, generation_config=generation, logits_processor=[FiniteScores()])
-        torch.cuda.synchronize()
         length = tokens["input_ids"].shape[1]
-        ids = generated[0, length:].tolist()
-        if not ids or len(ids) > max_new_tokens:
-            fail("MODEL_LOAD_FAILED", "reloading", "生成 token 数无效。")
+
+        def answer(generator):
+            checkpoint()
+            with torch.inference_mode():
+                generated = generator.generate(**tokens, generation_config=generation,
+                                               logits_processor=[FiniteScores()])
+            torch.cuda.synchronize()
+            checkpoint()
+            ids = generated[0, length:].tolist()
+            if not ids or len(ids) > max_new_tokens:
+                fail("MODEL_LOAD_FAILED", "reloading", "生成 token 数无效。")
+            return {"generated_text": tokenizer.decode(ids, skip_special_tokens=True),
+                    "generated_tokens": len(ids)}
+
+        base_answer = None
+        if compare:
+            with model.disable_adapter():
+                base_answer = answer(model)
+        adapter_answer = answer(model)
+        if online:
+            return {"task_id": str(manifest.task_id), "mode": "compare" if compare else "adapter",
+                    "base_model": manifest.base_model, "model_revision": manifest.model_revision,
+                    "input_tokens": length, "max_new_tokens": max_new_tokens,
+                    "base": base_answer, "adapter": adapter_answer}
         return {"status": "reload_verified", "contract_version": "1.0.0", "task_id": str(manifest.task_id),
             "model_revision": manifest.model_revision, "manifest_sha256": sha256(result.manifest_path),
             "adapter_sha256": sha256(result.adapter_dir / "adapter_model.safetensors"),
             "pid": os.getpid(), "recorded_at": datetime.now(timezone.utc).isoformat(),
-            "precision": manifest.runtime.precision, "input_tokens": length, "generated_tokens": len(ids),
+            "precision": manifest.runtime.precision, "input_tokens": length,
+            "generated_tokens": adapter_answer["generated_tokens"],
             "max_new_tokens": max_new_tokens, "do_sample": False, "adapter_tensor_count": verified.tensor_count,
             "adapter_weights_matched": True, "review_status": manifest.train_dataset.review_status,
             "prompt_sha256": hashlib.sha256(messages[0]["content"].encode()).hexdigest(),
-            "response": tokenizer.decode(ids, skip_special_tokens=True),
+            "response": adapter_answer["generated_text"],
             "elapsed_seconds": time.monotonic() - started,
             "peak_memory_allocated_bytes": torch.cuda.max_memory_allocated(0)}
-    except TrainingError:
+    except (TrainingError, GenerationInterrupted):
         raise
     except torch.cuda.OutOfMemoryError as error:
         fail("CUDA_OUT_OF_MEMORY", "reloading", "重载或生成显存不足；未自动降配。", cause=error)
     except Exception as error:
         fail("MODEL_LOAD_FAILED", "reloading", f"模型重载或生成失败（{type(error).__name__}）。", cause=error)
     finally:
-        model = base = tokens = generated = current = saved = None
+        model = base = tokens = current = saved = None
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()

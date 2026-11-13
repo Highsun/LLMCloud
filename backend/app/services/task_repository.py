@@ -169,6 +169,9 @@ class SqlTaskRepository:
             updated = self._update(session, row, dict(status=TaskStatus.RUNNING, claim_token=token,
                 worker_id=worker_id, started_at=utcnow(), error_code=None, error_message=None),
                 TABLE.c.status.in_([TaskStatus.PENDING, TaskStatus.QUEUED]))
+            if updated:
+                from backend.app.services.inference_repository import yield_waiting_inference
+                yield_waiting_inference(session)
             return execution_spec(row) if updated else None
 
     def _owned(self, session, task_id, token):

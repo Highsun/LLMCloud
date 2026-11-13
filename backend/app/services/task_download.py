@@ -110,7 +110,7 @@ def _inventory(settings, task_id):
     return {name: _fingerprint(info) for name, info in values.items()}
 
 
-def _copy_source(settings, task_id, record, target):
+def _copy_source(settings, task_id, record, target, checkpoint):
     digest = hashlib.sha256()
     try:
         destination = target.open("xb")
@@ -121,6 +121,7 @@ def _copy_source(settings, task_id, record, target):
             raise download_error("INVALID_ARTIFACT")
         offset = 0
         while offset < record.size_bytes:
+            checkpoint()
             chunk = source.read(min(DOWNLOAD_CHUNK_BYTES, record.size_bytes - offset), offset)
             digest.update(chunk)
             try:
@@ -130,6 +131,46 @@ def _copy_source(settings, task_id, record, target):
             offset += len(chunk)
         if digest.hexdigest() != record.sha256:
             raise download_error("INVALID_ARTIFACT")
+
+
+def snapshot_completed_artifact(settings, completed, resources, *, area="downloads", checkpoint=lambda: None):
+    """Keep a private, audited copy alive until its consumer releases resources."""
+    task_id = completed.spec.task_id
+    checkpoint()
+    manifest, raw = _manifest(settings, completed)
+    if len(raw) + sum(item.size_bytes for item in manifest.artifacts) > MAX_DOWNLOAD_BYTES:
+        raise download_error("ARTIFACT_TOO_LARGE")
+    before = _inventory(settings, task_id)
+    expected = {item.path: item.size_bytes for item in manifest.artifacts}
+    expected["manifest.json"] = len(raw)
+    if {name: info[2] for name, info in before.items()} != expected:
+        raise download_error("INVALID_ARTIFACT")
+    with open_task_directory(settings.data_dir) as root:
+        try:
+            os.mkdir(area, mode=0o700, dir_fd=root)
+        except FileExistsError:
+            pass
+    directory = resources.enter_context(open_task_directory(settings.data_dir, (area,)))
+    if os.fstat(directory).st_mode & 0o022:
+        raise download_error("STORAGE_UNAVAILABLE")
+    # Keep the parent fd alive through cleanup.
+    temporary = resources.enter_context(tempfile.TemporaryDirectory(
+        prefix="llmcloud-", dir=f"/proc/self/fd/{directory}"))
+    work = Path(temporary).resolve(strict=True)
+    output = work / "outputs" / str(task_id)
+    for name in ("adapter", "tokenizer"):
+        (output / name).mkdir(parents=True)
+    (output / "manifest.json").write_bytes(raw)
+    for item in manifest.artifacts:
+        _copy_source(settings, task_id, item, output / item.path, checkpoint)
+    if _inventory(settings, task_id) != before:
+        raise download_error("INVALID_ARTIFACT")
+    checkpoint()
+    verified = verify_training_artifacts(output, outputs_root=work / "outputs",
+        expected_task_id=task_id, expected_revision=completed.spec.model_revision)
+    if verified.manifest != manifest:
+        raise download_error("INVALID_ARTIFACT")
+    return work, verified, raw, before
 
 
 def _pack(work, task_id, manifest, manifest_raw, archive):
@@ -201,40 +242,9 @@ class TaskDownloadService:
         resources = ExitStack()
         resources.callback(self._slots.release)
         try:
-            manifest, raw = _manifest(self.settings, completed)
-            if len(raw) + sum(item.size_bytes for item in manifest.artifacts) > MAX_DOWNLOAD_BYTES:
-                raise download_error("ARTIFACT_TOO_LARGE")
-            before = _inventory(self.settings, task_id)
-            expected = {item.path: item.size_bytes for item in manifest.artifacts}
-            expected["manifest.json"] = len(raw)
-            if {name: info[2] for name, info in before.items()} != expected:
-                raise download_error("INVALID_ARTIFACT")
-            with open_task_directory(self.settings.data_dir) as root:
-                try:
-                    os.mkdir("downloads", mode=0o700, dir_fd=root)
-                except FileExistsError:
-                    pass
-            directory = resources.enter_context(open_task_directory(self.settings.data_dir, ("downloads",)))
-            if os.fstat(directory).st_mode & 0o022:
-                raise download_error("STORAGE_UNAVAILABLE")
-            # Keep the parent fd alive through response cleanup; temporary area
-            # allocation/cleanup cannot be redirected by replacing downloads/.
-            temporary = resources.enter_context(tempfile.TemporaryDirectory(prefix="llmcloud-", dir=f"/proc/self/fd/{directory}"))
-            work = Path(temporary).resolve(strict=True)
-            output = work / "outputs" / str(task_id)
-            for name in ("adapter", "tokenizer"):
-                (output / name).mkdir(parents=True)
-            (output / "manifest.json").write_bytes(raw)
-            for item in manifest.artifacts:
-                _copy_source(self.settings, task_id, item, output / item.path)
-            if _inventory(self.settings, task_id) != before:
-                raise download_error("INVALID_ARTIFACT")
-            verified = verify_training_artifacts(output, outputs_root=work / "outputs",
-                expected_task_id=task_id, expected_revision=completed.spec.model_revision)
-            if verified.manifest != manifest:
-                raise download_error("INVALID_ARTIFACT")
+            work, verified, raw, before = snapshot_completed_artifact(self.settings, completed, resources)
             stream = resources.enter_context((work / "adapter.zip").open("x+b"))
-            _pack(work, task_id, manifest, raw, stream)
+            _pack(work, task_id, verified.manifest, raw, stream)
             if _inventory(self.settings, task_id) != before:
                 raise download_error("INVALID_ARTIFACT")
             size = os.fstat(stream.fileno()).st_size
