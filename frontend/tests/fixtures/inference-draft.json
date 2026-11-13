@@ -1,0 +1,35 @@
+{
+  "mock": true,
+  "source": "docs/api/inference.md version 0.1, d463116; sample text is not real generation",
+  "request": {
+    "task_id": "992aa53a-a246-45de-a8f1-4d4164d9b42e",
+    "prompt": "用两句话解释云计算中的弹性伸缩。",
+    "max_new_tokens": 128,
+    "mode": "compare"
+  },
+  "response": {
+    "task_id": "992aa53a-a246-45de-a8f1-4d4164d9b42e",
+    "mode": "compare",
+    "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+    "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+    "input_tokens": 31,
+    "max_new_tokens": 128,
+    "base": {
+      "generated_text": "弹性伸缩会根据负载调整资源数量。",
+      "generated_tokens": 12
+    },
+    "adapter": {
+      "generated_text": "弹性伸缩根据业务负载增加或减少计算资源，帮助维持服务性能。流量下降时可以回收多余实例，降低成本。",
+      "generated_tokens": 28
+    }
+  },
+  "busy": {
+    "error": {
+      "code": "GPU_BUSY",
+      "message": "GPU 正在处理训练或推理，请稍后重试。",
+      "details": [],
+      "details_truncated": false,
+      "request_id": "f63b14e1-7748-4e24-9db8-6d24810dd6df"
+    }
+  }
+}

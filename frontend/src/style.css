@@ -1666,6 +1666,29 @@ tr:last-child td {
 .inference-help {
   margin: -10px 0 22px;
 }
+.inference-id {
+  overflow-wrap: anywhere;
+}
+.inference-pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin: 12px 0;
+  font-size: 12px;
+}
+.inference-answers {
+  min-width: 0;
+}
+.inference-prompt-count {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+.inference-answers .result-context small {
+  display: block;
+  margin-top: 8px;
+}
 .input-unit {
   position: relative;
 }
