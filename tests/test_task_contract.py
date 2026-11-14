@@ -294,7 +294,7 @@ assert LegacyCreate is TaskCreate
         result = subprocess.run([sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True)
         self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
-    def test_runtime_app_exposes_tasks_observation_and_download_without_inference(self):
+    def test_runtime_app_exposes_tasks_observation_download_and_inference(self):
         from backend.app.main import create_app
         paths = create_app(Settings(_env_file=None)).openapi()["paths"]
         self.assertEqual(set(paths["/api/v1/tasks"]), {"post", "get"})
@@ -302,7 +302,12 @@ assert LegacyCreate is TaskCreate
         self.assertEqual(set(paths["/api/v1/tasks/{task_id}/metrics"]), {"get"})
         self.assertEqual(set(paths["/api/v1/tasks/{task_id}/logs"]), {"get"})
         self.assertEqual(set(paths["/api/v1/tasks/{task_id}/adapter"]), {"get"})
-        self.assertFalse(any("/inference" in path for path in paths))
+        self.assertEqual(set(paths["/api/v1/inference"]), {"post"})
+        inference = paths["/api/v1/inference"]["post"]
+        self.assertEqual(inference["requestBody"]["content"]["application/json"]["schema"],
+                         {"$ref": "#/components/schemas/InferenceRequest"})
+        self.assertEqual(inference["responses"]["200"]["content"]["application/json"]["schema"],
+                         {"$ref": "#/components/schemas/InferenceResponse"})
 
 
 if __name__ == "__main__":
