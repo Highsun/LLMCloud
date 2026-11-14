@@ -69,3 +69,7 @@ BF16、贪心解码，开发提示词“请给出一个整理书桌的小建议�
 用户随后要求“执行下一步”，按上一步说明将已验证的测试修复和本记录登记为本地提交，正常同步 WSL 测试分支，不丢弃已测差异，不更新远端 main。接下来新增 B 独立 M5 启动入口：从上一轮 200 步会话的数据目录只读备份 DB，按哈希复制 datasets/outputs 到 E 盘新目录，不复制模型；保留两份真实完成记录的原训练提交身份，不将其改写为本轮训练。
 
 服务使用新 Redis Unix socket、新队列和新数据目录，沿用共同 Worker 锁与现有生产服务生命周期。启动入口仅做临时隔离编排，不修改 API、SQL、Worker、共享类型或原 M4 工具。先做不启动 Worker/GPU 的服务冒烟，随后由用户在真实网页提交生成并回传证据。
+
+已将测试修复和本记录提交为 280532a。WSL 原测试差异与提交逐字核对后，先单文件 stash 保全，再正常快进；确认新提交中的测试文件与该 stash 内容完全相同后仅删除本次重复 stash。WSL 已为 280532a clean，不改写历史或丢弃其他工作。
+
+新增 B 独立 docs/testing/laptop-3060-inference.py 和对应 [操作说明](../testing/laptop-3060-m5-inference.md)。AST/只读 --check 通过；原 200 步会话两份 Adapter 再审计通过。--smoke-services 已运行成功：新目录 /home/l7/LLMCloud/data/acceptance/m5-inference/0ff5d1b7-7206-49e2-bb5a-4af2fb4e1a09，D 盘证据 20261114T074302Z-m5-vqaa0ehy，真实 API/Vite/私有 Redis 的 OpenAPI、422、404 和原任务/产物快照核对成功，source_unchanged=true、cleanup_errors=[]。此步未启动 Worker/GPU/生成；入口只做独立编排，不扩展 A 生产文件修改范围。正式人工会话待启动并单独记录。
