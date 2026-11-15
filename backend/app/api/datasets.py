@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import ValidationError
 from starlette.concurrency import run_in_threadpool
 
+from backend.app.api.account_access import SignedIn
 from backend.app.api.dataset_openapi import (
     COMMON_ERRORS, LIST_PARAMETERS, UPLOAD_BODY, error_responses, response_headers,
 )
@@ -26,7 +27,7 @@ def get_dataset_service(request: Request) -> DatasetService:
 Service = Annotated[DatasetService, Depends(get_dataset_service)]
 
 
-async def persist_upload(service, upload, name):
+async def persist_upload(service, upload, name, owner_id):
     # A task group joins the shielded AnyIO worker even when the ASGI task is
     # cancelled directly by the server. The caller may close the upload afterward.
     outcome = None
@@ -34,7 +35,8 @@ async def persist_upload(service, upload, name):
     async def persist():
         nonlocal outcome
         try:
-            outcome = await run_in_threadpool(service.create, upload.file, filename=upload.filename or "", name=name)
+            outcome = await run_in_threadpool(service.create, upload.file, filename=upload.filename or "",
+                                              name=name, owner_id=owner_id)
         except Exception as error:
             outcome = error
 
@@ -74,12 +76,12 @@ def parse_list_query(request: Request) -> DatasetListQuery:
                                   415: "UNSUPPORTED_MEDIA_TYPE", 422: "VALIDATION_ERROR or INVALID_DATASET",
                                   **COMMON_ERRORS})},
 )
-async def upload_dataset(request: Request, response: Response, service: Service) -> DatasetDetail:
+async def upload_dataset(request: Request, response: Response, service: Service, account: SignedIn) -> DatasetDetail:
     form = await parse_dataset_form(request)
     try:
         upload, name = dataset_form_fields(form)
         await upload.seek(0)
-        result = await persist_upload(service, upload, name)
+        result = await persist_upload(service, upload, name, account.id)
         response.headers["Location"] = f"{request.app.state.settings.api_prefix}/datasets/{result.id}"
         return result
     finally:
@@ -96,9 +98,9 @@ async def upload_dataset(request: Request, response: Response, service: Service)
     openapi_extra=LIST_PARAMETERS,
     responses={200: response_headers(), **error_responses({422: "VALIDATION_ERROR", **COMMON_ERRORS})},
 )
-async def list_datasets(request: Request, service: Service) -> DatasetPage:
+async def list_datasets(request: Request, service: Service, account: SignedIn) -> DatasetPage:
     query = parse_list_query(request)
-    return await run_in_threadpool(service.list, query)
+    return await run_in_threadpool(service.list, query, owner_id=account.id)
 
 
 @router.get(
@@ -106,5 +108,5 @@ async def list_datasets(request: Request, service: Service) -> DatasetPage:
     summary="Get metadata without reading the raw training file",
     responses={200: response_headers(), **error_responses({404: "DATASET_NOT_FOUND", 422: "VALIDATION_ERROR", **COMMON_ERRORS})},
 )
-async def get_dataset(dataset_id: UUID, service: Service) -> DatasetDetail:
-    return await run_in_threadpool(service.get, dataset_id)
+async def get_dataset(dataset_id: UUID, service: Service, account: SignedIn) -> DatasetDetail:
+    return await run_in_threadpool(service.get, dataset_id, owner_id=account.id)

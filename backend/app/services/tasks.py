@@ -45,13 +45,13 @@ class TaskService:
         return TaskServiceError(ApiErrorCode.DISPATCH_UNCERTAIN,
             "任务派发结果待确认，请查询该任务。", 503, task_id=task_id)
 
-    def create(self, request, idempotency_key=None):
+    def create(self, request, idempotency_key=None, *, owner_id=None):
         try:
             created = self.repository.create(request,
                 model_revision=self.settings.default_model_revision,
                 runtime=RuntimeOptions(precision=self.settings.training_precision,
                     max_steps=self.settings.training_max_steps, local_files_only=True),
-                idempotency_key=idempotency_key)
+                idempotency_key=idempotency_key, **({"owner_id": owner_id} if owner_id is not None else {}))
         except TaskDatasetNotFound:
             raise TaskServiceError(ApiErrorCode.DATASET_NOT_FOUND, "数据集不存在。", 404) from None
         except IdempotencyConflict:
@@ -85,15 +85,15 @@ class TaskService:
         except TaskStoreError:
             raise self._uncertain(task_id) from None
 
-    def list(self, query):
+    def list(self, query, *, owner_id=None):
         try:
-            return self.repository.list(query)
+            return self.repository.list(query, **({"owner_id": owner_id} if owner_id is not None else {}))
         except TaskStoreError:
             raise database_error() from None
 
-    def get(self, task_id):
+    def get(self, task_id, *, owner_id=None):
         try:
-            task = self.repository.get_detail(task_id)
+            task = self.repository.get_detail(task_id, **({"owner_id": owner_id} if owner_id is not None else {}))
         except TaskStoreError:
             raise database_error() from None
         if task is None:

@@ -103,7 +103,7 @@ class DatasetService:
             except OSError as error:
                 logger.error("dataset_directory_cleanup_failed dataset_id=%s reason=%s", identifier, type(error).__name__)
 
-    def create(self, source: BinaryIO, *, filename: str, name: str | None = None) -> DatasetDetail:
+    def create(self, source: BinaryIO, *, filename: str, name: str | None = None, owner_id: UUID | None = None) -> DatasetDetail:
         try:
             original = sanitize_filename(filename)
         except ValueError as error:
@@ -150,7 +150,8 @@ class DatasetService:
             final_owned = True
             temporary.rename(final)
             session = self.session_factory()
-            row = Dataset(id=identifier, name=metadata.name or original, original_filename=original,
+            row = Dataset(id=identifier, user_id=str(owner_id) if owner_id else None,
+                          name=metadata.name or original, original_filename=original,
                           sha256=stats.sha256, storage_path=key, size_bytes=stats.size_bytes, row_count=stats.row_count)
             session.add(row)
             session.flush()
@@ -190,7 +191,7 @@ class DatasetService:
         finally:
             self._close_session(session)
 
-    def get(self, dataset_id: str | UUID) -> DatasetDetail:
+    def get(self, dataset_id: str | UUID, *, owner_id: UUID | None = None) -> DatasetDetail:
         try:
             identifier = str(UUID(str(dataset_id)))
         except (ValueError, TypeError, AttributeError):
@@ -199,7 +200,7 @@ class DatasetService:
         try:
             with self.session_factory() as session:
                 row = session.get(Dataset, identifier)
-                if row is None:
+                if row is None or (owner_id is not None and row.user_id != str(owner_id)):
                     raise DatasetServiceError(ApiErrorCode.DATASET_NOT_FOUND, "数据集不存在。", 404)
                 return _detail(row)
         except DatasetServiceError:
@@ -208,15 +209,16 @@ class DatasetService:
             logger.error("dataset_get_failed dataset_id=%s reason=%s", identifier, type(error).__name__)
             raise _database_failure(error) from None
 
-    def list(self, query: DatasetListQuery | None = None) -> DatasetPage:
+    def list(self, query: DatasetListQuery | None = None, *, owner_id: UUID | None = None) -> DatasetPage:
         query = query or DatasetListQuery()
         try:
             with self.session_factory() as session:
-                total = session.scalar(select(func.count()).select_from(Dataset))
+                owner = () if owner_id is None else (Dataset.user_id == str(owner_id),)
+                total = session.scalar(select(func.count()).select_from(Dataset).where(*owner))
                 pages = (total + query.page_size - 1) // query.page_size
                 items = []
                 if query.page <= pages:
-                    rows = session.scalars(select(Dataset).order_by(Dataset.created_at.desc(), Dataset.id.desc())
+                    rows = session.scalars(select(Dataset).where(*owner).order_by(Dataset.created_at.desc(), Dataset.id.desc())
                         .offset((query.page - 1) * query.page_size).limit(query.page_size))
                     items = [DatasetSummary(**_summary(row)) for row in rows]
                 return DatasetPage(items=items, total=total, page=query.page, page_size=query.page_size, total_pages=pages)

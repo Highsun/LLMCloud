@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import UUID4
 from starlette.concurrency import run_in_threadpool
 
+from backend.app.api.account_access import SignedIn, require_task_owner
 from backend.app.api.task_openapi import error_responses, response_headers
 from backend.app.api.tasks import parse_query
 from backend.app.models.observability_schemas import LogsPage, LogsQuery, MetricsPage, MetricsQuery
@@ -33,8 +34,9 @@ def query_metadata(model):
     responses={200: response_headers(), **error_responses({404: "TASK_NOT_FOUND", 409: "METRICS_CURSOR_INVALID",
         422: "VALIDATION_ERROR", 500: "METRICS_CORRUPTED / METRICS_UNAVAILABLE / INTERNAL_ERROR",
         503: "DATABASE_UNAVAILABLE"})})
-async def metrics(task_id: UUID4, request: Request, response: Response, service: Service) -> MetricsPage:
+async def metrics(task_id: UUID4, request: Request, response: Response, service: Service, account: SignedIn) -> MetricsPage:
     query = parse_query(request, MetricsQuery)
+    await require_task_owner(request, task_id, account)
     response.headers["Cache-Control"] = "no-store"
     return await run_in_threadpool(service.metrics, task_id, query)
 
@@ -44,7 +46,8 @@ async def metrics(task_id: UUID4, request: Request, response: Response, service:
     openapi_extra=query_metadata(LogsQuery),
     responses={200: response_headers(), **error_responses({404: "TASK_NOT_FOUND", 422: "VALIDATION_ERROR",
         500: "LOGS_UNAVAILABLE / INTERNAL_ERROR", 503: "DATABASE_UNAVAILABLE"})})
-async def logs(task_id: UUID4, request: Request, response: Response, service: Service) -> LogsPage:
+async def logs(task_id: UUID4, request: Request, response: Response, service: Service, account: SignedIn) -> LogsPage:
     query = parse_query(request, LogsQuery)
+    await require_task_owner(request, task_id, account)
     response.headers["Cache-Control"] = "no-store"
     return await run_in_threadpool(service.logs, task_id, query)

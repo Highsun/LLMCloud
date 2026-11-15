@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+from hashlib import sha256
 import logging
 from uuid import UUID, uuid4
 
@@ -57,8 +58,15 @@ class SqlTaskRepository:
             logger.error("task_store_failed reason=%s", type(error).__name__)
             raise TaskStoreError() from None
 
-    def _row(self, session, task_id):
-        row = session.execute(select(TABLE).where(TABLE.c.id == identifier(task_id))).mappings().one_or_none()
+    def _owner_filter(self, owner_id):
+        # A task inherits the owner of its immutable input dataset. Administrative
+        # assignment of legacy datasets runs offline.
+        return () if owner_id is None else (TABLE.c.dataset_id.in_(
+            select(Dataset.id).where(Dataset.user_id == str(owner_id))),)
+
+    def _row(self, session, task_id, owner_id=None):
+        row = session.execute(select(TABLE).where(TABLE.c.id == identifier(task_id),
+            *self._owner_filter(owner_id))).mappings().one_or_none()
         if row is not None:
             task_detail(row)  # Corruption is an error, never a normal skip.
         return row
@@ -68,20 +76,26 @@ class SqlTaskRepository:
         return session.execute(TABLE.update().where(TABLE.c.id == row["id"], *conditions).values(**values)).rowcount == 1
 
     def create(self, request: TaskCreate, *, model_revision: str, runtime: RuntimeOptions,
-               idempotency_key=None) -> TaskCreation:
+               idempotency_key=None, owner_id=None) -> TaskCreation:
         with self._session(write=True) as session:
             request = TaskCreate.model_validate(request.model_dump())
             key = None if idempotency_key is None else identifier(idempotency_key)
+            if key is not None and owner_id is not None:
+                # Preserve the stored UUIDv4 shape while keeping the existing
+                # unique index usable for a per-account deduplication key.
+                digest_bytes = sha256(UUID(str(owner_id)).bytes + UUID(key).bytes).digest()
+                key = str(UUID(bytes=digest_bytes[:16], version=4))
             digest = request_sha256(request)
             if key is not None:
-                prior = session.execute(select(TABLE).where(TABLE.c.idempotency_key == key)).mappings().one_or_none()
+                prior = session.execute(select(TABLE).where(TABLE.c.idempotency_key == key,
+                    *self._owner_filter(owner_id))).mappings().one_or_none()
                 if prior is not None:
                     detail = task_detail(prior)
                     if prior["request_sha256"] != digest:
                         raise IdempotencyConflict("去重键已用于不同的任务请求。")
                     return TaskCreation(detail, False, UUID(prior["celery_task_id"]))
             dataset = session.get(Dataset, str(request.dataset_id))
-            if dataset is None:
+            if dataset is None or (owner_id is not None and dataset.user_id != str(owner_id)):
                 raise TaskDatasetNotFound("数据集不存在。")
             runtime = RuntimeOptions.model_validate(runtime.model_dump())
             revision = TypeAdapter(Revision).validate_python(model_revision)
@@ -103,10 +117,15 @@ class SqlTaskRepository:
             row = self._row(session, task_id)
             return None if row is None else TaskStatus(row["status"])
 
-    def get_detail(self, task_id):
+    def get_detail(self, task_id, *, owner_id=None):
         with self._session() as session:
-            row = self._row(session, task_id)
+            row = self._row(session, task_id, owner_id)
             return None if row is None else task_detail(row)
+
+    def owns_task(self, task_id, owner_id):
+        with self._session() as session:
+            return session.scalar(select(TABLE.c.id).where(TABLE.c.id == identifier(task_id),
+                *self._owner_filter(owner_id))) is not None
 
     def get_completed_artifact(self, task_id):
         with self._session() as session:
@@ -119,10 +138,12 @@ class SqlTaskRepository:
             raise CompletedArtifactNotFound()
         raise CompletedArtifactNotReady()
 
-    def list(self, query: TaskListQuery | None = None) -> TaskPage:
+    def list(self, query: TaskListQuery | None = None, *, owner_id=None) -> TaskPage:
         with self._session() as session:
             query = TaskListQuery.model_validate((query or TaskListQuery()).model_dump())
-            conditions = [] if query.status is None else [TABLE.c.status == query.status]
+            conditions = list(self._owner_filter(owner_id))
+            if query.status is not None:
+                conditions.append(TABLE.c.status == query.status)
             total = session.scalar(select(func.count()).select_from(TABLE).where(*conditions))
             offset = (query.page - 1) * query.page_size
             # Beyond-last pages are valid even when their number exceeds SQLite's integer range.

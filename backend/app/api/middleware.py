@@ -43,36 +43,41 @@ class APIErrorMiddleware:
     """Runs inside CORS, so even early upload failures and 500s get CORS headers."""
 
     def __init__(self, app, *, upload_path: str, task_path: str | None = None,
-                 inference_path: str | None = None):
+                 inference_path: str | None = None, auth_path: str | None = None):
         self.app = app
         self.upload_path = upload_path
         self.task_path = task_path
         self.inference_path = inference_path
+        self.auth_path = auth_path
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
             return await self.app(scope, receive, send)
         started = False
         path = scope["path"].rstrip("/")
-        is_inference = scope["method"] == "POST" and path == self.inference_path
+        is_auth = bool(self.auth_path and path.startswith(self.auth_path + "/"))
+        is_private = is_auth or any(
+            path == prefix or path.startswith(prefix + "/")
+            for prefix in (self.upload_path, self.task_path, self.inference_path) if prefix
+        )
 
         async def track_send(message):
             nonlocal started
             if message["type"] == "http.response.start":
                 started = True
-                if is_inference:
+                if is_private:
                     MutableHeaders(scope=message)["Cache-Control"] = "no-store"
             await send(message)
 
         json_limits = {self.task_path: MAX_TASK_BODY_BYTES, self.inference_path: MAX_INFERENCE_BODY_BYTES}
-        is_json = path in json_limits
-        limit = json_limits.get(path, MAX_MULTIPART_BYTES)
+        is_json = is_auth or path in json_limits
+        limit = 4096 if is_auth else json_limits.get(path, MAX_MULTIPART_BYTES)
 
         def too_large():
             if is_json:
-                label = "任务" if path == self.task_path else "推理"
+                label = "账号" if is_auth else "任务" if path == self.task_path else "推理"
                 return DatasetServiceError(ApiErrorCode.REQUEST_TOO_LARGE, f"{label}请求正文超过允许大小。", 413,
-                    [detail(["body"], "request_too_large", f"{label} JSON 请求正文不能超过 64 KiB。")])
+                    [detail(["body"], "request_too_large", f"{label} JSON 请求正文不能超过 {limit // 1024} KiB。")])
             return DatasetServiceError(
                 ApiErrorCode.UPLOAD_TOO_LARGE, "上传请求体超过允许大小。", 413,
                 [detail(["body"], "file_too_large", "整个上传请求体超过允许大小。")],
@@ -80,7 +85,7 @@ class APIErrorMiddleware:
 
         try:
             bounded_receive = receive
-            if scope["method"] == "POST" and (path == self.upload_path or is_json):
+            if scope["method"] in ("POST", "PATCH") and (path == self.upload_path or is_json):
                 lengths = Headers(scope=scope).getlist("content-length")
                 if lengths:
                     if len(lengths) != 1 or not lengths[0].isascii() or not lengths[0].isdigit():

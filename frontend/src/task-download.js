@@ -1,4 +1,4 @@
-import { ApiError, baseUrl, responseError, saveFile } from "./api.js";
+import { ApiError, baseUrl, noticeSessionEnded, responseError, saveFile, sessionRequestGeneration } from "./api.js";
 import { isTaskId } from "./task-submission.js";
 
 export const DOWNLOAD_TIMEOUT_MS = 60000;
@@ -12,6 +12,7 @@ export async function fetchTaskAdapter(id, {
   signal, timeout = DOWNLOAD_TIMEOUT_MS, fetchImpl = globalThis.fetch,
   setTimer = setTimeout, clearTimer = clearTimeout,
 } = {}) {
+  const generation = sessionRequestGeneration();
   adapterFilename(id);
   if (!Number.isFinite(timeout) || timeout <= 0) throw new TypeError("Invalid download timeout");
   const controller = new AbortController();
@@ -43,12 +44,13 @@ export async function fetchTaskAdapter(id, {
 
   try {
     const response = await consume(() => fetchImpl(`${baseUrl}/tasks/${encodeURIComponent(id)}/adapter`, {
-      method: "GET", signal: controller.signal,
+      method: "GET", signal: controller.signal, credentials: "same-origin",
     }));
     if (!response.ok) {
       let data = null;
       try { data = await consume(() => response.json()); }
       catch { if (controller.signal.aborted) throw abortError(); }
+      noticeSessionEnded(response.status, data, generation);
       const error = responseError(response.status, data, response.headers.get("X-Request-ID"));
       const retry = response.headers.get("Retry-After");
       error.retryAfter = retry !== null && /^\d+$/.test(retry) && Number.isSafeInteger(Number(retry))

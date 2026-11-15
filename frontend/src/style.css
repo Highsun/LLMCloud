@@ -397,6 +397,23 @@ progress::-webkit-progress-value {
   height: 29px;
   font-size: 12px;
 }
+.account-navigation {
+  color: inherit;
+  text-decoration: none;
+}
+.account-navigation > div {
+  min-width: 0;
+}
+.account-navigation strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.account-navigation:hover strong,
+.account-navigation[aria-current="page"] strong {
+  color: var(--accent-dark);
+}
 .sidebar-footer strong {
   font-size: 12px;
   font-weight: 550;
@@ -1098,6 +1115,137 @@ progress::-webkit-progress-value {
   color: #95a59a;
   line-height: 1.8;
   margin-top: 9px;
+}
+.account-entry {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 20px;
+  padding: 32px 16px;
+}
+.account-brand {
+  margin: 0;
+}
+.account-card {
+  display: grid;
+  gap: 22px;
+  width: min(100%, 412px);
+  padding: clamp(20px, 5vw, 34px);
+}
+.account-card-title {
+  text-align: center;
+}
+.account-card h1 {
+  font-size: 27px;
+  line-height: 1.3;
+  margin: 0;
+}
+.account-card-title p,
+.account-switch {
+  margin: 8px 0 0;
+  color: #567068;
+}
+.account-switch {
+  margin: 0;
+  text-align: center;
+}
+.account-switch .text-button {
+  display: inline-block;
+  padding: 6px;
+}
+.account-form,
+.account-links {
+  display: grid;
+  gap: 15px;
+}
+.account-field {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+  font-weight: 600;
+}
+.account-field input {
+  width: 100%;
+  min-width: 0;
+  min-height: 43px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 11px;
+  background: #fff;
+  color: var(--ink);
+  font-weight: 400;
+}
+.account-field input[readonly] {
+  background: #f4f7f6;
+  color: #567068;
+}
+.account-password-tools,
+.account-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+.account-password-tools {
+  justify-content: space-between;
+  padding-top: 5px;
+  color: #567068;
+}
+.account-password-tools button {
+  margin-left: auto;
+  padding: 5px 0;
+}
+.account-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
+  gap: 16px;
+}
+.account-actions {
+  padding-top: 4px;
+}
+.account-saved {
+  color: var(--accent-dark);
+}
+.account-links {
+  gap: 0;
+}
+.account-links a {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  min-height: 45px;
+  color: var(--ink);
+  padding: 8px 2px;
+  text-decoration: none;
+}
+.account-links a + a {
+  border-top: 1px solid var(--border);
+}
+.account-links a span {
+  flex: 1;
+}
+.account-links a:hover {
+  color: var(--accent-dark);
+}
+.account-exit {
+  display: grid;
+  justify-items: start;
+  gap: 10px;
+  padding-top: 16px;
+}
+@media (max-width: 880px) {
+  .account-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+@media (pointer: coarse) {
+  .account-field input {
+    font-size: 16px;
+  }
 }
 .upload-panel .button.full-width {
   margin-top: 19px;

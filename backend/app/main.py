@@ -8,6 +8,7 @@ from sqlalchemy.orm import sessionmaker
 from starlette.exceptions import HTTPException
 from starlette.concurrency import run_in_threadpool
 
+from backend.app.api.accounts import SESSION_ERRORS, router as accounts_router
 from backend.app.api.dataset_openapi import add_dataset_schemas
 from backend.app.api.datasets import router as dataset_router
 from backend.app.api.inference import add_inference_schema, router as inference_router
@@ -22,6 +23,7 @@ from backend.app.core.config import Settings, get_settings
 from backend.app.core.database import create_database_engine, init_db
 from backend.app.core.task_protocols import TaskStoreError
 from backend.app.services.datasets import DatasetService
+from backend.app.services.accounts import AccountService
 from backend.app.services.errors import DatasetServiceError
 from backend.app.services.inference_repository import InferenceRepository
 from backend.app.services.task_dispatch import CeleryPublisher
@@ -36,6 +38,7 @@ def create_app(settings: Settings | None = None, *, task_publisher=None, inferen
     engine = create_database_engine(settings.resolved_database_url)
     sessions = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
     inference_repository = InferenceRepository(sessions)
+    account_service = AccountService(sessions)
 
     async def prune_inference():
         while True:
@@ -46,6 +49,14 @@ def create_app(settings: Settings | None = None, *, task_publisher=None, inferen
                 pass
             await sleep(30)
 
+    async def prune_sessions():
+        while True:
+            try:
+                await run_in_threadpool(account_service.prune_expired)
+            except DatasetServiceError:
+                pass
+            await sleep(3600)
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI):
         try:
@@ -53,6 +64,7 @@ def create_app(settings: Settings | None = None, *, task_publisher=None, inferen
             init_db(engine)
             async with create_task_group() as maintenance:
                 maintenance.start_soon(prune_inference)
+                maintenance.start_soon(prune_sessions)
                 try:
                     yield
                 finally:
@@ -71,6 +83,7 @@ def create_app(settings: Settings | None = None, *, task_publisher=None, inferen
         },
     )
     app.state.settings = settings
+    app.state.account_service = account_service
     app.state.dataset_service = DatasetService(settings, sessions)
     app.state.task_repository = SqlTaskRepository(sessions)
     app.state.task_service = TaskService(settings, app.state.task_repository,
@@ -81,19 +94,18 @@ def create_app(settings: Settings | None = None, *, task_publisher=None, inferen
     app.state.inference_publisher = inference_publisher if inference_publisher is not None else CeleryPublisher(settings)
     # add_middleware prepends: request context -> CORS -> safe errors -> routes.
     app.add_middleware(APIErrorMiddleware, upload_path=f"{settings.api_prefix}/datasets",
-        task_path=f"{settings.api_prefix}/tasks", inference_path=f"{settings.api_prefix}/inference")
+        task_path=f"{settings.api_prefix}/tasks", inference_path=f"{settings.api_prefix}/inference",
+        auth_path=f"{settings.api_prefix}/auth")
     app.add_middleware(
         CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False,
-        allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Idempotency-Key"],
+        allow_methods=["GET", "POST", "PATCH"], allow_headers=["Content-Type", "Idempotency-Key", "X-LLMCloud-Request"],
         expose_headers=["X-Request-ID", "Location", "Content-Disposition", "Retry-After"],
     )
     app.add_middleware(RequestIDMiddleware)
     app.include_router(router, prefix=settings.api_prefix)
-    app.include_router(dataset_router, prefix=settings.api_prefix)
-    app.include_router(task_router, prefix=settings.api_prefix)
-    app.include_router(observability_router, prefix=settings.api_prefix)
-    app.include_router(download_router, prefix=settings.api_prefix)
-    app.include_router(inference_router, prefix=settings.api_prefix)
+    app.include_router(accounts_router, prefix=settings.api_prefix)
+    for protected in (dataset_router, task_router, observability_router, download_router, inference_router):
+        app.include_router(protected, prefix=settings.api_prefix, responses=SESSION_ERRORS)
 
     original_openapi = app.openapi
 

@@ -1,7 +1,11 @@
 <script setup>
 import { computed, nextTick, onBeforeUnmount, onMounted, ref } from "vue";
-import { formatDate, refreshWorkspace, workspace } from "./workspace";
+import { advanceSessionGeneration, request, SESSION_ENDED_EVENT } from "./api";
+import { formatDate, refreshWorkspace, switchWorkspaceAccount, workspace } from "./workspace";
 import AppIcon from "./components/AppIcon.vue";
+import AccountPanel from "./components/AccountPanel.vue";
+import AuthPanel from "./components/AuthPanel.vue";
+import ErrorNotice from "./components/ErrorNotice.vue";
 import OverviewPanel from "./components/OverviewPanel.vue";
 import DatasetPanel from "./components/DatasetPanel.vue";
 import TrainingPanel from "./components/TrainingPanel.vue";
@@ -31,16 +35,39 @@ const pages = [
     component: InferencePanel,
   },
   { id: "guide", label: "使用指南", icon: "book", component: GuidePanel },
+  { id: "account", label: "用户中心", component: AccountPanel },
 ];
 const current = ref("overview");
 const sidebarOpen = ref(false);
 const main = ref(null);
+const account = ref(null);
+const checkingSession = ref(true);
+const sessionError = ref(null);
+const sessionMessage = ref("");
+const signingOut = ref(false);
+const signOutError = ref(null);
+let intendedPage = "overview";
+const avatar = computed(() => Array.from(account.value?.display_name || "用")[0]);
 const page = computed(
   () => pages.find((item) => item.id === current.value) || pages[0],
 );
+
+function replaceRoute(target) {
+  if (window.location.hash !== `#${target}`) window.history.replaceState(null, "", `#${target}`);
+}
+
 function navigate(focus = true) {
   const hash = window.location.hash.slice(1);
-  current.value = pages.some((item) => item.id === hash) ? hash : "overview";
+  const workspacePage = pages.some((item) => item.id === hash);
+  if (!account.value) {
+    if (workspacePage) intendedPage = hash;
+    current.value = hash === "register" ? "register" : "login";
+    replaceRoute(current.value);
+    document.title = `${current.value === "register" ? "注册" : "登录"} · LLMCloud`;
+    return;
+  }
+  current.value = workspacePage ? hash : "overview";
+  replaceRoute(current.value);
   sidebarOpen.value = false;
   document.title = `${page.value.label} · LLMCloud`;
   if (focus)
@@ -50,18 +77,93 @@ function navigate(focus = true) {
     });
 }
 function hashChanged() {
-  navigate();
+  if (!checkingSession.value) navigate();
 }
-onMounted(() => {
-  navigate(false);
-  window.addEventListener("hashchange", hashChanged);
+
+function openWorkspace(user, target) {
+  if (!user?.id || !user.display_name) throw new Error("账号响应格式不正确，请重新登录。");
+  advanceSessionGeneration();
+  switchWorkspaceAccount(user.id);
+  account.value = user;
+  signOutError.value = null;
+  sessionMessage.value = "";
+  if (target) replaceRoute(target);
+  navigate();
+  intendedPage = "overview";
   refreshWorkspace();
+}
+
+async function restoreSession() {
+  checkingSession.value = true;
+  sessionError.value = null;
+  try {
+    openWorkspace(await request("/auth/me"));
+  } catch (cause) {
+    if (cause.code === "AUTH_REQUIRED") navigate(false);
+    else sessionError.value = cause;
+  } finally {
+    checkingSession.value = false;
+  }
+}
+
+function onAuthenticated(user, created) {
+  openWorkspace(user, created ? "account" : intendedPage);
+}
+
+function clearSession(message, rememberPage = false) {
+  intendedPage = rememberPage ? current.value : "overview";
+  advanceSessionGeneration();
+  switchWorkspaceAccount(null);
+  account.value = null;
+  sessionMessage.value = message;
+  sidebarOpen.value = false;
+  replaceRoute("login");
+  navigate(false);
+}
+
+function onSessionEnded() {
+  if (account.value) clearSession("会话已过期，请重新登录。", true);
+}
+
+async function logout() {
+  if (signingOut.value) return;
+  signingOut.value = true;
+  signOutError.value = null;
+  try {
+    await request("/auth/logout", { method: "POST" });
+    clearSession("");
+  } catch (cause) {
+    signOutError.value = cause;
+  } finally {
+    signingOut.value = false;
+  }
+}
+
+onMounted(() => {
+  window.addEventListener("hashchange", hashChanged);
+  window.addEventListener(SESSION_ENDED_EVENT, onSessionEnded);
+  restoreSession();
 });
-onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
+onBeforeUnmount(() => {
+  window.removeEventListener("hashchange", hashChanged);
+  window.removeEventListener(SESSION_ENDED_EVENT, onSessionEnded);
+});
 </script>
 
 <template>
-  <a class="skip-link" href="#workspace-main" @click.prevent="main?.focus()"
+  <main v-if="checkingSession || sessionError" class="account-entry">
+    <section class="panel account-card">
+      <h1>LLMCloud</h1>
+      <p v-if="checkingSession" role="status">正在验证会话…</p>
+      <template v-else>
+        <ErrorNotice :error="sessionError" />
+        <button type="button" class="button primary" @click="restoreSession">重新连接</button>
+      </template>
+    </section>
+  </main>
+  <AuthPanel v-else-if="!account" :mode="current" :message="sessionMessage" @authenticated="onAuthenticated" />
+  <template v-else>
+    <a class="skip-link" href="#workspace-main" @click.prevent="main?.focus()"
     >跳转到主要内容</a
   >
   <div class="app-shell">
@@ -81,8 +183,7 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
       >
       <div class="workspace-switch">
         <span class="workspace-avatar">L</span>
-        <div><strong>个人工作空间</strong><small>单用户 · 实验环境</small></div>
-        <span class="workspace-tag">MVP</span>
+        <div><strong>个人工作空间</strong><small>模型微调</small></div>
       </div>
       <div class="nav-label">工作空间</div>
       <nav aria-label="主导航">
@@ -134,13 +235,11 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
           <p>Qwen2.5 · LoRA<br />单 GPU 串行训练</p>
           <span>本地开发环境</span>
         </div>
-        <div class="sidebar-footer">
-          <span class="user-avatar">研</span>
-          <div>
-            <strong>研究工作空间</strong><small>云计算技术及应用</small>
-          </div>
-          <span class="version">v0.1</span>
-        </div>
+        <a href="#account" class="sidebar-footer account-navigation"
+          :aria-current="current === 'account' ? 'page' : undefined">
+          <span class="user-avatar" aria-hidden="true">{{ avatar }}</span>
+          <div><strong>{{ account.display_name }}</strong><small>用户中心</small></div>
+        </a>
       </div>
     </aside>
     <div class="workspace-body">
@@ -181,9 +280,8 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
               size="17"
               :class="{ spinning: workspace.checking }"
             /></button
-          ><span class="topbar-divider" /><span class="user-avatar small"
-            >研</span
-          >
+          ><span class="topbar-divider" /><a href="#account" class="user-avatar small"
+            aria-label="用户中心" :aria-current="current === 'account' ? 'page' : undefined">{{ avatar }}</a>
         </div>
       </header>
       <main id="workspace-main" ref="main" tabindex="-1" class="main-content">
@@ -207,8 +305,10 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
           <span>服务能力检查未完成，上传与提交暂不可用。</span>
           <button class="text-button" @click="refreshWorkspace">刷新重试</button>
         </div>
+        <AccountPanel v-if="page.id === 'account'" :account="account" :signing-out="signingOut"
+          :sign-out-error="signOutError" @updated="account = $event" @logout="logout" />
         <KeepAlive :include="['DatasetPanel', 'TrainingPanel', 'InferencePanel']"
-          ><component :is="page.component"
+          ><component v-if="page.id !== 'account'" :is="page.component"
         /></KeepAlive>
         <footer class="page-footer">
           <span
@@ -223,4 +323,5 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
       </main>
     </div>
   </div>
+  </template>
 </template>

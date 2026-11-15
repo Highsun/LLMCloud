@@ -8,6 +8,7 @@ from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
+from backend.app.api.account_access import SignedIn, require_task_owner
 from backend.app.api.errors import detail, validation_error
 from backend.app.api.task_openapi import response_headers
 from backend.app.api.tasks import parse_json_body, parse_query
@@ -105,7 +106,7 @@ async def _wait_for_result(repository, job_id, published, claim_deadline, deadli
                504: "INFERENCE_TIMEOUT",
            }.items()},
     })
-async def infer(request: Request) -> InferenceResponse:
+async def infer(request: Request, account: SignedIn) -> InferenceResponse:
     started, wall_start = monotonic(), time()
     claim_deadline = started + INFERENCE_CLAIM_SECONDS
     deadline = started + INFERENCE_WAIT_SECONDS
@@ -114,6 +115,7 @@ async def infer(request: Request) -> InferenceResponse:
         body = await parse_json_body(request, InferenceRequest)
     if reading.cancelled_caught:
         raise _failure(InferenceErrorCode.INFERENCE_UNAVAILABLE)
+    await require_task_owner(request, body.task_id, account)
     if await request.is_disconnected():
         raise ClientDisconnect()
 

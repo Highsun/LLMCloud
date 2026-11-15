@@ -8,6 +8,7 @@ from pydantic import UUID4
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
+from backend.app.api.account_access import SignedIn, require_task_owner
 from backend.app.api.errors import error_response
 from backend.app.api.task_openapi import error_responses, response_headers
 from backend.app.api.tasks import parse_query
@@ -83,8 +84,9 @@ ERRORS[429]["headers"]["Retry-After"] = {"schema": {"type": "string", "const": "
 @router.get("/{task_id}/adapter", operation_id="download_task_adapter", response_class=Response,
     summary="Download a completed task's verified Adapter bundle", responses={200: SUCCESS, **ERRORS},
     openapi_extra={"x-observability-contract-version": "1.0.0", "x-query-parameters": "none; extras/duplicates rejected"})
-async def adapter(task_id: UUID4, request: Request, service: Service):
+async def adapter(task_id: UUID4, request: Request, service: Service, account: SignedIn):
     parse_query(request, AdapterQuery)
+    await require_task_owner(request, task_id, account)
     try:
         return await prepare_response(service, task_id)
     except DatasetServiceError as error:

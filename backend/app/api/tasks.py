@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, Request, Response
 from pydantic import UUID4, ValidationError
 from starlette.concurrency import run_in_threadpool
 
+from backend.app.api.account_access import SignedIn
 from backend.app.api.errors import detail, safe_validation_details, validation_error
 from backend.app.api.task_openapi import (
     LIST_EXTRA, POST_EXTRA, SUBMISSION_UNAVAILABLE, error_responses, response_headers,
@@ -105,11 +106,11 @@ async def parse_json_body(request, model):
         503: SUBMISSION_UNAVAILABLE,
         **error_responses({400: "HTTP_ERROR", 404: "DATASET_NOT_FOUND", 409: "IDEMPOTENCY_CONFLICT",
                           413: "REQUEST_TOO_LARGE", 415: "UNSUPPORTED_MEDIA_TYPE", 422: "VALIDATION_ERROR", 500: "INTERNAL_ERROR"})})
-async def create_task(request: Request, response: Response, service: Service) -> TaskDetail:
+async def create_task(request: Request, response: Response, service: Service, account: SignedIn) -> TaskDetail:
     parse_query(request)
     headers = submission_headers(request)
     body = await parse_json_body(request, TaskCreate)
-    result = await run_in_threadpool(service.create, body, headers.idempotency_key)
+    result = await run_in_threadpool(service.create, body, headers.idempotency_key, owner_id=account.id)
     response.status_code = 200 if result.replayed else 202
     response.headers["Location"] = f"{request.app.state.settings.api_prefix}/tasks/{result.task.id}"
     return result.task
@@ -118,13 +119,13 @@ async def create_task(request: Request, response: Response, service: Service) ->
 @router.get("", response_model=TaskPage, operation_id="list_tasks",
     summary="Filter tasks by status before stable pagination", openapi_extra=LIST_EXTRA,
     responses={200: response_headers(), **error_responses({422: "VALIDATION_ERROR", 500: "INTERNAL_ERROR", 503: "DATABASE_UNAVAILABLE"})})
-async def list_tasks(request: Request, service: Service) -> TaskPage:
-    return await run_in_threadpool(service.list, parse_query(request, TaskListQuery))
+async def list_tasks(request: Request, service: Service, account: SignedIn) -> TaskPage:
+    return await run_in_threadpool(service.list, parse_query(request, TaskListQuery), owner_id=account.id)
 
 
 @router.get("/{task_id}", response_model=TaskDetail, operation_id="get_task",
     summary="Get persisted task state and configuration",
     responses={200: response_headers(), **error_responses({404: "TASK_NOT_FOUND", 422: "VALIDATION_ERROR", 500: "INTERNAL_ERROR", 503: "DATABASE_UNAVAILABLE"})})
-async def get_task(task_id: UUID4, request: Request, service: Service) -> TaskDetail:
+async def get_task(task_id: UUID4, request: Request, service: Service, account: SignedIn) -> TaskDetail:
     parse_query(request)
-    return await run_in_threadpool(service.get, task_id)
+    return await run_in_threadpool(service.get, task_id, owner_id=account.id)

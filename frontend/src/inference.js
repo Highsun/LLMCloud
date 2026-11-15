@@ -1,4 +1,4 @@
-import { ApiError, baseUrl, responseError, request } from "./api.js";
+import { ApiError, baseUrl, browserAction, noticeSessionEnded, responseError, request, sessionRequestGeneration } from "./api.js";
 import { isTaskId } from "./task-submission.js";
 
 export const INFERENCE_TIMEOUT_MS = 120000;
@@ -65,6 +65,7 @@ export async function fetchInference(input, {
   signal, timeout = INFERENCE_TIMEOUT_MS, fetchImpl = globalThis.fetch,
   setTimer = setTimeout, clearTimer = clearTimeout,
 } = {}) {
+  const generation = sessionRequestGeneration();
   const body = inferenceInput(input);
   const controller = new AbortController();
   let timedOut = false;
@@ -91,8 +92,9 @@ export async function fetchInference(input, {
   }
   try {
     const response = await consume(() => fetchImpl(`${baseUrl}/inference`, {
-      method: "POST", headers: { "Content-Type": "application/json" },
+      method: "POST", headers: { "Content-Type": "application/json", ...browserAction },
       body: JSON.stringify(body), signal: controller.signal, cache: "no-store",
+      credentials: "same-origin",
     }));
     let data;
     try { data = await consume(() => response.json()); }
@@ -101,6 +103,7 @@ export async function fetchInference(input, {
       if (response.ok) throw invalid("推理接口未返回有效 JSON。");
     }
     if (controller.signal.aborted) throw interrupted();
+    noticeSessionEnded(response.status, data, generation);
     if (!response.ok) throw responseError(response.status, data, response.headers.get("X-Request-ID"));
     if (response.status !== 200) throw invalid("推理接口返回了非预期的成功状态。");
     return inferenceResult(data, body);

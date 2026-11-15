@@ -2,6 +2,24 @@ export const baseUrl = (
   import.meta.env?.VITE_API_BASE_URL || "/api/v1"
 ).replace(/\/$/, "");
 
+export const SESSION_ENDED_EVENT = "llmcloud:session-ended";
+export const browserAction = { "X-LLMCloud-Request": "1" };
+let sessionGeneration = 0;
+
+export function sessionRequestGeneration() {
+  return sessionGeneration;
+}
+
+export function advanceSessionGeneration() {
+  sessionGeneration++;
+}
+
+export function noticeSessionEnded(status, data, generation) {
+  if (generation === sessionGeneration && status === 401 && data?.error?.code === "AUTH_REQUIRED") {
+    globalThis.window?.dispatchEvent(new Event(SESSION_ENDED_EVENT));
+  }
+}
+
 export class ApiError extends Error {
   constructor(
     message,
@@ -53,6 +71,7 @@ export async function request(
   path,
   { method = "GET", body, headers = {}, timeout = 10000, signal, raw = false } = {},
 ) {
+  const generation = sessionRequestGeneration();
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeout);
   const abort = () => controller.abort();
@@ -62,11 +81,18 @@ export async function request(
     const response = await fetch(raw ? path : `${baseUrl}${path}`, {
       method,
       signal: controller.signal,
-      headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...headers },
+      credentials: "same-origin",
+      headers: {
+        ...(["GET", "HEAD", "OPTIONS"].includes(method) ? {} : browserAction),
+        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...headers,
+      },
       body: body ? JSON.stringify(body) : undefined,
     });
     if (raw === "blob" && response.ok) return await response.blob();
+    if (response.status === 204) return null;
     const data = await response.json().catch(() => null);
+    noticeSessionEnded(response.status, data, generation);
     if (!response.ok)
       throw responseError(
         response.status,
@@ -102,12 +128,14 @@ export async function getHealth() {
 }
 
 export function uploadDataset(file, name, onProgress, signal) {
+  const generation = sessionRequestGeneration();
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
     const form = new FormData();
     form.append("file", file);
     if (name.trim()) form.append("name", name.trim());
     xhr.open("POST", `${baseUrl}/datasets`);
+    xhr.setRequestHeader("X-LLMCloud-Request", browserAction["X-LLMCloud-Request"]);
     xhr.timeout = 120000;
     xhr.upload.onprogress = (event) =>
       onProgress(
@@ -125,6 +153,7 @@ export function uploadDataset(file, name, onProgress, signal) {
       } catch {
         data = null;
       }
+      noticeSessionEnded(xhr.status, data, generation);
       if (xhr.status === 201 && data?.id) resolve(data);
       else if (xhr.status >= 200 && xhr.status < 300)
         reject(

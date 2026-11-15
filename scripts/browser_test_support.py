@@ -37,7 +37,7 @@ class FaultDatasetService(DatasetService):
             mode, self._fault = self._fault, "none"
             return mode
 
-    def create(self, source, *, filename, name=None):
+    def create(self, source, *, filename, name=None, owner_id=None):
         mode = self.take_fault()
         if mode == "internal":
             raise RuntimeError("injected test failure, must not reach the response")
@@ -46,12 +46,12 @@ class FaultDatasetService(DatasetService):
             def unavailable_directory():
                 raise OSError(errno.ENOSPC, "injected test disk full")
             service._directories = unavailable_directory
-        return service.create(source, filename=filename, name=name)
+        return service.create(source, filename=filename, name=name, owner_id=owner_id)
 
-    def list(self, query=None):
+    def list(self, query=None, *, owner_id=None):
         if self.take_fault(listing=True) == "list_database":
-            return DatasetService(self.settings, unavailable_session).list(query)
-        return super().list(query)
+            return DatasetService(self.settings, unavailable_session).list(query, owner_id=owner_id)
+        return super().list(query, owner_id=owner_id)
 
 
 def install_test_controls(app: FastAPI) -> None:

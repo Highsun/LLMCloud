@@ -2,14 +2,15 @@ import { reactive } from "vue";
 import { ApiError, baseUrl, getHealth, request } from "./api";
 import { createTaskSubmission } from "./task-submission";
 
-export const submissionState = reactive({});
+export let submissionState = reactive({});
 let submissionStorage;
 try { submissionStorage = globalThis.sessionStorage; } catch { /* UI reports unavailable storage. */ }
-export const taskSubmission = createTaskSubmission({
-  state: submissionState, request, storage: submissionStorage,
-  storageKey: `llmcloud:task-submission:${baseUrl}`,
-});
+export let taskSubmission = createTaskSubmission({ state: submissionState, request });
 
+const initialPrivateWorkspace = {
+  datasets: null, datasetError: null, datasetLoading: false, datasetPage: 1, pageSize: 20,
+  tasks: null, taskError: null, taskLoading: false, taskPage: 1, taskStatus: "ALL", taskPagination: null,
+};
 export const workspace = reactive({
   health: null,
   healthError: null,
@@ -19,18 +20,26 @@ export const workspace = reactive({
   modelError: null,
   paths: null,
   discoveryError: null,
-  datasets: null,
-  datasetError: null,
-  datasetLoading: false,
-  datasetPage: 1,
-  pageSize: 20,
-  tasks: null,
-  taskError: null,
-  taskLoading: false,
-  taskPage: 1,
-  taskStatus: "ALL",
-  taskPagination: null,
+  ...initialPrivateWorkspace,
 });
+
+let workspaceGeneration = 0;
+
+export function switchWorkspaceAccount(accountId) {
+  workspaceGeneration++;
+  ++datasetRequestSequence;
+  datasetController?.abort();
+  datasetController = null;
+  cancelTaskRequest();
+  Object.assign(workspace, initialPrivateWorkspace, { checking: false, checkedAt: null });
+  // In-flight submissions retain their original (now detached) state object
+  // and their original account's storage key.
+  submissionState = reactive({});
+  taskSubmission = createTaskSubmission({
+    state: submissionState, request, storage: accountId ? submissionStorage : undefined,
+    storageKey: `llmcloud:task-submission:${baseUrl}:${accountId}`,
+  });
+}
 
 export function supports(path, method = "get") {
   const normalize = (value) => value.replace(/\{[^}]+\}/g, "{}");
@@ -171,6 +180,8 @@ export async function loadTasks(
 
 export async function refreshWorkspace() {
   if (workspace.checking) return;
+  const generation = workspaceGeneration;
+  const current = () => generation === workspaceGeneration;
   workspace.checking = true;
   workspace.healthError = null;
   workspace.modelError = null;
@@ -178,18 +189,20 @@ export async function refreshWorkspace() {
   await Promise.allSettled([
     getHealth()
       .then((data) => {
-        workspace.health = data;
+        if (current()) workspace.health = data;
       })
       .catch((error) => {
+        if (!current()) return;
         workspace.health = null;
         workspace.healthError = error;
       }),
     request("/models")
       .then((data) => {
         if (!Array.isArray(data)) throw new ApiError("模型目录响应格式异常。");
-        workspace.models = data;
+        if (current()) workspace.models = data;
       })
       .catch((error) => {
+        if (!current()) return;
         workspace.models = [];
         workspace.modelError = error;
       }),
@@ -201,13 +214,15 @@ export async function refreshWorkspace() {
       .then((data) => {
         if (!data.paths || typeof data.paths !== "object")
           throw new ApiError("无法读取接口目录。");
-        workspace.paths = data.paths;
+        if (current()) workspace.paths = data.paths;
       })
       .catch((error) => {
+        if (!current()) return;
         workspace.paths = null;
         workspace.discoveryError = error;
       }),
   ]);
+  if (!current()) return;
   await Promise.allSettled([
     supports("/datasets")
       ? loadDatasets(1)
@@ -224,6 +239,7 @@ export async function refreshWorkspace() {
           workspace.taskError = null;
         }),
   ]);
+  if (!current()) return;
   workspace.checkedAt = new Date();
   workspace.checking = false;
 }
