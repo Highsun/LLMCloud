@@ -84,6 +84,8 @@ def load_protocol(protocol_path=PROTOCOL, sources_path=SOURCES):
     try:
         source_ids = {source["id"] for source in catalog["sources"]}
         cases = protocol["cases"]
+        if protocol["version"] not in ("1.0.0", "2.0.0"):
+            raise PreparationError("Unsupported evaluation protocol version")
         if not source_ids or len(source_ids) != len(catalog["sources"]) or not cases:
             raise PreparationError("Source IDs must be unique and evaluation cases nonempty")
         ids = set()
@@ -206,13 +208,18 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--source", type=Path, required=True)
     parser.add_argument("--curation", type=Path, required=True)
+    parser.add_argument("--sources", type=Path, default=SOURCES, help="Source catalog JSON")
+    parser.add_argument("--eval-protocol", type=Path, default=PROTOCOL, help="Frozen evaluation protocol JSON")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--allow-unreviewed", action="store_true")
     parser.add_argument("--check-only", action="store_true")
     args = parser.parse_args()
     try:
-        files, manifest = plan_dataset(args.source, args.curation, seed=args.seed, allow_unreviewed=args.allow_unreviewed)
+        files, manifest = plan_dataset(
+            args.source, args.curation, seed=args.seed, allow_unreviewed=args.allow_unreviewed,
+            protocol_path=args.eval_protocol, sources_path=args.sources,
+        )
         if not args.check_only:
             if args.output is None:
                 raise PreparationError("--output is required unless --check-only")

@@ -20,7 +20,7 @@ def validate_generation(prompt, input_text, max_new_tokens):
 
 
 def reload_and_generate(output_dir, cache_dir, *, prompt, input_text="", max_new_tokens=128,
-                        outputs_root=None, expected_task_id=None, expected_revision=None):
+                        outputs_root=None, expected_task_id=None, expected_revision=None, compare=False):
     validate_generation(prompt, input_text, max_new_tokens)
     verified = verify_training_artifacts(output_dir, outputs_root=outputs_root,
         expected_task_id=expected_task_id, expected_revision=expected_revision)
@@ -29,7 +29,7 @@ def reload_and_generate(output_dir, cache_dir, *, prompt, input_text="", max_new
         fail("INVALID_ARTIFACT", "reloading", "产物模板与固定基础模型缓存不一致。")
     if os.environ.get("WORLD_SIZE", "1") != "1":
         fail("INVALID_REQUEST", "preflight", "重载验收仅支持单进程单 GPU。")
-    return _generate(verified, cached, prompt, input_text, max_new_tokens)
+    return _generate(verified, cached, prompt, input_text, max_new_tokens, compare=compare)
 
 
 def generate_verified_adapter(verified, cached, *, prompt, max_new_tokens, compare, checkpoint):
@@ -127,7 +127,7 @@ def _generate(verified, cached, prompt, input_text, max_new_tokens, *,
                     "base_model": manifest.base_model, "model_revision": manifest.model_revision,
                     "input_tokens": length, "max_new_tokens": max_new_tokens,
                     "base": base_answer, "adapter": adapter_answer}
-        return {"status": "reload_verified", "contract_version": "1.0.0", "task_id": str(manifest.task_id),
+        details = {"status": "reload_verified", "contract_version": "1.0.0", "task_id": str(manifest.task_id),
             "model_revision": manifest.model_revision, "manifest_sha256": sha256(result.manifest_path),
             "adapter_sha256": sha256(result.adapter_dir / "adapter_model.safetensors"),
             "pid": os.getpid(), "recorded_at": datetime.now(timezone.utc).isoformat(),
@@ -139,6 +139,9 @@ def _generate(verified, cached, prompt, input_text, max_new_tokens, *,
             "response": adapter_answer["generated_text"],
             "elapsed_seconds": time.monotonic() - started,
             "peak_memory_allocated_bytes": torch.cuda.max_memory_allocated(0)}
+        if compare:
+            details.update(base=base_answer, adapter=adapter_answer)
+        return details
     except (TrainingError, GenerationInterrupted):
         raise
     except torch.cuda.OutOfMemoryError as error:

@@ -43,7 +43,7 @@ class _Manifest(_Strict):
     source_catalog_sha256: Sha256
     build_id: Annotated[str, Field(pattern=r"^[0-9a-f]{16}$")]
     domain: Literal["cloud-basics-zh"]
-    protocol_version: Literal["1.0.0"]
+    protocol_version: Literal["1.0.0", "2.0.0"]
     review_status: Literal["reviewed", "draft_unreviewed"]
     split_policy: str = Field(min_length=1)
     splits: dict[SplitName, _Split]

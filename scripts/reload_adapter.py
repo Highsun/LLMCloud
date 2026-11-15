@@ -20,7 +20,8 @@ from trainer.reload import reload_and_generate  # noqa: E402
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--task-id", type=UUID, required=True)
-    parser.add_argument("--prompt", required=True, help="独立开发提示词；不使用冻结评测题调参")
+    parser.add_argument("--prompt", required=True, help="独立提示词；冻结评测题仅用于正式对照")
+    parser.add_argument("--compare", action="store_true", help="同时生成基础模型与 Adapter 的回答")
     parser.add_argument("--input", default="")
     parser.add_argument("--max-new-tokens", type=int, default=128)
     parser.add_argument("--revision")
@@ -40,7 +41,7 @@ def main():
         with redirect_stdout(sys.stderr):
             result = reload_and_generate(paths.data_dir / "outputs" / str(args.task_id), paths.cache_dir,
                 outputs_root=paths.data_dir / "outputs", expected_task_id=args.task_id, expected_revision=args.revision,
-                prompt=args.prompt, input_text=args.input, max_new_tokens=args.max_new_tokens)
+                prompt=args.prompt, input_text=args.input, max_new_tokens=args.max_new_tokens, compare=args.compare)
         print(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False))
         return 0
     except TrainingError as error:
