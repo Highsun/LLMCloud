@@ -1,2 +1,4 @@
 laptop-3060-*.sh text eol=lf
 laptop-3060-*.py text eol=lf
+e01-*.py text eol=lf
+e01-data-manifest-*.json text eol=lf

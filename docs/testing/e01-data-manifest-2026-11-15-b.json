@@ -1,0 +1,66 @@
+{
+  "build_id": "8cf9ede8899f618a",
+  "curation_sha256": "944f1d8b515b11fca23a4938ce11b40e75d7ef7b39c58b1f51d6a31346966390",
+  "domain": "cloud-basics-zh",
+  "protocol_sha256": "64d227618c17a38cfc1bc30a07d29b1a814140a1e53587a6512b6d646b20f81a",
+  "protocol_version": "2.0.0",
+  "provenance_sha256": "496df30eea624c97ae10010e83cf8fb72de9e9c7fe9c599c87a65989d4e36de7",
+  "review_status": "reviewed",
+  "seed": 42,
+  "source_catalog_sha256": "a79fa014db9801a6950b628c8a8c7fd49a3ef0855abd99fff335503e00c7eab2",
+  "source_sha256": "34d406c0c28290c4ffa051f19cecf17ff4326390322e4c104a0963b06e9b3951",
+  "split_policy": "question_family_sha256_seed_v1; approximately 80/10/10 by family, minimum one held-out family per split",
+  "splits": {
+    "test": {
+      "file": "test.jsonl",
+      "group_ids": [
+        "docker-build-cache-rules",
+        "s3-object-checksum-validation"
+      ],
+      "row_count": 8,
+      "sha256": "83380e77bea5e48242fc10b610815e144135fd656d799db948c518efc4ce9bad",
+      "size_bytes": 2321
+    },
+    "train": {
+      "file": "train.jsonl",
+      "group_ids": [
+        "dns-record-value-types",
+        "dns-ttl-cache-expiry",
+        "docker-build-context-filter",
+        "docker-image-digest-pinning",
+        "docker-multistage-artifacts",
+        "docker-network-service-discovery",
+        "docker-published-port-mapping",
+        "docker-resource-constraints",
+        "docker-restart-policy",
+        "docker-stdout-log-collection",
+        "docker-tmpfs-temporary-data",
+        "docker-volume-lifecycle",
+        "http-authentication-permission",
+        "http-content-encoding-type",
+        "load-balancer-listener-target",
+        "s3-multipart-upload-process",
+        "s3-object-key-namespace",
+        "s3-version-lifecycle",
+        "sqlite-consistent-backup",
+        "sqlite-constraint-null-rules",
+        "sqlite-query-index-planning",
+        "sqlite-transaction-semantics"
+      ],
+      "row_count": 96,
+      "sha256": "aaf37ba06f7d8c2429a1872143b98e243c56dce8e35bef7c1866eb194c777ebc",
+      "size_bytes": 28948
+    },
+    "validation": {
+      "file": "validation.jsonl",
+      "group_ids": [
+        "docker-bind-mount-semantics",
+        "http-conditional-request-and-caching"
+      ],
+      "row_count": 16,
+      "sha256": "73ebb94ca46d6f935167d7f5e2b5acbdd2d94e832f495534a69a64a991b61c8b",
+      "size_bytes": 4985
+    }
+  },
+  "tool_version": "1.0.0"
+}
