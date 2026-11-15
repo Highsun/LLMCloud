@@ -1,5 +1,7 @@
 # M4 可观测性与 Adapter 交付开发计划
 
+> 2026-11-15变更：双方明确同意用[异步证据复核](testing/m3-m4-async-review-2026-11-15.md)替代下文原同步人工流程；3060真实网页训练/活指标/日志/下载和补测可按行为沿用，缺口单列，不先整套重跑专用GPU脚本。新本机证据仍需队友实际复核，现状见[最新进度](project-status-2026-11-15.md)。下文1.5为历史计划，观测契约和代码职责不改。
+
 版本：执行计划 1.5；更新：2026-11-06（Asia/Shanghai）。M4-01 A 侧 CPU 类型/常量/格式样例已交付，B 消费者核对已审查收录；02 指标/日志 HTTP 已交付，03 下载已交付，04/05/06 已审查合入，07 待真实联合验收。正式类型/边界见 [观测契约 1.0.0](api/task-observability.md)，运行时指标/日志已发布，下载已实现。规划起点 main=25b2f52，01 开发起点 main=52d2974。
 
 阅读入口：[协作约束](../AGENTS.md)、[项目记忆](project-memory.md)、[总计划](project-plan.md)、[训练契约](contracts/training.md)、[任务契约](contracts/tasks.md)、[产物审计](training-artifacts.md) 和 [M3 审查](worklogs/2026-11-04-m3-07-a-review.md)。

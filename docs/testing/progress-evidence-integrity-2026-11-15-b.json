@@ -1,0 +1,82 @@
+{
+  "checked_at_utc": "2026-11-15T09:00:40.529975+00:00",
+  "scope": "Read-only integrity recheck of existing local small evidence, not rerun of GPU/browser tests and not teammate sign-off.",
+  "groups": [
+    {
+      "local_evidence_group": "20261112T105827Z-manual-pr6cllqq",
+      "checksum_file": "SHA256SUMS",
+      "checksum_file_sha256": "3526e90740523e8dd91f346d1e47e7833079d870d6502f277ccc53dd76afa8f6",
+      "verified_entries": 25,
+      "result": "all_listed_bytes_match"
+    },
+    {
+      "local_evidence_group": "20261112T105827Z-manual-pr6cllqq",
+      "checksum_file": "SHA256SUMS.review",
+      "checksum_file_sha256": "0ed8ff35c982c9b20fe9ab4337dbf6f841e8a77608ffb40d207a624525bc999f",
+      "verified_entries": 29,
+      "result": "all_listed_bytes_match"
+    },
+    {
+      "local_evidence_group": "20261112T131702Z-manual-po1lbqv7",
+      "checksum_file": "SHA256SUMS",
+      "checksum_file_sha256": "beabf5d884a1272c3053891dae5364179e96c0d5e228eac6308180ed91376e33",
+      "verified_entries": 19,
+      "result": "all_listed_bytes_match"
+    },
+    {
+      "local_evidence_group": "20261112T131702Z-manual-po1lbqv7",
+      "checksum_file": "SHA256SUMS.review",
+      "checksum_file_sha256": "0411ee9d0da29e31022a23396f7a04d922478d1bfd0e309c5d668a0b20daa3af",
+      "verified_entries": 25,
+      "result": "all_listed_bytes_match"
+    },
+    {
+      "local_evidence_group": "20261114T084409Z-m5-kn2re577",
+      "checksum_file": "SHA256SUMS",
+      "checksum_file_sha256": "32dcc49ba320a40b28d8f25e54125c72200af072d23ef35c6a63d47d2beb731c",
+      "verified_entries": 10,
+      "result": "all_listed_bytes_match"
+    },
+    {
+      "local_evidence_group": "20261114T084409Z-m5-kn2re577",
+      "checksum_file": "SHA256SUMS.review",
+      "checksum_file_sha256": "03d85fad99ea40f63b96ce8fc4ea2d9e0ebc31065e5fdf3a567eccf8e0d41076",
+      "verified_entries": 12,
+      "result": "all_listed_bytes_match"
+    },
+    {
+      "local_evidence_group": "20261114T074641Z-m5-wklgq0uf",
+      "checksum_file": "SHA256SUMS",
+      "checksum_file_sha256": "1c42cc609c6dd93bba646445daf36e66d96e7ef1a9a3fb53f6ac32c5acab37cc",
+      "verified_entries": 18,
+      "result": "all_listed_bytes_match"
+    },
+    {
+      "local_evidence_group": "20261114T074641Z-m5-wklgq0uf",
+      "checksum_file": "SHA256SUMS.review",
+      "checksum_file_sha256": "6175d348279e23e043eba8d2d63e08383dbdbdd28811e5f8cc65f6f152e076e2",
+      "verified_entries": 20,
+      "result": "all_listed_bytes_match"
+    },
+    {
+      "local_evidence_group": "e01-formal-20261115",
+      "checksum_file": "SHA256SUMS",
+      "checksum_file_sha256": "3527827a7da4d921f2093201a0c3cbb3018ac89c30e6d9e6aaf77f94be8ff9a1",
+      "verified_entries": 16,
+      "result": "all_listed_bytes_match"
+    },
+    {
+      "local_evidence_group": "e01-ratings-20261115",
+      "checksum_file": "SHA256SUMS",
+      "checksum_file_sha256": "34459cc7b74dc1866f37adef288219211b609856d2e2a3f8e809b04fb1422f55",
+      "verified_entries": 3,
+      "result": "all_listed_bytes_match"
+    }
+  ],
+  "m3_historical_tracked_review_zip": {
+    "file": "data/acceptance/handoffs/m3-07-dbdffce3-e453-46bf-b962-d66a424d7199-review.zip",
+    "exists_locally": true,
+    "sha256": "dba657710cbc2f0d92207c6ce8cb2593efe0474815146bd5d51b2de0e6bae62a"
+  },
+  "all_listed_checks_passed": true
+}
