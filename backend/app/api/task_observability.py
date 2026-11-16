@@ -14,7 +14,9 @@ from backend.app.services.task_observability import TaskObservabilityService
 router = APIRouter(prefix="/tasks", tags=["task-observability"])
 
 
-def get_observability_service(request: Request) -> TaskObservabilityService:
+async def get_observability_service(request: Request) -> TaskObservabilityService:
+    from backend.app.api.auth import authorize_task
+    await authorize_task(request, request.path_params["task_id"])
     return request.app.state.task_observability_service
 
 

@@ -43,7 +43,7 @@ export async function fetchTaskAdapter(id, {
 
   try {
     const response = await consume(() => fetchImpl(`${baseUrl}/tasks/${encodeURIComponent(id)}/adapter`, {
-      method: "GET", signal: controller.signal,
+      method: "GET", credentials: "include", signal: controller.signal,
     }));
     if (!response.ok) {
       let data = null;

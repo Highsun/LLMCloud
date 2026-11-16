@@ -447,6 +447,12 @@
       "ApiErrorCode": {
         "type": "string",
         "enum": [
+          "AUTH_REQUIRED",
+          "INVALID_CREDENTIALS",
+          "USERNAME_UNAVAILABLE",
+          "AUTH_DISABLED",
+          "ORIGIN_REJECTED",
+          "AUTH_RATE_LIMITED",
           "INVALID_MULTIPART",
           "UNSUPPORTED_MEDIA_TYPE",
           "UPLOAD_TOO_LARGE",

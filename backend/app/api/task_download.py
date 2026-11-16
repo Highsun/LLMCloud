@@ -63,7 +63,9 @@ async def prepare_response(service, task_id):
         raise
 
 
-def get_download_service(request: Request) -> TaskDownloadService:
+async def get_download_service(request: Request) -> TaskDownloadService:
+    from backend.app.api.auth import authorize_task
+    await authorize_task(request, request.path_params["task_id"])
     return request.app.state.task_download_service
 
 

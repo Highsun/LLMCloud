@@ -5,9 +5,11 @@ import { createTaskSubmission } from "./task-submission";
 export const submissionState = reactive({});
 let submissionStorage;
 try { submissionStorage = globalThis.sessionStorage; } catch { /* UI reports unavailable storage. */ }
+let accountId = "";
+try { accountId = submissionStorage?.getItem("llmcloud:account-id") || ""; } catch { /* Storage is optional. */ }
 export const taskSubmission = createTaskSubmission({
   state: submissionState, request, storage: submissionStorage,
-  storageKey: `llmcloud:task-submission:${baseUrl}`,
+  storageKey: `llmcloud:task-submission:${baseUrl}${accountId ? `:${accountId}` : ""}`,
 });
 
 export const workspace = reactive({

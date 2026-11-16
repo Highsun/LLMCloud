@@ -43,11 +43,13 @@ class APIErrorMiddleware:
     """Runs inside CORS, so even early upload failures and 500s get CORS headers."""
 
     def __init__(self, app, *, upload_path: str, task_path: str | None = None,
-                 inference_path: str | None = None):
+                 inference_path: str | None = None, auth_path: str | None = None, auth_enabled=False):
         self.app = app
         self.upload_path = upload_path
         self.task_path = task_path
         self.inference_path = inference_path
+        self.auth_path = auth_path
+        self.auth_enabled = auth_enabled
 
     async def __call__(self, scope, receive, send):
         if scope["type"] != "http":
@@ -60,11 +62,13 @@ class APIErrorMiddleware:
             nonlocal started
             if message["type"] == "http.response.start":
                 started = True
-                if is_inference:
+                if is_inference or self.auth_enabled or (self.auth_path and path.startswith(self.auth_path + "/")):
                     MutableHeaders(scope=message)["Cache-Control"] = "no-store"
             await send(message)
 
         json_limits = {self.task_path: MAX_TASK_BODY_BYTES, self.inference_path: MAX_INFERENCE_BODY_BYTES}
+        if self.auth_path:
+            json_limits.update({f"{self.auth_path}/{action}": MAX_TASK_BODY_BYTES for action in ("register", "login", "logout")})
         is_json = path in json_limits
         limit = json_limits.get(path, MAX_MULTIPART_BYTES)
 

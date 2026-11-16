@@ -9,6 +9,7 @@ from starlette.concurrency import run_in_threadpool
 from starlette.requests import ClientDisconnect
 
 from backend.app.api.errors import detail, validation_error
+from backend.app.api.auth import authorize_task
 from backend.app.api.task_openapi import response_headers
 from backend.app.api.tasks import parse_json_body, parse_query
 from backend.app.core.task_contract import PublishOutcome
@@ -114,6 +115,7 @@ async def infer(request: Request) -> InferenceResponse:
         body = await parse_json_body(request, InferenceRequest)
     if reading.cancelled_caught:
         raise _failure(InferenceErrorCode.INFERENCE_UNAVAILABLE)
+    await authorize_task(request, body.task_id)
     if await request.is_disconnected():
         raise ClientDisconnect()
 

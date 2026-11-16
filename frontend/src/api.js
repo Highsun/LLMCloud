@@ -30,6 +30,8 @@ export class ApiError extends Error {
 
 export function responseError(status, data, requestId, mutation = false) {
   const error = data?.error;
+  if (status === 401 && error?.code === "AUTH_REQUIRED" && typeof window !== "undefined")
+    window.dispatchEvent(new Event("llmcloud:auth-required"));
   return new ApiError(
     error?.message ||
       (status === 404
@@ -60,6 +62,7 @@ export async function request(
   if (signal?.aborted) controller.abort();
   try {
     const response = await fetch(raw ? path : `${baseUrl}${path}`, {
+      credentials: "include",
       method,
       signal: controller.signal,
       headers: { ...(body ? { "Content-Type": "application/json" } : {}), ...headers },
@@ -108,6 +111,7 @@ export function uploadDataset(file, name, onProgress, signal) {
     form.append("file", file);
     if (name.trim()) form.append("name", name.trim());
     xhr.open("POST", `${baseUrl}/datasets`);
+    xhr.withCredentials = true;
     xhr.timeout = 120000;
     xhr.upload.onprogress = (event) =>
       onProgress(

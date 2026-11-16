@@ -56,6 +56,7 @@ test("transport sends only draft fields and reads sample JSON", async () => {
     assert.equal(url, "/api/v1/inference");
     assert.equal(options.method, "POST");
     assert.equal(options.cache, "no-store");
+    assert.equal(options.credentials, "include");
     assert.deepEqual(JSON.parse(options.body), input);
     return Response.json(fixture.response);
   } });

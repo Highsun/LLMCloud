@@ -91,6 +91,7 @@ export async function fetchInference(input, {
   }
   try {
     const response = await consume(() => fetchImpl(`${baseUrl}/inference`, {
+      credentials: "include",
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body), signal: controller.signal, cache: "no-store",
     }));

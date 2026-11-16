@@ -1,7 +1,7 @@
 from contextlib import asynccontextmanager
 
 from anyio import create_task_group, sleep
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import sessionmaker
@@ -9,6 +9,7 @@ from starlette.exceptions import HTTPException
 from starlette.concurrency import run_in_threadpool
 
 from backend.app.api.dataset_openapi import add_dataset_schemas
+from backend.app.api.auth import require_user, router as auth_router
 from backend.app.api.datasets import router as dataset_router
 from backend.app.api.inference import add_inference_schema, router as inference_router
 from backend.app.api.tasks import router as task_router
@@ -22,6 +23,7 @@ from backend.app.core.config import Settings, get_settings
 from backend.app.core.database import create_database_engine, init_db
 from backend.app.core.task_protocols import TaskStoreError
 from backend.app.services.datasets import DatasetService
+from backend.app.services.auth import AuthService
 from backend.app.services.errors import DatasetServiceError
 from backend.app.services.inference_repository import InferenceRepository
 from backend.app.services.task_dispatch import CeleryPublisher
@@ -50,7 +52,7 @@ def create_app(settings: Settings | None = None, *, task_publisher=None, inferen
     async def lifespan(_app: FastAPI):
         try:
             settings.ensure_directories()
-            init_db(engine)
+            init_db(engine, require_auth=settings.auth_enabled)
             async with create_task_group() as maintenance:
                 maintenance.start_soon(prune_inference)
                 try:
@@ -71,6 +73,7 @@ def create_app(settings: Settings | None = None, *, task_publisher=None, inferen
         },
     )
     app.state.settings = settings
+    app.state.auth_service = AuthService(sessions, settings)
     app.state.dataset_service = DatasetService(settings, sessions)
     app.state.task_repository = SqlTaskRepository(sessions)
     app.state.task_service = TaskService(settings, app.state.task_repository,
@@ -81,25 +84,37 @@ def create_app(settings: Settings | None = None, *, task_publisher=None, inferen
     app.state.inference_publisher = inference_publisher if inference_publisher is not None else CeleryPublisher(settings)
     # add_middleware prepends: request context -> CORS -> safe errors -> routes.
     app.add_middleware(APIErrorMiddleware, upload_path=f"{settings.api_prefix}/datasets",
-        task_path=f"{settings.api_prefix}/tasks", inference_path=f"{settings.api_prefix}/inference")
+        task_path=f"{settings.api_prefix}/tasks", inference_path=f"{settings.api_prefix}/inference",
+        auth_path=f"{settings.api_prefix}/auth", auth_enabled=settings.auth_enabled)
     app.add_middleware(
-        CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=False,
+        CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=settings.auth_enabled,
         allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Idempotency-Key"],
         expose_headers=["X-Request-ID", "Location", "Content-Disposition", "Retry-After"],
     )
     app.add_middleware(RequestIDMiddleware)
     app.include_router(router, prefix=settings.api_prefix)
-    app.include_router(dataset_router, prefix=settings.api_prefix)
-    app.include_router(task_router, prefix=settings.api_prefix)
-    app.include_router(observability_router, prefix=settings.api_prefix)
-    app.include_router(download_router, prefix=settings.api_prefix)
-    app.include_router(inference_router, prefix=settings.api_prefix)
+    app.include_router(auth_router, prefix=settings.api_prefix)
+    for protected in (dataset_router, task_router, observability_router, download_router, inference_router):
+        app.include_router(protected, prefix=settings.api_prefix, dependencies=[Depends(require_user)])
 
     original_openapi = app.openapi
 
     def openapi():
         if app.openapi_schema is None:
             app.openapi_schema = add_inference_schema(add_task_schemas(add_dataset_schemas(original_openapi())))
+            if settings.auth_enabled:
+                app.openapi_schema["components"].setdefault("securitySchemes", {})["SessionCookie"] = {
+                    "type": "apiKey", "in": "cookie", "name": "llmcloud_session"}
+                for path, methods in app.openapi_schema["paths"].items():
+                    if (path.startswith(tuple(f"{settings.api_prefix}/{name}" for name in ("datasets", "tasks", "inference")))
+                            or path == f"{settings.api_prefix}/auth/me"):
+                        for operation in methods.values():
+                            if isinstance(operation, dict):
+                                operation["security"] = [{"SessionCookie": []}]
+                                operation.setdefault("responses", {}).update({str(status): {
+                                    "description": "Account authentication or origin check failed",
+                                    "content": {"application/json": {"schema": {"$ref": "#/components/schemas/ErrorResponse"}}}}
+                                    for status in (401, 403)})
         return app.openapi_schema
 
     app.openapi = openapi

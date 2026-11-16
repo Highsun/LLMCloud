@@ -29,7 +29,7 @@ engine = create_database_engine(get_settings().resolved_database_url)
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
 
 
-def init_db(bind: Engine = engine) -> None:
+def init_db(bind: Engine = engine, *, require_auth: bool = False) -> None:
     # Import mappings, then reject legacy tables before creating any new tables.
     from backend.app.models import entities  # noqa: F401
     from backend.app.core.dataset_migration import require_dataset_schema
@@ -39,6 +39,9 @@ def init_db(bind: Engine = engine) -> None:
     # table-exists checks and creation of any additive tables.
     require_dataset_schema(bind)
     require_task_schema(bind)
+    if require_auth:
+        from backend.app.core.auth_migration import require_auth_schema
+        require_auth_schema(bind)
     with bind.begin() as connection:
         connection.exec_driver_sql("BEGIN IMMEDIATE")
         Base.metadata.create_all(bind=connection)

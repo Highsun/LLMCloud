@@ -19,8 +19,11 @@ from backend.app.services.datasets import DatasetService
 router = APIRouter(prefix="/datasets", tags=["datasets"])
 
 
-def get_dataset_service(request: Request) -> DatasetService:
-    return request.app.state.dataset_service
+async def get_dataset_service(request: Request) -> DatasetService:
+    from backend.app.api.auth import require_user
+    user = await require_user(request)
+    service = request.app.state.dataset_service
+    return service.for_user(user["id"]) if user is not None else service
 
 
 Service = Annotated[DatasetService, Depends(get_dataset_service)]

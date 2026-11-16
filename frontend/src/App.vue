@@ -9,6 +9,8 @@ import TasksPanel from "./components/TasksPanel.vue";
 import InferencePanel from "./components/InferencePanel.vue";
 import GuidePanel from "./components/GuidePanel.vue";
 
+defineProps({ account: { type: Object, default: null } });
+
 const pages = [
   {
     id: "overview",
@@ -81,7 +83,7 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
       >
       <div class="workspace-switch">
         <span class="workspace-avatar">L</span>
-        <div><strong>个人工作空间</strong><small>单用户 · 实验环境</small></div>
+        <div><strong>{{ account?.username || '个人工作空间' }}</strong><small>{{ account ? '账户数据独立保存' : '单用户 · 实验环境' }}</small></div>
         <span class="workspace-tag">MVP</span>
       </div>
       <div class="nav-label">工作空间</div>

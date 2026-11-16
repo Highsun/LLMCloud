@@ -4,7 +4,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from backend.app.core.task_contract import DEFAULT_MODEL_REVISION
@@ -33,6 +33,15 @@ class Settings(BaseSettings):
     training_precision: Literal["bf16", "fp32"] = "bf16"
     training_max_steps: PositiveInt | None = None
     task_publish_timeout_seconds: float = Field(default=1.0, gt=0, le=5, allow_inf_nan=False)
+    auth_enabled: bool = False
+    auth_cookie_secure: bool = False
+    auth_session_seconds: int = Field(default=43200, ge=300, le=604800)
+
+    @model_validator(mode="after")
+    def require_explicit_account_origins(self):
+        if self.auth_enabled and "*" in self.cors_origins:
+            raise ValueError("Account mode requires explicit CORS origins")
+        return self
 
     @field_validator("training_max_steps", mode="before")
     @classmethod

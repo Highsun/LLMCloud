@@ -38,8 +38,15 @@ class TaskCreation:
 
 
 class SqlTaskRepository:
-    def __init__(self, sessions):
+    def __init__(self, sessions, *, user_id=None):
         self.sessions = sessions
+        self.user_id = user_id
+
+    def for_user(self, user_id):
+        return SqlTaskRepository(self.sessions, user_id=user_id)
+
+    def _visibility(self):
+        return [] if self.user_id is None else [TABLE.c.dataset_id.in_(select(Dataset.id).where(Dataset.user_id == self.user_id))]
 
     @contextmanager
     def _session(self, *, write=False):
@@ -58,7 +65,7 @@ class SqlTaskRepository:
             raise TaskStoreError() from None
 
     def _row(self, session, task_id):
-        row = session.execute(select(TABLE).where(TABLE.c.id == identifier(task_id))).mappings().one_or_none()
+        row = session.execute(select(TABLE).where(TABLE.c.id == identifier(task_id), *self._visibility())).mappings().one_or_none()
         if row is not None:
             task_detail(row)  # Corruption is an error, never a normal skip.
         return row
@@ -76,12 +83,14 @@ class SqlTaskRepository:
             if key is not None:
                 prior = session.execute(select(TABLE).where(TABLE.c.idempotency_key == key)).mappings().one_or_none()
                 if prior is not None:
+                    if self.user_id is not None and session.scalar(select(Dataset.user_id).where(Dataset.id == prior["dataset_id"])) != self.user_id:
+                        raise IdempotencyConflict("去重键不可用。")
                     detail = task_detail(prior)
                     if prior["request_sha256"] != digest:
                         raise IdempotencyConflict("去重键已用于不同的任务请求。")
                     return TaskCreation(detail, False, UUID(prior["celery_task_id"]))
             dataset = session.get(Dataset, str(request.dataset_id))
-            if dataset is None:
+            if dataset is None or (self.user_id is not None and dataset.user_id != self.user_id):
                 raise TaskDatasetNotFound("数据集不存在。")
             runtime = RuntimeOptions.model_validate(runtime.model_dump())
             revision = TypeAdapter(Revision).validate_python(model_revision)
@@ -122,7 +131,7 @@ class SqlTaskRepository:
     def list(self, query: TaskListQuery | None = None) -> TaskPage:
         with self._session() as session:
             query = TaskListQuery.model_validate((query or TaskListQuery()).model_dump())
-            conditions = [] if query.status is None else [TABLE.c.status == query.status]
+            conditions = self._visibility() + ([] if query.status is None else [TABLE.c.status == query.status])
             total = session.scalar(select(func.count()).select_from(TABLE).where(*conditions))
             offset = (query.page - 1) * query.page_size
             # Beyond-last pages are valid even when their number exceeds SQLite's integer range.

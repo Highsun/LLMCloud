@@ -55,9 +55,13 @@ def _detail(row: Dataset) -> DatasetDetail:
 
 
 class DatasetService:
-    def __init__(self, settings: Settings | None = None, session_factory: Callable[[], Session] | None = None):
+    def __init__(self, settings: Settings | None = None, session_factory: Callable[[], Session] | None = None, *, user_id=None):
         self.settings = settings or get_settings()
         self.session_factory = session_factory or SessionLocal
+        self.user_id = user_id
+
+    def for_user(self, user_id):
+        return DatasetService(self.settings, self.session_factory, user_id=user_id)
 
     def _directories(self) -> tuple[Path, Path]:
         root = self.settings.data_dir.resolve()
@@ -150,7 +154,7 @@ class DatasetService:
             final_owned = True
             temporary.rename(final)
             session = self.session_factory()
-            row = Dataset(id=identifier, name=metadata.name or original, original_filename=original,
+            row = Dataset(id=identifier, user_id=self.user_id, name=metadata.name or original, original_filename=original,
                           sha256=stats.sha256, storage_path=key, size_bytes=stats.size_bytes, row_count=stats.row_count)
             session.add(row)
             session.flush()
@@ -199,7 +203,7 @@ class DatasetService:
         try:
             with self.session_factory() as session:
                 row = session.get(Dataset, identifier)
-                if row is None:
+                if row is None or (self.user_id is not None and row.user_id != self.user_id):
                     raise DatasetServiceError(ApiErrorCode.DATASET_NOT_FOUND, "数据集不存在。", 404)
                 return _detail(row)
         except DatasetServiceError:
@@ -212,11 +216,12 @@ class DatasetService:
         query = query or DatasetListQuery()
         try:
             with self.session_factory() as session:
-                total = session.scalar(select(func.count()).select_from(Dataset))
+                conditions = [] if self.user_id is None else [Dataset.user_id == self.user_id]
+                total = session.scalar(select(func.count()).select_from(Dataset).where(*conditions))
                 pages = (total + query.page_size - 1) // query.page_size
                 items = []
                 if query.page <= pages:
-                    rows = session.scalars(select(Dataset).order_by(Dataset.created_at.desc(), Dataset.id.desc())
+                    rows = session.scalars(select(Dataset).where(*conditions).order_by(Dataset.created_at.desc(), Dataset.id.desc())
                         .offset((query.page - 1) * query.page_size).limit(query.page_size))
                     items = [DatasetSummary(**_summary(row)) for row in rows]
                 return DatasetPage(items=items, total=total, page=query.page, page_size=query.page_size, total_pages=pages)

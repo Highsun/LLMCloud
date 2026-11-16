@@ -19,8 +19,11 @@ from backend.app.services.tasks import TaskService
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
 
-def get_task_service(request: Request) -> TaskService:
-    return request.app.state.task_service
+async def get_task_service(request: Request) -> TaskService:
+    from backend.app.api.auth import require_user
+    user = await require_user(request)
+    service = request.app.state.task_service
+    return TaskService(service.settings, service.repository.for_user(user["id"]), service.publisher) if user is not None else service
 
 
 Service = Annotated[TaskService, Depends(get_task_service)]
