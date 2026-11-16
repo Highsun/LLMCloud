@@ -15,7 +15,9 @@ export default defineConfig({
     trace: "retain-on-failure", screenshot: "only-on-failure",
   },
   webServer: {
-    command: "npm run dev -- --port 15177 --strictPort",
+    // Build first. A production preview avoids HMR resetting a real 120s wait
+    // while other development continues in this shared checkout.
+    command: "npm run preview -- --port 15177 --strictPort",
     url: "http://127.0.0.1:15177", reuseExistingServer: false,
   },
 });

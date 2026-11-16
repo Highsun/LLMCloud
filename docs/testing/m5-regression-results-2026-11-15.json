@@ -1,0 +1,30 @@
+{
+  "recorded_date": "2026-11-15",
+  "timezone": "Asia/Shanghai",
+  "baseline": "feature/m4-observability-ui@3e2e5c3 plus current uncommitted implementation",
+  "full_cpu": {
+    "executed": 448,
+    "passed": 447,
+    "skipped": 1,
+    "failed": 0,
+    "elapsed_seconds": 58.663,
+    "log_path": "E:/LLMCloud/data/local-validation/m5-completion-20261115/full-cpu-final.log",
+    "log_sha256": "a6359fbc73e533d999d2f6ce136c890f7ae73a6c5e8f12be20d2bebfe82f0635",
+    "note": "Original optional browser skip; includes account12, inference19 and source provenance5, do not add these counts again"
+  },
+  "frontend": {
+    "tests": 135,
+    "passed": 135,
+    "production_build": "passed",
+    "inference_transport_post_change_tests": 19,
+    "inference_transport_post_change_passed": 19
+  },
+  "generated_contracts": {
+    "dataset": "passed",
+    "task": "passed",
+    "training": "passed",
+    "task_openapi": "passed",
+    "observability": "passed"
+  },
+  "raw_artifacts": "E drive including E-backed WSL ext4; only summary in Git"
+}

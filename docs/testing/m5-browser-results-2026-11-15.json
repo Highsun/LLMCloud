@@ -1,0 +1,73 @@
+{
+  "scope": "Real Edge browser, intercepted fixture API; no GPU",
+  "source_report": "E:/LLMCloud/data/local-validation/m5-completion-20261115/browser-mock-03/report.json",
+  "source_report_sha256": "a03c4e643a667f4172e0e2d032f7ce3b40a0a36b572504daa65d9f480eac988c",
+  "stats": {
+    "startTime": "2026-11-15T11:22:01.733Z",
+    "duration": 128994.29000000001,
+    "expected": 10,
+    "skipped": 0,
+    "unexpected": 0,
+    "flaky": 0
+  },
+  "cases": [
+    {
+      "name": "mock compare draft renders both answers, metadata and narrow layout",
+      "status": "passed",
+      "duration_ms": 1309
+    },
+    {
+      "name": "adapter mode sends mode and shows no base result; generated HTML is escaped",
+      "status": "passed",
+      "duration_ms": 538
+    },
+    {
+      "name": "mock GPU_BUSY keeps input and request ID, then manual retry succeeds",
+      "status": "passed",
+      "duration_ms": 588
+    },
+    {
+      "name": "mock ARTIFACT_NOT_READY keeps input and request ID, then manual retry succeeds",
+      "status": "passed",
+      "duration_ms": 577
+    },
+    {
+      "name": "switch task while waiting aborts old wait and only displays new task result",
+      "status": "passed",
+      "duration_ms": 562
+    },
+    {
+      "name": "stop waiting and cached-page navigation discard in-flight results",
+      "status": "passed",
+      "duration_ms": 615
+    },
+    {
+      "name": "completed tasks paginate locally and do not depend on the task-page current filter",
+      "status": "passed",
+      "duration_ms": 474
+    },
+    {
+      "name": "missing inference OpenAPI path keeps generation disabled without mock fallback",
+      "status": "passed",
+      "duration_ms": 422
+    },
+    {
+      "name": "switching mode cancels compare wait before generating adapter-only answer",
+      "status": "passed",
+      "duration_ms": 533
+    },
+    {
+      "name": "120-second browser deadline preserves input and allows one manual retry",
+      "status": "passed",
+      "duration_ms": 121009
+    }
+  ],
+  "timeout_evidence": {
+    "scope": "real browser clock; intercepted API, no GPU",
+    "elapsed_ms": 120488,
+    "configured_timeout_ms": 120000,
+    "requests": 2,
+    "input_preserved": true,
+    "manual_retry": true
+  }
+}

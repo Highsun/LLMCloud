@@ -1,0 +1,36 @@
+{
+  "status": "passed_for_local_real_demo",
+  "actual_services": true,
+  "mocked_routes": false,
+  "scope": "new account real browser/GPU engineering demo, not E01 or cloud",
+  "started_at": "2026-11-15T11:29:00.213Z",
+  "account_id": "0618cf63-d7e9-424c-b97b-f2f8d4073d15",
+  "dataset_id": "35bc7e13-913c-4133-9711-22dd49e855b5",
+  "task_id": "21774371-36a6-4b51-b9a1-ef33a0a7bec0",
+  "task_status": "COMPLETED",
+  "visible_train_points": 3,
+  "download_filename": "llmcloud-adapter-21774371-36a6-4b51-b9a1-ef33a0a7bec0.zip",
+  "inference": {
+    "http_status": 200,
+    "request_id": "cd8f403c-aef6-4aba-826d-69cc3c23b92b",
+    "base_tokens": 64,
+    "adapter_tokens": 64
+  },
+  "narrow_width": 390,
+  "finished_at": "2026-11-15T11:29:40.112Z",
+  "video": "E:\\LLMCloud\\data\\local-validation\\m5-completion-20261115\\live-demo-02\\page@da82010b27f9685cd646b4e5a6b076e4.webm",
+  "deployment_scope": "Container API/frontend/Redis and temporary native GPU Worker on the same E-backed WSL host; full GPU-container validation is separate",
+  "artifact_audit": {
+    "file_count": 12,
+    "tensor_count": 96,
+    "metric_count": 3,
+    "completed_steps": 3,
+    "review_status": "unknown",
+    "zip_bytes": 18068100,
+    "zip_sha256": "c309fd8e04f86ee488b9932c9e8a5f5087f6bb9c18c083c7b182c2af91265cc9",
+    "source_manifest_sha256": "edbf3f2b94c88453ced915b1819413d20adb9791449065dba40678d10c5f76da",
+    "download_exact_source_bytes": true,
+    "training_elapsed_seconds": 17.73040919699997
+  },
+  "native_worker_warm_shutdown": true
+}

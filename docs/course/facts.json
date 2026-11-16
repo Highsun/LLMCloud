@@ -1,0 +1,14 @@
+{
+  "as_of": "2026-11-15",
+  "experiment": "E01",
+  "model": "Qwen2.5-0.5B-Instruct",
+  "revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "build_id": "8cf9ede8899f618a",
+  "task_id": "8099c629-36a0-418f-ba7b-80a6e6c0e75f",
+  "data": {"rows": 120, "families": 26, "train": 96, "validation": 16, "test": 8, "test_tokens": 259, "seed": 42},
+  "training": {"epochs": 1, "steps": 12, "seconds": 37.405023673, "r": 8, "alpha": 16, "batch": 1, "gradient_accumulation": 8, "max_seq_length": 512, "precision": "BF16", "train_loss_last": 3.9166, "validation_loss_last": 3.82431697845459, "peak_pytorch_allocated_bytes": 1475051008, "changed_lora_tensors": 96},
+  "holdout": {"base_loss": 4.395694570651846, "adapter_loss": 4.024454654413761, "base_perplexity": 81.10094153838726, "adapter_perplexity": 55.94978849014329},
+  "ratings": {"max_per_source": 48, "user_human": {"base": 25, "adapter": 33}, "a_file_declared_ai": {"base": 27, "adapter": 21}, "mixed_descriptive_only": {"base": 52, "adapter": 54, "max": 96}},
+  "conclusion": "小型留出拟合指标改善，用户人工评分与 AI 代评方向相反，稳定的回答质量提升尚不能确认",
+  "sources": ["docs/testing/e01-results-2026-11-15-b.md", "docs/testing/e01-rating-results-2026-11-15-b.md", "docs/testing/e01-data-manifest-2026-11-15-b.json"]
+}

@@ -1,17 +1,110 @@
-# Development Redis only. Full service/GPU images are a later milestone.
+name: llmcloud
+
+x-app-environment: &app-environment
+  APP_ENV: production
+  DATA_DIR: /app/data
+  LOG_DIR: /app/logs
+  DATABASE_URL: sqlite:////app/data/llmcloud.db
+  REDIS_URL: redis://redis:6379/0
+  CELERY_RESULT_BACKEND: redis://redis:6379/1
+  TRAINING_QUEUE: gpu
+  HF_HOME: /app/models/huggingface
+  HF_HUB_OFFLINE: "1"
+  TRANSFORMERS_OFFLINE: "1"
+  DEFAULT_MODEL_REVISION: 7ae557604adf67be50417f59c2c2f167def9a775
+  TRAINING_PRECISION: ${TRAINING_PRECISION:-bf16}
+  AUTH_ENABLED: ${AUTH_ENABLED:-true}
+  AUTH_COOKIE_SECURE: ${AUTH_COOKIE_SECURE:-false}
+  AUTH_SESSION_SECONDS: ${AUTH_SESSION_SECONDS:-43200}
+  CORS_ORIGINS: ${CORS_ORIGINS:-["http://127.0.0.1:8080","http://localhost:8080"]}
+
+x-app-volumes: &app-volumes
+  - ${LLMCLOUD_STATE_DIR:?Set LLMCLOUD_STATE_DIR to an absolute persistent E-drive or cloud path}/data:/app/data
+  - ${LLMCLOUD_STATE_DIR:?Set LLMCLOUD_STATE_DIR}/logs:/app/logs
+  - ${LLMCLOUD_MODEL_DIR:?Set LLMCLOUD_MODEL_DIR to the existing HF_HOME}:/app/models/huggingface:ro
+
 services:
   redis:
-    image: redis:7.4-alpine
-    ports:
-      - "127.0.0.1:6379:6379"
-    command: ["redis-server", "--appendonly", "yes"]
+    image: ${REDIS_IMAGE:-redis:7.4-alpine}
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--appendfsync", "everysec"]
     volumes:
-      - redis-data:/data
+      - ${LLMCLOUD_STATE_DIR:?Set LLMCLOUD_STATE_DIR}/redis:/data
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
-      retries: 5
+      retries: 10
+    # No host Redis port: only the Compose network can reach it.
 
-volumes:
-  redis-data:
+  api:
+    image: llmcloud-api:${LLMCLOUD_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.api
+      additional_contexts:
+        provenance: ${LLMCLOUD_PROVENANCE_DIR:?Export build provenance to a private directory first}
+    user: "${LLMCLOUD_UID:-1000}:${LLMCLOUD_GID:-1000}"
+    init: true
+    restart: unless-stopped
+    environment: *app-environment
+    volumes: *app-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/v1/health', timeout=3)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 15s
+    stop_grace_period: 110s
+
+  worker:
+    image: llmcloud-worker:${LLMCLOUD_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.worker
+      additional_contexts:
+        provenance: ${LLMCLOUD_PROVENANCE_DIR:?Export build provenance to a private directory first}
+    user: "${LLMCLOUD_UID:-1000}:${LLMCLOUD_GID:-1000}"
+    init: true
+    restart: unless-stopped
+    environment:
+      <<: *app-environment
+      CUDA_VISIBLE_DEVICES: "0"
+    volumes: *app-volumes
+    depends_on:
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+    # Worker warm shutdown waits for a current job; never stop during an experiment.
+    stop_grace_period: 10m
+
+  frontend:
+    image: llmcloud-frontend:${LLMCLOUD_IMAGE_TAG:-local}
+    build:
+      context: .
+      dockerfile: deploy/Dockerfile.frontend
+      args:
+        NODE_IMAGE: ${NODE_IMAGE:-node:22.22.0-bookworm-slim}
+        NGINX_IMAGE: ${NGINX_IMAGE:-nginxinc/nginx-unprivileged:1.28-alpine}
+    restart: unless-stopped
+    ports:
+      - "${LLMCLOUD_BIND_IP:-127.0.0.1}:${LLMCLOUD_HTTP_PORT:-8080}:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-q", "-O", "/dev/null", "http://127.0.0.1:8080/api/v1/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 6

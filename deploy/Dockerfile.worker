@@ -1,0 +1,15 @@
+ARG PYTHON_IMAGE=ghcr.io/astral-sh/uv:0.9.9-python3.12-bookworm-slim
+FROM ${PYTHON_IMAGE}
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never PATH="/app/.venv/bin:$PATH"
+WORKDIR /app
+COPY pyproject.toml uv.lock README.md ./
+# Locked cu128 PyTorch wheels supply the CUDA runtime; host driver + NVIDIA
+# Container Toolkit provide device access. The API never installs this extra.
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --no-install-project --extra training
+COPY backend ./backend
+COPY trainer ./trainer
+COPY worker ./worker
+COPY scripts ./scripts
+COPY --from=provenance /build-provenance.json /app/build-provenance.json
+CMD ["python", "-m", "worker"]

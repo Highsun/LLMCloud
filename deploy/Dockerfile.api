@@ -1,0 +1,15 @@
+ARG PYTHON_IMAGE=ghcr.io/astral-sh/uv:0.9.9-python3.12-bookworm-slim
+FROM ${PYTHON_IMAGE}
+ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 UV_LINK_MODE=copy \
+    UV_PYTHON_DOWNLOADS=never PATH="/app/.venv/bin:$PATH"
+WORKDIR /app
+COPY pyproject.toml uv.lock README.md ./
+RUN --mount=type=cache,target=/root/.cache/uv uv sync --locked --no-dev --no-install-project
+COPY backend ./backend
+COPY trainer ./trainer
+COPY worker ./worker
+COPY scripts ./scripts
+COPY --from=provenance /build-provenance.json /app/build-provenance.json
+EXPOSE 8000
+# One API process owns maintenance; GPU packages are excluded from this image.
+CMD ["python", "-m", "uvicorn", "backend.app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1", "--timeout-graceful-shutdown", "100"]

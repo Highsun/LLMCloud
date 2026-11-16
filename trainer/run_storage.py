@@ -4,7 +4,6 @@ from datetime import datetime, timezone
 from importlib.metadata import version
 import os
 from pathlib import Path
-import subprocess
 import platform
 import time
 from uuid import uuid4
@@ -15,6 +14,7 @@ from trainer.contracts import RunEnvironment, TrainRequest, TrainingManifest, Tr
 from trainer.artifacts import inventory, sha256, validate_bundle
 from trainer.events import fail
 from trainer.model_cache import PROJECT_ROOT
+from trainer.code_provenance import code_identity
 
 
 def resolve_request(request):
@@ -55,11 +55,9 @@ def snapshot(request):
 
 
 def environment(torch):
-    def git(*args):
-        return subprocess.run(["git", *args], cwd=PROJECT_ROOT, check=True, capture_output=True,
-                              text=True, timeout=10).stdout.strip()
+    commit, dirty = code_identity(PROJECT_ROOT)
     return RunEnvironment(
-        code_commit=git("rev-parse", "HEAD"), working_tree_dirty=bool(git("status", "--porcelain")),
+        code_commit=commit, working_tree_dirty=dirty,
         uv_lock_sha256=sha256(PROJECT_ROOT / "uv.lock"), python_version=platform.python_version(),
         cuda_runtime=torch.version.cuda, gpu_name=torch.cuda.get_device_name(0),
         packages={name: version(name) for name in ("torch", "transformers", "datasets", "peft", "trl", "accelerate")},

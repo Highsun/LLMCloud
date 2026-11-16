@@ -12,7 +12,8 @@
     "preview": "vite preview --host 127.0.0.1",
     "test": "node --test tests/*.test.mjs",
     "test:e2e": "playwright test",
-    "test:e2e:m4": "playwright test --config playwright.m4.config.mjs"
+    "test:e2e:m4": "playwright test --config playwright.m4.config.mjs",
+    "test:e2e:inference": "npm run build && playwright test --config playwright.inference.config.mjs"
   },
   "dependencies": {
     "vue": "^3.5.0"

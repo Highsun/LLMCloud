@@ -1,0 +1,129 @@
+{
+  "title": "LLMCloud 云端大模型微调平台",
+  "slides": [
+    {
+      "title": "LLMCloud",
+      "subtitle": "云端大模型微调平台",
+      "body": [
+        "云计算技术及应用课程项目",
+        "真实 LoRA 训练与异步 Web 服务",
+        "测试日期2026年11月15日"
+      ],
+      "source": "docs/project-status-2026-11-15.md",
+      "notes": "约20秒。介绍课程项目目标。本机验证环境是 RTX 3060 Laptop 6GB 与 E 盘 WSL2，云端验证另记。不要在没有实际云端证据时说已经上线。 材料于2026-11-16收尾，原测试日期不改。"
+    },
+    {
+      "title": "核心业务流程",
+      "body": [
+        "上传严格校验的 JSONL 数据",
+        "配置训练并异步提交任务",
+        "查看真实 Loss 与日志，下载有效 Adapter",
+        "在相同提示与解码条件下比较模型回答"
+      ],
+      "source": "docs/requirements.md; docs/project-status-2026-11-15.md",
+      "notes": "约30秒。API只负责校验、持久化与调度，训练工作由GPU Worker执行。配合现场页面展示四个业务步骤。"
+    },
+    {
+      "title": "服务与数据职责",
+      "body": [
+        "Vue 前端调用 FastAPI，CPU API 不加载 GPU 模型",
+        "Redis 与 Celery 将任务交给唯一 GPU Worker",
+        "SQLite 保存业务状态，受控目录保存数据与产物",
+        "Trainer 唯一写指标，训练与推理共享资源保护"
+      ],
+      "source": "docs/architecture.md; docs/worker.md; docs/api/inference.md",
+      "notes": "约35秒。核心是计算与接口分离、单GPU串行和可追溯状态。部署结构保持单机共享数据库与文件根目录。"
+    },
+    {
+      "title": "真实训练过程观测",
+      "body": [
+        "真实 200 步任务\n指标与原文件逐项核对",
+        "train 与 eval 同一步分别展示",
+        "终态补拉保留完整尾部"
+      ],
+      "image": "data/acceptance/b-review/laptop-3060/20261112T131702Z-manual-po1lbqv7/user-live-step56.png",
+      "caption": "2026年11月12日本地真实任务历史截图",
+      "source": "docs/testing/laptop-3060-m4-followup.md",
+      "notes": "约35秒。截图是历史真实运行，不能说本轮刚刚执行。17轮非空指标请求覆盖32.593秒，200条指标按字节offset、step、Loss和time核对一致。"
+    },
+    {
+      "title": "E01 正式实验条件",
+      "body": [
+        "120 条经审核样本，26 个问答族",
+        "按族划分 96 训练、16 验证、8 测试",
+        "Qwen2.5 0.5B，LoRA r8 / alpha16",
+        "1 epoch，batch1，累积8，seq512，BF16"
+      ],
+      "source": "docs/testing/e01-results-2026-11-15-b.md",
+      "notes": "约35秒。seed42。revision为7ae557604adf67be50417f59c2c2f167def9a775，build_id为8cf9ede8899f618a。实际训练代码390a7d9加当时未提交补丁，后续冻结2d8ab50，不把旧实验基线改写为clean。"
+    },
+    {
+      "title": "训练与独立重载结果",
+      "body": [
+        "12 / 12 优化器步，耗时 37.405 秒",
+        "96 个 LoRA 张量变化，基础权重哈希不变",
+        "12 文件原产物审计通过",
+        "训练退出后，12 个新进程完成 24 份回答"
+      ],
+      "source": "docs/testing/e01-results-2026-11-15-b.md",
+      "notes": "约30秒。可训练参数540672，PyTorch峰值分配显存1475051008字节，约1.374GiB，不能说是整卡占用。CLI实验不代替网页或云端验收。"
+    },
+    {
+      "title": "小型留出集 Loss 下降",
+      "chart": "holdout",
+      "body": [
+        "8 条测试，259 个监督 token",
+        "一次性 token 加权评估",
+        "基础 4.3957，Adapter 4.0245",
+        "支持参考回答拟合改善"
+      ],
+      "source": "docs/testing/e01-results-2026-11-15-b.md",
+      "notes": "约35秒。困惑度81.100942降至55.949788。该Loss与Trainer验证Loss口径不同，不横向比较。样本量小，不外推为通用能力或稳定回答质量提升。"
+    },
+    {
+      "title": "人工与 AI 评分方向相反",
+      "chart": "ratings",
+      "body": [
+        "用户人工评分 25 到 33",
+        "A 侧文件声明的 AI 代评 27 到 21",
+        "每模型每来源满分 48",
+        "当前不足以确认稳定质量提升"
+      ],
+      "source": "docs/testing/e01-rating-results-2026-11-15-b.md",
+      "notes": "约45秒。不能写双人亲自人工盲评。混合合计52到54只作描述。准确性23到19，清晰度20到19，边界9到16。保留退化题与评分来源限制，不替用户补造理由。"
+    },
+    {
+      "title": "推理故障注入与恢复",
+      "body": [
+        "首个 CUDA token 后受控暂停 95 秒，90.063 秒返回 504 / INFERENCE_TIMEOUT",
+        "清理期间 GPU_BUSY，清理后 compare 成功",
+        "浏览器真实等待 120.488 秒后超时并可手动重试，该浏览器用例使用 fixture API",
+        "448 项 CPU，447 通过，1 项原可选检查跳过"
+      ],
+      "source": "docs/testing/m5-fault-results-2026-11-15.json; docs/testing/m5-browser-results-2026-11-15.json; docs/testing/m5-completion-2026-11-15.md",
+      "notes": "服务端故障为真实GPU首token后受控暂停，不是自然慢推理，auth=false隔离。六组含Worker退出、缓存缺失、确认丢失及实际Redis迟到重复消息。前端120488ms为真实Edge时钟加fixture接口，无GPU；手动重试与输入保持通过。448已含auth12与provenance5，不相加，五正式契约通过。"
+    },
+    {
+      "title": "本机四服务容器与持久化",
+      "body": [
+        "前端、API、Redis 与 GPU Worker 全部容器运行",
+        "新账号真实上传、2 步训练、下载审计与 compare 通过",
+        "11月16日重启后数据库、上传、产物与缓存摘要保持",
+        "本机受限入口已可用，云端部署仍待验证"
+      ],
+      "source": "docs/testing/m5-container-demo-results-2026-11-15.json; docs/testing/m5-deployment-2026-11-15.md",
+      "notes": "11/15全容器task18c617b2-c024-4911-85f7-cd2f35dd97d1，2步19.016450秒，末Loss3.8488，ZIP18067901字节，原独立审计12文件96张量2指标/源完全一致，compare各64token，390px。首轮无.git导致MODEL_LOAD_FAILED，失败保留；修复为113文件构建来源清单校验，dirty身份真实记录。11/16最终重启SQL四表各3行、上传3文件、outputs28、cache28摘要匹配，完整性/FK通过，Worker唯一锁Busy和RedisAOF保持，API无torch。11/16未新训练。仅本机WSL私有CDI，不是云端标准runtime或HTTPS通过。入口http://127.0.0.1:8080。"
+    },
+    {
+      "title": "课程交付与验证范围",
+      "body": [
+        "报告、11 页 PPT、演示脚本与 3 段 MP4 素材",
+        "全容器实录 39.520 秒，E01 结论保留评分分歧",
+        "已验证 B 分支，队友用户系统分支尚未合入",
+        "M3 / M4 追加异步复核在开发完成后统一进行"
+      ],
+      "source": "docs/course/README.md; docs/course/video-assets.md; docs/course/report.md",
+      "notes": "三段素材是39.520秒完整四服务容器实录、40秒原生GPU+容器其他服务的首轮实录、46秒明确标非在线实录的历史图表素材。均留E盘。不是5至8分钟带口播教学成片。当前只证明B分支已验证，队友feature/user-system a935316的schema不兼容，双方独立保留未合入，不是A+B合并验收。云端、HTTPS和目标旧库迁移未验。"
+    }
+  ]
+}

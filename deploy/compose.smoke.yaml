@@ -1,0 +1,8 @@
+# Explicit engineering smoke override. Never use for E01 or formal training.
+services:
+  api:
+    environment:
+      TRAINING_MAX_STEPS: "2"
+  worker:
+    environment:
+      TRAINING_MAX_STEPS: "2"

@@ -1,0 +1,69 @@
+{
+  "status": "passed_for_local_real_demo",
+  "actual_services": true,
+  "mocked_routes": false,
+  "scope": "new account real browser/GPU engineering demo, not E01 or cloud",
+  "started_at": "2026-11-15T11:48:42.430Z",
+  "account_id": "81fe3915-2f44-4d4a-b9e5-7327737a6604",
+  "dataset_id": "ead79511-4f17-4a91-af7f-f4115c20cb70",
+  "task_id": "18c617b2-c024-4911-85f7-cd2f35dd97d1",
+  "task_status": "COMPLETED",
+  "visible_train_points": 2,
+  "download_filename": "llmcloud-adapter-18c617b2-c024-4911-85f7-cd2f35dd97d1.zip",
+  "inference": {
+    "http_status": 200,
+    "request_id": "cf72c78a-ff21-41c8-9592-682927edabb6",
+    "base_tokens": 64,
+    "adapter_tokens": 64
+  },
+  "narrow_width": 390,
+  "finished_at": "2026-11-15T11:49:21.734Z",
+  "video": "E:\\LLMCloud\\data\\local-validation\\m5-completion-20261115\\container-demo-02\\page@05da2fa9e26aeb877c9b1dd9309e2bc4.webm",
+  "deployment_scope": "All four services in containers on E-backed WSL ext4; private CDI GPU",
+  "source_report_sha256": "4ffa597a10c19591c4716a5f56dc1c71e7da4d21bcd6ed8bc5710eab6e1dc59b",
+  "artifact_audit": {
+    "zip_sha256": "990f98fdd9ad8aae6e3f8ef7734762cdaacc0109776cab9ff280b01891b73721",
+    "zip_size_bytes": 18067901,
+    "source_manifest_sha256": "a395344bbfe66456513499d346c480adc9497e1588bb6368e15b5534699fd2ff",
+    "extracted": {
+      "status": "artifacts_verified",
+      "contract_version": "1.0.0",
+      "task_id": "18c617b2-c024-4911-85f7-cd2f35dd97d1",
+      "base_model": "Qwen/Qwen2.5-0.5B-Instruct",
+      "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+      "file_count": 12,
+      "metric_count": 2,
+      "tensor_count": 96,
+      "review_status": "unknown",
+      "completed_steps": 2,
+      "reload_verified": false
+    },
+    "exact_source_bytes": true
+  },
+  "training_summary": {
+    "completed_steps": 2,
+    "total_steps": 2,
+    "elapsed_seconds": 19.016450203000204,
+    "peak_memory_allocated_bytes": 1235489280,
+    "trainable_parameters": 540672,
+    "total_parameters": 494573440,
+    "final_loss": 3.8488,
+    "eval_loss": null
+  },
+  "training_environment": {
+    "code_commit": "3e2e5c349c0b0c38704d04ebcc6a2c80a05f952b",
+    "working_tree_dirty": true,
+    "uv_lock_sha256": "e662c32b0db88fa5e2073693740c44fa9529ad6ca7d2f3f2db6c9616f1714b60",
+    "python_version": "3.12.12",
+    "cuda_runtime": "12.8",
+    "gpu_name": "NVIDIA GeForce RTX 3060 Laptop GPU",
+    "packages": {
+      "torch": "2.9.1+cu128",
+      "transformers": "4.57.6",
+      "datasets": "4.8.5",
+      "peft": "0.18.1",
+      "trl": "0.25.1",
+      "accelerate": "1.15.0"
+    }
+  }
+}

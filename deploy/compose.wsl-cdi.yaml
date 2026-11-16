@@ -1,0 +1,10 @@
+# Optional Docker 25+ CDI path, only after generating/registering an NVIDIA CDI spec.
+# This is for the E-drive private WSL daemon; standard cloud Toolkit uses compose.yaml.
+services:
+  worker:
+    deploy:
+      resources:
+        reservations:
+          devices: !reset []
+    devices:
+      - nvidia.com/gpu=all

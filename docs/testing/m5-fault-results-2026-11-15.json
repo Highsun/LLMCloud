@@ -1,0 +1,108 @@
+{
+  "version": "1.0.0",
+  "status": "passed_for_tested_scope",
+  "started_at": "2026-11-15T11:16:05.296521+00:00",
+  "model_revision": "7ae557604adf67be50417f59c2c2f167def9a775",
+  "engineering_draft": true,
+  "gpu_execution_verified": true,
+  "cases": {
+    "real_90s_timeout": {
+      "http_status": 504,
+      "code": "INFERENCE_TIMEOUT",
+      "request_id": "8147aaa3-aaed-4ca4-b28d-c077752ec927",
+      "elapsed_seconds": 90.06315324399998,
+      "first_token": {
+        "event": "real_first_token_generated",
+        "at_unix": 1794741380.9350832,
+        "sequence_tokens": 42,
+        "cuda": true,
+        "injected_pause_seconds": 95
+      },
+      "gpu_busy_during_cleanup": true,
+      "retry": {
+        "http_status": 200,
+        "request_id": "3190dfb6-98ec-46ef-82ab-ac9d0ce13774",
+        "elapsed_seconds": 12.70129590299996,
+        "base_tokens": 128,
+        "adapter_tokens": 76
+      },
+      "controlled_generation_stall": true
+    },
+    "worker_killed_and_recovered": {
+      "http_status": 500,
+      "code": "INFERENCE_FAILED",
+      "request_id": "bf1216f5-4fdc-4126-9767-6dabea0b8876",
+      "first_token": {
+        "event": "real_first_token_generated",
+        "at_unix": 1794741501.0026891,
+        "sequence_tokens": 42,
+        "cuda": true,
+        "injected_pause_seconds": 95
+      },
+      "retry": {
+        "http_status": 200,
+        "request_id": "8354cb15-660b-410c-acb3-2ac2dd22e858",
+        "elapsed_seconds": 18.286979729999985,
+        "base_tokens": 128,
+        "adapter_tokens": 76
+      }
+    },
+    "missing_cache": {
+      "http_status": 503,
+      "code": "MODEL_NOT_CACHED",
+      "request_id": "fcdd9ec2-67bf-4580-be07-bee0c95f7ee8",
+      "cache_source_unchanged": true,
+      "retry": {
+        "http_status": 200,
+        "request_id": "143c587a-e849-4d68-924e-f0d0ecc07e33",
+        "elapsed_seconds": 17.909428930000104,
+        "base_tokens": 128,
+        "adapter_tokens": 76
+      }
+    },
+    "publish_unknown_before_claim_late_delivery": {
+      "http_status": 503,
+      "code": "INFERENCE_UNAVAILABLE",
+      "request_id": "d239a7ab-92e1-497f-bba4-3969d2e2338c",
+      "retry": {
+        "http_status": 200,
+        "request_id": "d8b5f603-58a2-4040-8696-4292961406b3",
+        "elapsed_seconds": 19.45556560900002,
+        "base_tokens": 128,
+        "adapter_tokens": 76
+      }
+    },
+    "publish_unknown_after_claim_duplicate_delivery": {
+      "retry": {
+        "http_status": 200,
+        "request_id": "29a4eb56-50c0-4b6d-a483-3f483b9d76cb",
+        "elapsed_seconds": 11.935204739000028,
+        "base_tokens": 128,
+        "adapter_tokens": 76
+      },
+      "controlled_publish_ack_loss": true,
+      "real_redis_duplicate": true
+    },
+    "healthy_after_faults": {
+      "http_status": 200,
+      "request_id": "cbef6b82-006b-497f-918c-3d5672fc5d55",
+      "elapsed_seconds": 11.654691295999896,
+      "base_tokens": 128,
+      "adapter_tokens": 76
+    }
+  },
+  "artifacts": {},
+  "scope": "M5 real inference fault acceptance, controlled first-token stall",
+  "baseline_commit": "3e2e5c349c0b0c38704d04ebcc6a2c80a05f952b",
+  "baseline_dirty": true,
+  "source_data": "/home/l7/LLMCloud/data/acceptance/m5-inference/83945e3f-36b1-4093-bb5a-445bed478638/data",
+  "auth_enabled": false,
+  "historical_adapter": {
+    "task_id": "8e5c706b-332e-4922-97bb-54e8d0cf2e68",
+    "manifest_sha256": "c4bf07284875783eed07025da4530c6288124a2d9b7a268f4b54810b72aa379f",
+    "training_commit": "9b1165e38d083a7b8a8b0f4d36c2aeed96b826ca"
+  },
+  "source_unchanged": true,
+  "worker_lock_reacquired": true,
+  "owned_services_stopped": true
+}

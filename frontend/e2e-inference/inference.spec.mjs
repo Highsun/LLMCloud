@@ -19,6 +19,7 @@ async function setup(page, { available = true, total = 2 } = {}) {
   } }));
   await page.route("**/api/v1/**", (route) => {
     const url = new URL(route.request().url());
+    if (url.pathname.endsWith("/auth/config")) return json(route, { enabled: false });
     if (url.pathname.endsWith("/health")) return json(route, { status: "ok", service: "mock-inference-draft" });
     if (url.pathname.endsWith("/models")) return json(route, []);
     if (url.pathname.endsWith("/datasets")) return json(route, { items: [], page: 1, page_size: 20, total: 0, total_pages: 0 });
@@ -162,4 +163,35 @@ test("switching mode cancels compare wait before generating adapter-only answer"
   await expect(page.locator('[data-answer="adapter"] .model-output')).toHaveText("NEW ADAPTER");
   gate.resolve();
   await expect(page.locator('[data-answer="base"] .model-output')).toHaveCount(0);
+});
+
+test("120-second browser deadline preserves input and allows one manual retry", async ({ page }) => {
+  test.setTimeout(150000);
+  await setup(page);
+  const gate = held(), entered = held();
+  let requests = 0;
+  await page.route("**/api/v1/inference", async (route) => {
+    requests++;
+    const input = route.request().postDataJSON();
+    if (requests === 1) { entered.resolve(); await gate.promise; }
+    await json(route, response(input, "MANUAL RETRY RESULT")).catch(() => {});
+  });
+  await fill(page);
+  const started = Date.now();
+  await submit(page).click(); await entered.promise;
+  await expect(page.getByRole("alert")).toContainText("等待超过 120 秒", { timeout: 125000 });
+  const elapsed = Date.now() - started;
+  expect(elapsed).toBeGreaterThanOrEqual(119500);
+  expect(elapsed).toBeLessThan(130000);
+  await expect(page.locator("#prompt")).toHaveValue(fixture.request.prompt);
+  await expect(submit(page)).toBeEnabled();
+  expect(requests).toBe(1); // A client timeout never automatically resubmits GPU work.
+  gate.resolve();
+  await submit(page).click();
+  await expect(page.locator('[data-answer="adapter"] .model-output')).toHaveText("MANUAL RETRY RESULT");
+  expect(requests).toBe(2);
+  await test.info().attach("client-timeout-evidence", { body: JSON.stringify({
+    scope: "real browser clock; intercepted API, no GPU", elapsed_ms: elapsed,
+    configured_timeout_ms: 120000, requests, input_preserved: true, manual_retry: true,
+  }), contentType: "application/json" });
 });
