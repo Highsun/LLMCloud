@@ -4,7 +4,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Request, Response
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator
 from starlette.concurrency import run_in_threadpool
 
 from backend.app.api.tasks import parse_json_body, parse_query
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 class Credentials(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
-    username: str = Field(min_length=3, max_length=32, pattern=r"^[a-zA-Z0-9_]+$")
+    username: str = Field(min_length=3, max_length=32, pattern=r"^[a-zA-Z0-9_-]+$")
     password: str = Field(min_length=12, max_length=128, repr=False,
         json_schema_extra={"writeOnly": True, "format": "password"})
 
@@ -35,6 +35,19 @@ class PublicUser(BaseModel):
     model_config = ConfigDict(extra="forbid")
     id: str
     username: str
+    display_name: str
+
+
+class ProfileInput(BaseModel):
+    model_config = ConfigDict(extra="forbid", strict=True)
+    display_name: Annotated[str, StringConstraints(strip_whitespace=True, min_length=1, max_length=40)]
+
+    @field_validator("display_name")
+    @classmethod
+    def printable(cls, value):
+        if not value.isprintable():
+            raise ValueError("Display names must be printable")
+        return value
 
 
 def check_origin(request):
@@ -83,9 +96,11 @@ async def enabled(request: Request):
         check_origin(request)
 
 
-ERRORS = {status: {"model": ErrorResponse} for status in (401, 403, 409, 413, 422, 429, 503)}
+ERRORS = {status: {"model": ErrorResponse} for status in (400, 401, 403, 409, 413, 415, 422, 429, 503)}
 CREDENTIAL_BODY = {"requestBody": {"required": True, "content": {
     "application/json": {"schema": Credentials.model_json_schema()}}}}
+PROFILE_BODY = {"requestBody": {"required": True, "content": {
+    "application/json": {"schema": ProfileInput.model_json_schema()}}}}
 
 
 @router.get("/config")
@@ -118,6 +133,13 @@ async def login(request: Request, response: Response):
 async def me(response: Response, user: Annotated[dict, Depends(require_user)]):
     response.headers["Cache-Control"] = "no-store"
     return user
+
+
+@router.patch("/me", response_model=PublicUser, dependencies=[Depends(enabled)], responses=ERRORS, openapi_extra=PROFILE_BODY)
+async def update_profile(request: Request, user: Annotated[dict, Depends(require_user)]):
+    parse_query(request)
+    body = await parse_json_body(request, ProfileInput)
+    return await run_in_threadpool(request.app.state.auth_service.update_profile, user["id"], body.display_name)
 
 
 @router.post("/logout", status_code=204, dependencies=[Depends(enabled)], responses=ERRORS)

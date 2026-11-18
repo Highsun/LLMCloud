@@ -1,8 +1,9 @@
 """Password and opaque-session persistence; tokens and passwords are never logged."""
 
 from collections import OrderedDict, deque
-from hashlib import scrypt, sha256
+from hashlib import pbkdf2_hmac, scrypt, sha256
 import hmac
+import re
 import secrets
 import threading
 from time import monotonic, time
@@ -15,6 +16,7 @@ from backend.app.models.error_schemas import ApiErrorCode
 from backend.app.services.errors import DatasetServiceError
 
 COOKIE = "llmcloud_session"
+LEGACY_PASSWORD = re.compile(r"([0-9a-f]{32}):([0-9a-f]{64})")
 
 
 def failure(code, message, status):
@@ -38,6 +40,11 @@ _DUMMY = password_hash("constant-dummy-password-for-timing")
 
 def verify_password(password, encoded):
     encoded = encoded if isinstance(encoded, str) and encoded else None
+    legacy = LEGACY_PASSWORD.fullmatch(encoded or "")
+    if legacy:
+        salt, digest = legacy.groups()
+        actual = pbkdf2_hmac("sha256", password.encode("utf-8"), bytes.fromhex(salt), 600_000)
+        return hmac.compare_digest(actual.hex(), digest)
     try:
         parts = (encoded or _DUMMY).split("$")
         if (len(parts) != 6 or parts[:4] != ["scrypt", "16384", "8", "1"]
@@ -50,6 +57,10 @@ def verify_password(password, encoded):
         # Do the normal cost even for a corrupt stored hash.
         password_hash(password, bytes(16))
         return False
+
+
+def public_user(user):
+    return {"id": user.id, "username": user.username, "display_name": user.display_name or user.username}
 
 
 class AuthService:
@@ -82,7 +93,7 @@ class AuthService:
                 user = User(username=username, password_hash=encoded)
                 session.add(user)
                 session.flush()
-                return {"id": user.id, "username": user.username}
+                return public_user(user)
         except IntegrityError:
             raise failure(ApiErrorCode.USERNAME_UNAVAILABLE, "用户名不可用。", 409) from None
         except SQLAlchemyError:
@@ -94,13 +105,15 @@ class AuthService:
                 user = session.scalar(select(User).where(func.lower(User.username) == username))
                 if not verify_password(password, user.password_hash if user else None):
                     raise failure(ApiErrorCode.INVALID_CREDENTIALS, "用户名或密码错误。", 401)
+                if LEGACY_PASSWORD.fullmatch(user.password_hash):
+                    user.password_hash = password_hash(password)
                 token = secrets.token_urlsafe(32)
                 if old_token:
                     session.execute(delete(AuthSession).where(AuthSession.token_hash == sha256(old_token.encode()).hexdigest()))
                 session.execute(delete(AuthSession).where(AuthSession.expires_at <= time()))
                 session.add(AuthSession(token_hash=sha256(token.encode()).hexdigest(), user_id=user.id,
                     expires_at=time() + self.settings.auth_session_seconds))
-                result = {"id": user.id, "username": user.username}
+                result = public_user(user)
                 session.commit()
                 return result, token
         except SQLAlchemyError:
@@ -111,9 +124,20 @@ class AuthService:
             return None
         try:
             with self.sessions() as session:
-                row = session.execute(select(User.id, User.username).join(AuthSession, AuthSession.user_id == User.id)
+                row = session.execute(select(User.id, User.username, User.display_name).join(AuthSession, AuthSession.user_id == User.id)
                     .where(AuthSession.token_hash == sha256(token.encode()).hexdigest(), AuthSession.expires_at > time())).first()
-                return None if row is None else {"id": row.id, "username": row.username}
+                return None if row is None else public_user(row)
+        except SQLAlchemyError:
+            raise failure(ApiErrorCode.DATABASE_UNAVAILABLE, "账户存储暂时不可用。", 503) from None
+
+    def update_profile(self, user_id, display_name):
+        try:
+            with self.sessions.begin() as session:
+                user = session.get(User, user_id)
+                if user is None:
+                    raise failure(ApiErrorCode.AUTH_REQUIRED, "请先登录。", 401)
+                user.display_name = display_name
+                return public_user(user)
         except SQLAlchemyError:
             raise failure(ApiErrorCode.DATABASE_UNAVAILABLE, "账户存储暂时不可用。", 503) from None
 

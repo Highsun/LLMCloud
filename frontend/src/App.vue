@@ -8,8 +8,10 @@ import TrainingPanel from "./components/TrainingPanel.vue";
 import TasksPanel from "./components/TasksPanel.vue";
 import InferencePanel from "./components/InferencePanel.vue";
 import GuidePanel from "./components/GuidePanel.vue";
+import AccountPanel from "./components/AccountPanel.vue";
 
-defineProps({ account: { type: Object, default: null } });
+const props = defineProps({ account: { type: Object, default: null } });
+const emit = defineEmits(["account-updated"]);
 
 const pages = [
   {
@@ -37,12 +39,18 @@ const pages = [
 const current = ref("overview");
 const sidebarOpen = ref(false);
 const main = ref(null);
+const accountPage = { id: "account", label: "用户中心" };
+const displayName = computed(() => props.account?.display_name || props.account?.username);
+const avatar = computed(() => Array.from(displayName.value || "研")[0].toUpperCase());
 const page = computed(
-  () => pages.find((item) => item.id === current.value) || pages[0],
+  () => current.value === "account" && props.account
+    ? accountPage
+    : pages.find((item) => item.id === current.value) || pages[0],
 );
 function navigate(focus = true) {
   const hash = window.location.hash.slice(1);
-  current.value = pages.some((item) => item.id === hash) ? hash : "overview";
+  const isAccount = hash === accountPage.id && props.account;
+  current.value = isAccount || pages.some((item) => item.id === hash) ? hash : "overview";
   sidebarOpen.value = false;
   document.title = `${page.value.label} · LLMCloud`;
   if (focus)
@@ -82,8 +90,8 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
         ><span>LLMCloud<small>模型微调工作台</small></span></a
       >
       <div class="workspace-switch">
-        <span class="workspace-avatar">L</span>
-        <div><strong>{{ account?.username || '个人工作空间' }}</strong><small>{{ account ? '账户数据独立保存' : '单用户 · 实验环境' }}</small></div>
+        <span class="workspace-avatar">{{ account ? avatar : "L" }}</span>
+        <div><strong>{{ displayName || '个人工作空间' }}</strong><small>{{ account ? '账户数据独立保存' : '单用户 · 实验环境' }}</small></div>
         <span class="workspace-tag">MVP</span>
       </div>
       <div class="nav-label">工作空间</div>
@@ -101,6 +109,12 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
             >{{ workspace.tasks.total }}</span
           ></a
         >
+        <a
+          v-if="account"
+          href="#account"
+          :class="{ active: current === 'account' }"
+          :aria-current="current === 'account' ? 'page' : undefined"
+        ><AppIcon name="user" size="19" /><span>用户中心</span></a>
       </nav>
       <div class="nav-label resource-nav-label">支持与资源</div>
       <nav aria-label="资源导航">
@@ -183,9 +197,9 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
               size="17"
               :class="{ spinning: workspace.checking }"
             /></button
-          ><span class="topbar-divider" /><span class="user-avatar small"
-            >研</span
-          >
+          ><span class="topbar-divider" />
+          <a v-if="account" href="#account" class="user-avatar small" aria-label="打开用户中心">{{ avatar }}</a>
+          <span v-else class="user-avatar small">研</span>
         </div>
       </header>
       <main id="workspace-main" ref="main" tabindex="-1" class="main-content">
@@ -209,9 +223,10 @@ onBeforeUnmount(() => window.removeEventListener("hashchange", hashChanged));
           <span>服务能力检查未完成，上传与提交暂不可用。</span>
           <button class="text-button" @click="refreshWorkspace">刷新重试</button>
         </div>
-        <KeepAlive :include="['DatasetPanel', 'TrainingPanel', 'InferencePanel']"
-          ><component :is="page.component"
-        /></KeepAlive>
+        <KeepAlive :include="['DatasetPanel', 'TrainingPanel', 'InferencePanel']">
+          <AccountPanel v-if="page.id === 'account'" :account="account" @updated="emit('account-updated', $event)" />
+          <component v-else :is="page.component" />
+        </KeepAlive>
         <footer class="page-footer">
           <span
             >LLMCloud

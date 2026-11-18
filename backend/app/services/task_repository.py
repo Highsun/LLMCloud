@@ -2,6 +2,7 @@
 
 from contextlib import contextmanager
 from dataclasses import dataclass
+from hashlib import sha256
 import logging
 from uuid import UUID, uuid4
 
@@ -82,6 +83,13 @@ class SqlTaskRepository:
             digest = request_sha256(request)
             if key is not None:
                 prior = session.execute(select(TABLE).where(TABLE.c.idempotency_key == key)).mappings().one_or_none()
+                if prior is None and self.user_id is not None:
+                    # Recover interrupted submissions stored by the standalone account branch.
+                    owner_key = sha256(UUID(str(self.user_id)).bytes + UUID(key).bytes).digest()
+                    legacy_key = str(UUID(bytes=owner_key[:16], version=4))
+                    prior = session.execute(select(TABLE).where(
+                        TABLE.c.idempotency_key == legacy_key, *self._visibility()
+                    )).mappings().one_or_none()
                 if prior is not None:
                     if self.user_id is not None and session.scalar(select(Dataset.user_id).where(Dataset.id == prior["dataset_id"])) != self.user_id:
                         raise IdempotencyConflict("去重键不可用。")

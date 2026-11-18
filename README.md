@@ -12,9 +12,9 @@
 
 ## 一、当前进度
 
-**更新：2026-11-15。** M0/M1/M2工程交付完成；M3已有真实GPU/恢复与交叉异步复核，M4已有3060真实网页训练/观测/下载及补测。双方已同意用[异步证据复核替代原同步流程](docs/testing/m3-m4-async-review-2026-11-15.md)，核心证据可沿用，仅针对具体缺口补证据；本次新复核表不代填队友接受结论。
+**当前开发基线为 `main`。** 主线包含数据管理、LoRA 训练、指标与日志、Adapter 下载、对比推理和用户中心。整合沿用队友已实测的 GPU 容器版本，接下来以主线进行最后一轮本地 GPU 联调和 UI 优化。M3/M4 沿用已交付的实测证据，省略单独的异步复核。
 
-本日后续已补完[M5所列故障验收](docs/testing/m5-completion-2026-11-15.md)，包括真实90秒超时/GPU恢复与120秒浏览器等待；[登录/注册、数据归属与迁移](docs/authentication.md)已实现并回归。[受限部署](docs/deployment.md)、[真实业务演示](docs/testing/m5-demo-results-2026-11-15.json)和[课程报告/PPT/脚本](docs/course/README.md)已有独立交付；云上业务仍需目标服务器实测。M3/M4追加复核按用户新安排留开发完成后统一处理。
+[M5故障验收](docs/testing/m5-completion-2026-11-15.md)记录真实90秒超时、GPU恢复及120秒浏览器等待。[登录、用户中心与数据库迁移](docs/authentication.md)、[受限部署](docs/deployment.md)、[业务演示结果](docs/testing/m5-demo-results-2026-11-15.json)和[课程报告、PPT与脚本](docs/course/README.md)均已纳入主线。
 
 E01已完成正式120条/26族、96/16/8划分、1epoch训练、独立重载和一次性留出评估；[评分汇总](docs/testing/e01-rating-results-2026-11-15-b.md)记录用户个人25→33/48、A侧AI代评27→21/48，合计52→54/96，不能确认稳定质量提升或称双人人工盲评。[最新进度表](docs/project-status-2026-11-15.md)列出证据、分工及下一步。
 
@@ -85,7 +85,7 @@ LLMCloud/
 ├── uv.lock                     # 服务与训练依赖的统一锁文件
 ├── requirements.txt            # 从 uv.lock 导出的兼容文件
 ├── .env.example
-├── compose.yaml                # 开发用 Redis
+├── compose.yaml                # 前端、API、Redis 和单 GPU Worker
 ├── backend/
 │   └── app/
 │       ├── main.py
@@ -211,16 +211,7 @@ systemctl --user start llmcloud-redis.service
 redis-cli ping
 ```
 
-在其他已安装 Redis 的机器上，也可运行 `bash scripts/start_redis.sh` 在前台启动本地开发实例。用户服务与 Docker Redis 共用 6379 端口，二者选一种运行。
-
-若已安装 Docker Engine/Compose 或启用 Docker Desktop 的 WSL 集成：
-
-```bash
-docker compose up -d redis
-docker compose exec redis redis-cli ping
-```
-
-也可使用 WSL 中已有的 Redis，默认连接 `127.0.0.1:6379`。再从根目录运行：
+也可在装有 Redis 的机器上运行 `bash scripts/start_redis.sh`，或使用 WSL 中已有的 Redis。本机开发默认连接 `127.0.0.1:6379`。完整容器启动与旧库迁移见[部署说明](docs/deployment.md)，容器内的 Redis 只供 Compose 网络访问。使用本机 Redis 时，从根目录启动 Worker：
 
 ```bash
 bash scripts/start_worker.sh
@@ -234,7 +225,7 @@ Worker 使用 `solo` 池、并发 1、预取 1，并消费训练队列和默认�
 uv run --locked python -c 'from worker.tasks import ping; print(ping.delay().get(timeout=10))'
 ```
 
-预期结果：`{'status': 'ok', 'service': 'llmcloud-worker'}`。此检查不执行训练。停止开发用 Redis：`docker compose stop redis`。
+预期结果为 `{'status': 'ok', 'service': 'llmcloud-worker'}`。停止开发用 Redis 时，结束前台脚本或运行 `systemctl --user stop llmcloud-redis.service`。
 
 环境检查：`uv run --locked python scripts/check_environment.py --gpu`。本机安装位置、版本、Redis 管理和 Docker 安装步骤见 [docs/environment.md](docs/environment.md)。
 

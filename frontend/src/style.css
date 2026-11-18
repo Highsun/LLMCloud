@@ -279,6 +279,7 @@ progress::-webkit-progress-value {
 }
 .workspace-switch strong {
   font-size: 12px;
+  overflow-wrap: anywhere;
 }
 .workspace-switch small {
   display: block;
@@ -396,6 +397,7 @@ progress::-webkit-progress-value {
   width: 29px;
   height: 29px;
   font-size: 12px;
+  text-decoration: none;
 }
 .sidebar-footer strong {
   font-size: 12px;

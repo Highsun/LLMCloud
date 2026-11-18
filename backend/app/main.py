@@ -88,7 +88,7 @@ def create_app(settings: Settings | None = None, *, task_publisher=None, inferen
         auth_path=f"{settings.api_prefix}/auth", auth_enabled=settings.auth_enabled)
     app.add_middleware(
         CORSMiddleware, allow_origins=settings.cors_origins, allow_credentials=settings.auth_enabled,
-        allow_methods=["GET", "POST"], allow_headers=["Content-Type", "Idempotency-Key"],
+        allow_methods=["GET", "POST", "PATCH"], allow_headers=["Content-Type", "Idempotency-Key"],
         expose_headers=["X-Request-ID", "Location", "Content-Disposition", "Retry-After"],
     )
     app.add_middleware(RequestIDMiddleware)

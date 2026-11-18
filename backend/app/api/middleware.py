@@ -68,13 +68,13 @@ class APIErrorMiddleware:
 
         json_limits = {self.task_path: MAX_TASK_BODY_BYTES, self.inference_path: MAX_INFERENCE_BODY_BYTES}
         if self.auth_path:
-            json_limits.update({f"{self.auth_path}/{action}": MAX_TASK_BODY_BYTES for action in ("register", "login", "logout")})
+            json_limits.update({f"{self.auth_path}/{action}": MAX_TASK_BODY_BYTES for action in ("register", "login", "logout", "me")})
         is_json = path in json_limits
         limit = json_limits.get(path, MAX_MULTIPART_BYTES)
 
         def too_large():
             if is_json:
-                label = "任务" if path == self.task_path else "推理"
+                label = "任务" if path == self.task_path else "推理" if is_inference else "账户"
                 return DatasetServiceError(ApiErrorCode.REQUEST_TOO_LARGE, f"{label}请求正文超过允许大小。", 413,
                     [detail(["body"], "request_too_large", f"{label} JSON 请求正文不能超过 64 KiB。")])
             return DatasetServiceError(
@@ -84,7 +84,9 @@ class APIErrorMiddleware:
 
         try:
             bounded_receive = receive
-            if scope["method"] == "POST" and (path == self.upload_path or is_json):
+            if (scope["method"] == "POST" and path == self.upload_path) or (
+                scope["method"] in ("POST", "PATCH") and is_json
+            ):
                 lengths = Headers(scope=scope).getlist("content-length")
                 if lengths:
                     if len(lengths) != 1 or not lengths[0].isascii() or not lengths[0].isdigit():

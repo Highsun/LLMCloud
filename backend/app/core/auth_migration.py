@@ -18,12 +18,11 @@ class AuthSchemaMigrationRequired(RuntimeError):
 
 
 def require_auth_schema(engine):
-    inspector = inspect(engine)
-    if inspector.has_table("users") and "password_hash" not in {c["name"] for c in inspector.get_columns("users")}:
-        raise AuthSchemaMigrationRequired("账户表需要显式迁移：python scripts/migrate_auth.py --check；停服务后 --apply --services-stopped。")
-    if inspector.has_table("users"):
+    if inspect(engine).has_table("users"):
         with engine.connect() as connection:
             report = _plan(connection.connection.driver_connection, None, ())
+        if report.state == "ready":
+            raise AuthSchemaMigrationRequired("账户表需要显式迁移：python scripts/migrate_auth.py --check；停服务后 --apply --services-stopped。")
         if report.state in ("unsupported_schema", "blocked"):
             raise AuthSchemaMigrationRequired("账户数据库结构无法识别，请先执行 migrate_auth.py --check 并核对报告。")
 
@@ -46,9 +45,16 @@ def _plan(connection, assign_to_user, dataset_ids):
     if not columns:
         return AuthMigrationReport("not_initialized")
     old = {"id", "username", "created_at"}
-    if set(columns) not in (old, old | {"password_hash"}):
+    credentials = old | {"password_hash"}
+    profile = credentials | {"display_name"}
+    if set(columns) not in (old, credentials, profile):
         return AuthMigrationReport("unsupported_schema", issues=["unknown_users_columns"])
-    expected = {"id": "VARCHAR(36)", "username": "VARCHAR(64)", "created_at": "DATETIME", "password_hash": "VARCHAR(255)"}
+    expected = {"id": "VARCHAR(36)", "username": "VARCHAR(64)", "created_at": "DATETIME",
+                "password_hash": "VARCHAR(255)", "display_name": "VARCHAR(40)"}
+    # The standalone account branch used VARCHAR(160). SQLite does not enforce
+    # this length, so existing rows can be upgraded to scrypt in place.
+    if "display_name" in columns and columns["password_hash"][2].upper() == "VARCHAR(160)":
+        expected["password_hash"] = "VARCHAR(160)"
     if any(column[2].upper() != expected[name] for name, column in columns.items()):
         return AuthMigrationReport("unsupported_schema", issues=["unknown_users_types"])
     if not columns["id"][5] or any(not columns[name][3] for name in old):
@@ -72,7 +78,7 @@ def _plan(connection, assign_to_user, dataset_ids):
         indexed = {tuple(column[2] for column in connection.execute(f'PRAGMA index_info("{row[1]}")')) for row in indexes}
         if not {("token_hash",), ("user_id",), ("expires_at",)}.issubset(indexed):
             return AuthMigrationReport("unsupported_schema", issues=["session_indexes_missing"])
-    ready = "password_hash" not in columns or not session_columns
+    ready = "display_name" not in columns or not session_columns
     report = AuthMigrationReport("ready" if ready else "current", users=connection.execute("SELECT count(*) FROM users").fetchone()[0])
     if connection.execute("SELECT lower(username) FROM users GROUP BY lower(username) HAVING count(*)>1 LIMIT 1").fetchone():
         report.issues.append("case_insensitive_username_collision")
@@ -138,8 +144,11 @@ def migrate_auth(engine, data_dir, *, apply=False, services_stopped=False, assig
                 connection.rollback()
                 report.backup_path = str(backup)
                 return report
-            if "password_hash" not in {row[1] for row in connection.execute("PRAGMA table_info(users)")}:
+            user_columns = {row[1] for row in connection.execute("PRAGMA table_info(users)")}
+            if "password_hash" not in user_columns:
                 connection.execute("ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)")
+            if "display_name" not in user_columns:
+                connection.execute("ALTER TABLE users ADD COLUMN display_name VARCHAR(40)")
             if not connection.execute("SELECT 1 FROM sqlite_master WHERE type='table' AND name='auth_sessions'").fetchone():
                 connection.execute(str(CreateTable(AuthSession.__table__).compile(dialect=dialect())))
                 for index in AuthSession.__table__.indexes:

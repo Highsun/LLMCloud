@@ -15,16 +15,17 @@
 | 方法与路径（`/api/v1` 下） | 行为 |
 | --- | --- |
 | `GET /auth/config` | 返回 `{"enabled":true/false}`，不暴露账户资料 |
-| `POST /auth/register` | `username/password`；201 返回 `id/username`，不自动领取历史数据 |
+| `POST /auth/register` | `username/password`；201 返回 `id/username/display_name`，不自动领取历史数据 |
 | `POST /auth/login` | 相同输入；200 返回账户及 HttpOnly 会话 cookie |
 | `GET /auth/me` | 当前账户；未登录/到期为 401 `AUTH_REQUIRED` |
+| `PATCH /auth/me` | 登录后更新 `display_name`，接受去除首尾空白后的 1～40 个可打印字符，返回更新后的账户 |
 | `POST /auth/logout` | 删除当前会话并清 cookie；204，可重复调用 |
 
-用户名为 3～32 位 ASCII 字母、数字、下划线，统一小写；密码 12～128 个字符、最多 512 UTF-8 字节，不写入日志、响应、命令行或浏览器存储。登录失败统一 `401 INVALID_CREDENTIALS`，缺失账户和错误口令走相同 scrypt 成本；重名注册为 `409 USERNAME_UNAVAILABLE`。JSON 使用既有严格解析（重复/未知键拒绝、64 KiB 上限、只接受 UTF-8 application/json）。参数错误继续使用既有 `VALIDATION_ERROR`。
+用户名为 3～32 位 ASCII 字母、数字、下划线或连字符，统一小写。密码 12～128 个字符、最多 512 UTF-8 字节，不写入日志、响应、命令行或浏览器存储。登录失败统一为 `401 INVALID_CREDENTIALS`，重名注册为 `409 USERNAME_UNAVAILABLE`。JSON 使用既有严格解析（重复/未知键拒绝、64 KiB 上限、只接受 UTF-8 application/json）。参数错误继续使用既有 `VALIDATION_ERROR`。
 
 密码采用独立随机 16 字节盐的 scrypt（N=16384,r=8,p=1），数据库仅保留参数、盐和摘要。会话为随机 opaque token，SQLite 仅存其 SHA-256 与过期时间；cookie 为 `llmcloud_session`，HttpOnly、SameSite=Strict、Path=/，登录旋转当前会话，注销/到期失效。账户模式响应设置 no-store。非安全方法检查明确 Origin 和 Fetch Metadata，拒绝跨站请求。每 API 进程按实际连接地址限制注册/登录合计 10 次/分钟，状态有界；这是受限课程环境的基础节流，不是多副本共享的公网防滥用系统。
 
-前端提供注册/登录/退出、会话到期提示；退出和账户切换完整重载，避免保留上一账户页面状态；提交恢复记录按账户 ID 分区，不存密码或 token。跨标签页账户变化通知只传变化标记。原有任务配置和推理/下载的取消与超时行为保留。
+前端提供注册、登录、退出和会话到期提示。用户中心可修改显示名称，并进入当前账户的数据集和训练任务。退出和账户切换会重载页面，提交恢复记录按账户 ID 分区，跨标签页只传账户变化标记。
 
 ## 数据归属
 
@@ -34,7 +35,7 @@ Worker 继续使用未按用户过滤的内部仓储领取业务任务，所有�
 
 ## 已有 SQLite 的升级
 
-先在实际运行环境设置正确的 `DATA_DIR/LOG_DIR/DATABASE_URL`，保留原 `.env` 和运行数据，不把数据库移到代码盘。新空库启动会建完整 schema；已有用户表缺少 `password_hash` 时，账户模式启动明确拒绝并要求迁移，不用 `create_all` 偷改旧表。
+先在实际运行环境设置正确的 `DATA_DIR/LOG_DIR/DATABASE_URL`，保留原 `.env` 和运行数据。新空库启动会建完整结构。已有库缺少凭据、显示名称或会话表时，使用以下命令完成显式迁移。
 
 ```bash
 uv run --locked python scripts/migrate_auth.py --check
@@ -44,13 +45,15 @@ uv run --locked python scripts/migrate_auth.py --apply --services-stopped
 
 迁移只支持可识别 SQLite 用户/会话结构，校验列、类型、会话 PK/FK/索引和既有外键。应用前使用 SQLite backup API（包含 WAL 中已提交内容）写 `DATA_DIR/backups/auth-before-migration-*.sqlite3`，在 `BEGIN IMMEDIATE` 中重核并提交。CLI 取得原公共 Worker 锁；`--services-stopped` 是操作者对 API 已停止的明确声明，不宣称锁能探测所有 API 进程。检查默认只读，不创建不存在的数据库；重复应用无变更。未知结构/已有外键错误拒绝，保留旧数据。备份包含账户和会话摘要，应与数据库同样保护。
 
-旧用户保留原 UUID/用户名/时间及现有归属，密码字段保持 NULL，不能凭空生成凭据。保留的 ASCII 用户名按不区分大小写查询；旧库已有大小写别名冲突时迁移报告阻塞，不能静默选择其中一个。确需启用旧账户或重置密码，停止服务后，在交互终端运行：
+旧用户保留原 UUID、用户名、创建时间和数据归属。原来没有凭据的账户迁移后密码字段仍为 NULL。ASCII 用户名按不区分大小写查询，发现大小写别名冲突时迁移会停止。确需启用旧账户或重置密码，停止服务后，在交互终端运行：
 
 ```bash
 uv run --locked python scripts/set_user_password.py --user-id EXISTING_USER_UUID --services-stopped
 ```
 
 命令使用两次隐藏的 getpass 输入确认，复用注册密码规则；不接受命令行、文件或 stdin 管道口令。先备份为 `auth-before-password-reset-*.sqlite3`，取得公共 Worker 锁后更新原账户密码，并作废该账户所有会话。它不更改用户名、数据归属或其他账户。备份回滚会恢复旧会话信息，恢复操作须停服务并按整库恢复方案处理。
+
+原 `feature/user-system` 的 SQLite 库可走同一迁移入口。账户 UUID、显示名称、数据归属和密码继续有效，原会话需要重新登录。首次成功登录将 PBKDF2 凭据升级为 scrypt。
 
 历史 `user_id=NULL` 数据默认不分配。用新账户注册登录后，从 `/auth/me` 获取其真实 UUID；双方明确归属后，可仅对指定数据集检查并应用：
 
